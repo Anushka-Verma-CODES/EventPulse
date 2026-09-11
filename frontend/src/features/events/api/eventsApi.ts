@@ -13,7 +13,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 250,
     capacityRegistered: 166,
     isRegistered: false,
-    imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80',
+    imageUrl: 'https://images.squarespace-cdn.com/content/v1/5fce63270356d927d7eecdbd/7ae672e3-5dae-4987-9478-709fe2f3c993/event_.jpg?format=2500w',
     gates: [
       { id: 'g0', name: 'North Gate' },
       { id: 'g1', name: 'Main Gate' },
@@ -31,7 +31,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 80,
     capacityRegistered: 52,
     isRegistered: true,
-    imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+    imageUrl: 'https://www.zartis.com/wp-content/uploads/2026/03/ccl-5-1024x576.jpeg',
     gates: [{ id: 'g0', name: 'Lab Entrance' }],
   },
   {
@@ -46,7 +46,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 180,
     capacityRegistered: 142,
     isRegistered: false,
-    imageUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80',
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6ugCL1bDuhur8OFzXMoYCxlp2C_gv2eWZqbN7yaZqbgtcCFFMaFTwLlo&s=10',
     gates: [{ id: 'g0', name: 'Auditorium Gate' }],
   },
     {
@@ -61,7 +61,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 400,
     capacityRegistered: 220,
     isRegistered: false,
-    imageUrl: 'https://picsum.photos/seed/robotics/600/400',
+    imageUrl: 'https://media.ahmedabadmirror.com/am/uploads/mediaGallery/image/1713814135427.jpg-org',
     gates: [{ id: 'g1', name: 'Gate A — Main' }, { id: 'g2', name: 'Gate B — Side' }],
   },
   {
@@ -76,7 +76,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 80,
     capacityRegistered: 76,
     isRegistered: false,
-    imageUrl: 'https://picsum.photos/seed/aimlboot/600/400',
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGvH7W4a42owWTp7J9Ozu2alZ4GYEJ_cDvzxst0dcAI4af9Ia9jx6dx5vk&s=10',
     gates: [{ id: 'g1', name: 'Main Entry' }],
   },
   {
@@ -91,7 +91,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 800,
     capacityRegistered: 505,
     isRegistered: false,
-    imageUrl: 'https://picsum.photos/seed/battlebands/600/400',
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNvuJklQN8J1swt_TcmHirVFFaJ2pXWNFVCyGBLHBzSg&s',
     gates: [{ id: 'g1', name: 'Gate A — North' }, { id: 'g2', name: 'Gate B — South' }],
   },
   {
@@ -106,7 +106,7 @@ export const MOCK_EVENTS: EventItem[] = [
     capacityTotal: 30,
     capacityRegistered: 9,
     isRegistered: false,
-    imageUrl: 'https://picsum.photos/seed/resumeclinic/600/400',
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQR_fSQMk6KhcxiYy2-F9-XzbmglTaIWjr4ODpnd-YDnAqXR6FPCZklknoF&s=10',
     gates: [{ id: 'g1', name: 'Main Entry' }],
   },
 ];

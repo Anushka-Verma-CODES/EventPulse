@@ -39,30 +39,27 @@ export default function EventsListPage() {
     <div className="min-h-screen bg-base-200">
 
 
-   <div
-  className="hero py-14 text-neutral-content bg-cover bg-center"
+<div
+  className="hero py-14 text-neutral-content bg-cover bg-center relative"
   style={{
     backgroundImage:
       "linear-gradient(rgba(23,23,23,0.75), rgba(23,23,23,0.75)), url('/event-hero.png')",
   }}
 >
+  <Link to="/events/new" className="btn btn-primary absolute top-0 right-6">
+     Create Event
+  </Link>
+
   <div className="hero-content flex-col items-start max-w-6xl w-full">
-    <div className="flex justify-between items-end w-full flex-wrap gap-4">
-      <div>
-        <h1 className="text-3xl font-bold mb-1">What's happening on campus</h1>
-        <p className="opacity-70">Browse and register for upcoming events</p>
-      </div>
-      <Link to="/events/new" className="btn btn-primary">
-        + Create Event
-      </Link>
-    </div>
+    <h1 className="text-3xl font-bold mb-1">What's happening on campus</h1>
+    <p className="opacity-70 mb-6">Browse and register for upcoming events</p>
 
     <input
       type="text"
       placeholder="Search events…"
       value={search}
       onChange={(e) => setSearch(e.target.value)}
-      className="input input-bordered w-full max-w-md mt-6"
+      className="input input-bordered w-full max-w-md"
     />
   </div>
 </div>
