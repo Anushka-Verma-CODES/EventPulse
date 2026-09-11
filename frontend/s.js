@@ -1,5 +1,55 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+// ...keep your other existing imports
+
+// inside the return, replace just the hero div:
+<div
+  className="hero py-14 text-neutral-content bg-cover bg-center"
+  style={{
+    backgroundImage:
+      "linear-gradient(rgba(23,23,23,0.75), rgba(23,23,23,0.75)), url('/event-hero.png')",
+  }}
+>
+  <div className="hero-content flex-col items-start max-w-6xl w-full">
+    <div className="flex justify-between items-end w-full flex-wrap gap-4">
+      <div>
+        <h1 className="text-3xl font-bold mb-1">What's happening on campus</h1>
+        <p className="opacity-70">Browse and register for upcoming events</p>
+      </div>
+      <Link to="/events/new" className="btn btn-primary">
+        + Create Event
+      </Link>
+    </div>
+
+    <input
+      type="text"
+      placeholder="Search events…"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      className="input input-bordered w-full max-w-md mt-6"
+    />
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useEffect, useMemo, useState } from 'react';
 import type { EventItem } from '../types/event';
 import { getEvents } from '../features/events/api/eventsApi';
 import { EventCard } from '../features/events/components/EventCard';
@@ -39,7 +89,7 @@ export default function EventsListPage() {
     <div className="min-h-screen bg-base-200">
 
 
-   <div
+      <div
   className="hero py-14 text-neutral-content bg-cover bg-center"
   style={{
     backgroundImage:
@@ -66,7 +116,6 @@ export default function EventsListPage() {
     />
   </div>
 </div>
-
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex gap-2 mb-6 flex-wrap">
           <button
