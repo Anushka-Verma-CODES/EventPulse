@@ -16,10 +16,7 @@ export default function EventsListPage() {
     });
   }, []);
 
-  const categories = useMemo(
-    () => Array.from(new Set(events.map((e) => e.category))),
-    [events]
-  );
+  const categories = useMemo(() => Array.from(new Set(events.map((e) => e.category))), [events]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -29,37 +26,35 @@ export default function EventsListPage() {
     });
   }, [events, search, activeCategory]);
 
-  if (loading) return <div className="text-center mt-10 text-gray-500">Loading events…</div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center mt-20">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* hero */}
-      <div className="bg-gray-900 text-white px-6 py-12">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">What's happening on campus</h1>
-          <p className="text-gray-400 mb-6">Browse and register for upcoming events</p>
-
+    <div className="min-h-screen bg-base-200">
+      <div className="hero bg-neutral text-neutral-content py-14">
+        <div className="hero-content flex-col items-start max-w-6xl w-full">
+          <h1 className="text-3xl font-bold mb-1">What's happening on campus</h1>
+          <p className="opacity-70 mb-6">Browse and register for upcoming events</p>
           <input
             type="text"
             placeholder="Search events…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-md px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700
-                       text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="input input-bordered w-full max-w-md"
           />
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 -mt-6">
-        {/* category filters */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex gap-2 mb-6 flex-wrap">
           <button
             onClick={() => setActiveCategory(null)}
-            className={`text-xs font-semibold px-3.5 py-2 rounded-full border transition ${
-              activeCategory === null
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-            }`}
+            className={`btn btn-sm ${activeCategory === null ? 'btn-primary' : 'btn-outline'}`}
           >
             All
           </button>
@@ -67,11 +62,7 @@ export default function EventsListPage() {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`text-xs font-semibold px-3.5 py-2 rounded-full border transition ${
-                activeCategory === cat
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-              }`}
+              className={`btn btn-sm ${activeCategory === cat ? 'btn-primary' : 'btn-outline'}`}
             >
               {cat}
             </button>
@@ -79,9 +70,9 @@ export default function EventsListPage() {
         </div>
 
         {filteredEvents.length === 0 ? (
-          <div className="text-center text-gray-400 py-16">No events match your search.</div>
+          <div className="text-center text-base-content/50 py-16">No events match your search.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
