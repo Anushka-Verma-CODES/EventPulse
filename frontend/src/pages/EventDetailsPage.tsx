@@ -53,7 +53,11 @@ export default function EventDetailsPage() {
           ← Back to events
         </Link>
 
-        <div className="card bg-base-100 shadow-sm border border-base-300 mt-4">
+        <div className="card bg-base-100 shadow-sm border border-base-300 mt-4 overflow-hidden">
+          <figure className="h-56">
+            <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+          </figure>
+
           <div className="card-body">
             <div className="flex justify-between items-start">
               <h1 className="card-title text-2xl">{event.name}</h1>

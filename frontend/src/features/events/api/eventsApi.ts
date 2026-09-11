@@ -1,58 +1,161 @@
-import type { EventItem } from '../../../types/event';
+import type { EventItem, NewEventInput } from '../../../types/event';
 
-const MOCK_EVENTS: EventItem[] = [
+export const MOCK_EVENTS: EventItem[] = [
   {
-    id: 'evt_001',
+    id: 'evt_ascend2026',
     name: 'Ascend — Tech Fest',
     date: 'Sat, 21 Mar 2026',
-    venue: 'Main Campus, Thapar',
+    venue: 'Main Campus Lawn',
     category: 'Tech Fest',
-    shortDescription: 'A two-day celebration of tech, code, and innovation.',
+    shortDescription: 'A 1-day festival of hacking, demos, and innovation.',
     fullDescription:
-      'Ascend brings together hackathons, tech talks, robotics demos, and startup pitches from across the region. Open to all students with valid college ID.',
-    capacityTotal: 1000,
-    capacityRegistered: 742,
+      'Join Ascend for a full day of product demos, startup talks, and a student hack challenge with live judging and networking opportunities.',
+    capacityTotal: 250,
+    capacityRegistered: 166,
     isRegistered: false,
+    imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80',
+    gates: [
+      { id: 'g0', name: 'North Gate' },
+      { id: 'g1', name: 'Main Gate' },
+    ],
   },
   {
-    id: 'evt_002',
-    name: 'CodeCraft Workshop',
-    date: 'Wed, 4 Feb 2026',
-    venue: 'CS Block, Room 204',
+    id: 'evt_aiworkshop',
+    name: 'AI for Builders Workshop',
+    date: 'Tue, 24 Mar 2026',
+    venue: 'Innovation Lab',
     category: 'Workshop',
-    shortDescription: 'Hands-on full-stack workshop for beginners.',
+    shortDescription: 'Hands-on sessions on practical AI workflows and prototyping.',
     fullDescription:
-      'A 3-hour hands-on session covering React basics, REST APIs, and deploying your first app. Laptops required. Limited seats.',
-    capacityTotal: 60,
-    capacityRegistered: 58,
-    isRegistered: false,
+      'Learn how to build with AI tools using real app demos, prompt engineering patterns, and workflow design for student teams.',
+    capacityTotal: 80,
+    capacityRegistered: 52,
+    isRegistered: true,
+    imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+    gates: [{ id: 'g0', name: 'Lab Entrance' }],
   },
   {
-    id: 'evt_003',
-    name: 'Rhythms — Cultural Night',
-    date: 'Fri, 13 Feb 2026',
+    id: 'evt_cultrave',
+    name: 'Cultrave Night',
+    date: 'Fri, 27 Mar 2026',
+    venue: 'Auditorium',
+    category: 'Cultural',
+    shortDescription: 'An evening of music, dance, and campus performances.',
+    fullDescription:
+      'Experience a vibrant cultural showcase featuring dance, vocal performances, and live music from student groups across campus.',
+    capacityTotal: 180,
+    capacityRegistered: 142,
+    isRegistered: false,
+    imageUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80',
+    gates: [{ id: 'g0', name: 'Auditorium Gate' }],
+  },
+    {
+    id: 'evt_009',
+    name: 'Robotics Showdown',
+    date: 'Sat, 14 Mar 2026',
+    venue: 'Mechanical Block Ground',
+    category: 'Tech Fest',
+    shortDescription: 'Student-built bots compete head to head.',
+    fullDescription:
+      'Teams battle custom-built robots in an obstacle and combat arena. Open registration for competitors, free entry for spectators. Judged rounds followed by a knockout final.',
+    capacityTotal: 400,
+    capacityRegistered: 220,
+    isRegistered: false,
+    imageUrl: 'https://picsum.photos/seed/robotics/600/400',
+    gates: [{ id: 'g1', name: 'Gate A — Main' }, { id: 'g2', name: 'Gate B — Side' }],
+  },
+  {
+    id: 'evt_010',
+    name: 'AI/ML Bootcamp',
+    date: 'Sat, 28 Feb 2026',
+    venue: 'CS Block, Seminar Hall',
+    category: 'Workshop',
+    shortDescription: 'Full-day intro to machine learning fundamentals.',
+    fullDescription:
+      'Covers regression, classification, and a hands-on model-training session using Python. No prior ML experience required, basic Python knowledge expected. Certificate of participation provided.',
+    capacityTotal: 80,
+    capacityRegistered: 76,
+    isRegistered: false,
+    imageUrl: 'https://picsum.photos/seed/aimlboot/600/400',
+    gates: [{ id: 'g1', name: 'Main Entry' }],
+  },
+  {
+    id: 'evt_011',
+    name: 'Battle of Bands',
+    date: 'Fri, 6 Mar 2026',
     venue: 'Open Air Theatre',
     category: 'Cultural',
-    shortDescription: 'Music, dance, and drama performances by student clubs.',
+    shortDescription: 'Campus bands compete for the top spot.',
     fullDescription:
-      'An evening of performances from the music, dance, and theatre societies, followed by an open mic session. Free entry for all students.',
-    capacityTotal: 2000,
-    capacityRegistered: 1310,
-    isRegistered: true,
+      'Six shortlisted student bands perform live, judged by a panel including a local music producer. Audience choice award also up for grabs via live voting.',
+    capacityTotal: 800,
+    capacityRegistered: 505,
+    isRegistered: false,
+    imageUrl: 'https://picsum.photos/seed/battlebands/600/400',
+    gates: [{ id: 'g1', name: 'Gate A — North' }, { id: 'g2', name: 'Gate B — South' }],
+  },
+  {
+    id: 'evt_012',
+    name: 'Resume & LinkedIn Clinic',
+    date: 'Wed, 18 Feb 2026',
+    venue: 'Placement Cell Office',
+    category: 'Workshop',
+    shortDescription: 'One-on-one resume review with placement mentors.',
+    fullDescription:
+      'Drop-in sessions where placement cell mentors and senior students review your resume and LinkedIn profile live and suggest improvements. First-come, first-served slots.',
+    capacityTotal: 30,
+    capacityRegistered: 9,
+    isRegistered: false,
+    imageUrl: 'https://picsum.photos/seed/resumeclinic/600/400',
+    gates: [{ id: 'g1', name: 'Main Entry' }],
   },
 ];
 
 export async function getEvents(): Promise<EventItem[]> {
   await new Promise((resolve) => setTimeout(resolve, 400));
-  return MOCK_EVENTS;
+  return [...MOCK_EVENTS];
 }
 
-export async function getEventById(id: string): Promise<EventItem | undefined> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return MOCK_EVENTS.find((e) => e.id === id);
+export async function getEventById(eventId: string): Promise<EventItem | null> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  return MOCK_EVENTS.find((event) => event.id === eventId) ?? null;
 }
 
-export async function registerForEvent(id: string): Promise<{ success: boolean }> {
+export async function registerForEvent(eventId: string): Promise<{ success: boolean; message?: string }> {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return { success: MOCK_EVENTS.some((event) => event.id === id) };
+
+  const event = MOCK_EVENTS.find((item) => item.id === eventId);
+  if (!event) {
+    return { success: false, message: 'Event not found.' };
+  }
+
+  if (event.capacityRegistered >= event.capacityTotal) {
+    return { success: false, message: 'This event is already full.' };
+  }
+
+  event.capacityRegistered += 1;
+  event.isRegistered = true;
+  return { success: true, message: 'Registration successful.' };
+}
+
+export async function createEvent(input: NewEventInput): Promise<EventItem> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const newEvent: EventItem = {
+    id: `evt_${Date.now()}`,
+    name: input.name,
+    date: input.date,
+    venue: input.venue,
+    category: input.category,
+    shortDescription: input.shortDescription,
+    fullDescription: input.fullDescription,
+    capacityTotal: input.capacityTotal,
+    capacityRegistered: 0,
+    isRegistered: false,
+    imageUrl: `https://picsum.photos/seed/${encodeURIComponent(input.name)}/600/400`,
+    gates: input.gates.map((name, i) => ({ id: `g${i}`, name })),
+  };
+
+  MOCK_EVENTS.push(newEvent);
+  return newEvent;
 }

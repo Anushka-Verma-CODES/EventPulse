@@ -18,7 +18,14 @@ export function EventCard({ event }: EventCardProps) {
   const badgeClass = categoryBadge[event.category] ?? 'badge-neutral';
 
   return (
-    <Link to={`/events/${event.id}`} className="card bg-base-100 shadow-sm hover:shadow-md transition-shadow border border-base-300">
+    <Link
+      to={`/events/${event.id}`}
+      className="card bg-base-100 shadow-sm hover:shadow-md transition-shadow border border-base-300 overflow-hidden"
+    >
+      <figure className="h-40">
+        <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+      </figure>
+
       <div className="card-body gap-3">
         <div className="flex justify-between items-start">
           <h3 className="card-title text-base">{event.name}</h3>
@@ -31,11 +38,7 @@ export function EventCard({ event }: EventCardProps) {
 
         <p className="text-sm text-base-content/80 line-clamp-2">{event.shortDescription}</p>
 
-        <progress
-          className="progress progress-primary w-full"
-          value={percentFull}
-          max={100}
-        />
+        <progress className="progress progress-primary w-full" value={percentFull} max={100} />
 
         <div className="flex justify-between items-center">
           {event.isRegistered ? (
