@@ -6,6 +6,7 @@ import EventDetailsPage from '../pages/EventDetailsPage';
 import CreateEventPage from '../pages/CreateEventPage';
 import ProfilePage from '../pages/ProfilePage';
 import Login from '../pages/auth/Login';
+import HomePage from '../pages/HomePage';
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,7 @@ export function AppRoutes() {
       <Route path="/login" element={<Login />} />
 
       {/* Existing pages keep the Navbar via MainLayout */}
+      <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
       <Route path="/events" element={<MainLayout><EventsListPage /></MainLayout>} />
       <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} />
