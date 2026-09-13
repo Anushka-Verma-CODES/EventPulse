@@ -11,7 +11,14 @@ export interface LoginCredentials {
   password: string;
 }
 
-export type AuthErrorType = "invalid_credentials" | "server_error" | "network_error";
+export interface RegisterPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
+export type AuthErrorType = "invalid_credentials" | "email_exists" | "server_error" | "network_error";
 
 export class AuthError extends Error {
   type: AuthErrorType;
