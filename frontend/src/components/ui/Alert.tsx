@@ -8,9 +8,9 @@ interface AlertProps {
 }
 
 const toneStyles: Record<AlertTone, string> = {
-  error: "bg-[#FDECEC] text-[#8A2626] border-[#F6C6C6]",
-  success: "bg-[#E9F9F1] text-[#0E5C3D] border-[#B9EBD3]",
-  info: "bg-[#EAF0FF] text-[#1E3B8A] border-[#C9D8FF]",
+  error: "bg-[#FEF2F2] text-[#DC2626] border-[#FECACA]",
+  success: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]",
+  info: "bg-[#EFF6FF] text-[#2563EB] border-[#DBEAFE]",
 };
 
 export default function Alert({ tone, children }: AlertProps) {

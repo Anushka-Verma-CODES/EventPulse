@@ -62,8 +62,13 @@ export default function LoginForm({ onSubmit, onSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-medium text-[#12173D]">Welcome back</h1>
-        <p className="mt-1 text-sm text-[#6A6F9A]">Sign in to continue to EventPulse.</p>
+        <span className="text-xs font-semibold tracking-wide text-[#2563EB]">
+          WELCOME BACK
+        </span>
+        <h1 className="mt-1 text-2xl font-bold text-[#1E293B]">Sign in to EventPulse</h1>
+        <p className="mt-1 text-sm text-[#64748B]">
+          Plan, operate and analyze your events from one place.
+        </p>
       </div>
 
       {formError && <Alert tone="error">{formError}</Alert>}
@@ -89,7 +94,7 @@ export default function LoginForm({ onSubmit, onSuccess }: LoginFormProps) {
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors.password}
         />
-        <a href="/forgot-password" className="mt-2 inline-block text-xs text-[#3A63D6] hover:underline">
+        <a href="/forgot-password" className="mt-2 inline-block text-xs text-[#2563EB] hover:underline">
           Forgot password?
         </a>
       </div>
@@ -98,9 +103,9 @@ export default function LoginForm({ onSubmit, onSuccess }: LoginFormProps) {
         {isSubmitting ? "Logging in..." : "Login"}
       </Button>
 
-      <p className="text-center text-sm text-[#6A6F9A]">
+      <p className="text-center text-sm text-[#64748B]">
         Don&apos;t have an account?{" "}
-        <a href="/register" className="font-medium text-[#3A63D6] hover:underline">
+        <a href="/register" className="font-medium text-[#2563EB] hover:underline">
           Sign up
         </a>
       </p>

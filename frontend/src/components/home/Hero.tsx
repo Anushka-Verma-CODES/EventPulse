@@ -9,17 +9,23 @@ export default function Hero() {
       />
       <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
-          <span className="inline-block rounded-full bg-[#EFF6FF] px-3 py-1 text-xs font-semibold tracking-wide text-[#2563EB]">
+          <style>{`
+            @keyframes fadeInUp {
+              from { opacity: 0; transform: translateY(10px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+          <span className="inline-block animate-[fadeInUp_0.7s_ease-out] rounded-full bg-[#EFF6FF] px-3 py-1 text-xs font-semibold tracking-wide text-[#2563EB]">
             EVENT MANAGEMENT PLATFORM
           </span>
-          <h1 className="mt-4 text-4xl font-bold leading-tight text-[#1E293B] lg:text-5xl">
+          <h1 className="mt-4 animate-[fadeInUp_0.7s_ease-out_0.1s_both] text-4xl font-bold leading-tight text-[#1E293B] lg:text-5xl">
             Plan events better. Run them smoothly.
           </h1>
-          <p className="mt-4 max-w-md text-base leading-relaxed text-[#64748B]">
+          <p className="mt-4 max-w-md animate-[fadeInUp_0.7s_ease-out_0.2s_both] text-base leading-relaxed text-[#64748B]">
             EventPulse brings event planning, registrations, QR tickets, volunteers and
             live operations together in one simple platform.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex animate-[fadeInUp_0.7s_ease-out_0.3s_both] flex-wrap gap-3">
             <Link
               to="/register"
               className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#1D4ED8] hover:shadow-md"
