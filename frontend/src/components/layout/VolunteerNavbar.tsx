@@ -1,13 +1,15 @@
 import { Menu, Search, Bell } from "lucide-react";
 import UserMenu from "./UserMenu";
-import { mockAttendee, mockUnreadNotifications } from "../../lib/mockUser";
+import { mockVolunteer, notifications } from "../../lib/volunteerMockData";
 
-interface AttendeeNavbarProps {
+interface VolunteerNavbarProps {
   pageTitle: string;
   onOpenMobileSidebar: () => void;
 }
 
-export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: AttendeeNavbarProps) {
+export default function VolunteerNavbar({ pageTitle, onOpenMobileSidebar }: VolunteerNavbarProps) {
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 sm:px-6">
       <div className="flex items-center gap-3">
@@ -27,8 +29,7 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
-            placeholder="Search events, tickets, etc."
-            // UI only for now — actual search isn't wired up yet.
+            placeholder="Search opportunities, shifts, etc."
             className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pl-9 pr-3 text-sm text-[#1E293B] outline-none placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
           />
         </div>
@@ -41,17 +42,17 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-          {mockUnreadNotifications > 0 && (
+          {unreadCount > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-medium text-white">
-              {mockUnreadNotifications}
+              {unreadCount}
             </span>
           )}
         </button>
         <UserMenu
-          name={mockAttendee.name}
-          email={mockAttendee.email}
-          initials={mockAttendee.initials}
-          profileRoute="/attendee/profile"
+          name={mockVolunteer.name}
+          email={mockVolunteer.email}
+          initials={mockVolunteer.initials}
+          profileRoute="/volunteer/profile"
         />
       </div>
     </header>
