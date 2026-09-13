@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Settings, LogOut, ChevronDown } from "lucide-react";
-import { mockAttendee } from "../../lib/mockUser";
 
-export default function UserMenu() {
+interface UserMenuProps {
+  name: string;
+  email: string;
+  initials: string;
+  profileRoute: string;
+}
+
+export default function UserMenu({ name, email, initials, profileRoute }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -30,10 +36,10 @@ export default function UserMenu() {
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-[#F8FAFC]"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">
-          {mockAttendee.initials}
+          {initials}
         </span>
         <span className="hidden font-medium text-[#1E293B] sm:inline">
-          {mockAttendee.name.split(" ")[0]}
+          {name.split(" ")[0]}
         </span>
         <ChevronDown className="h-4 w-4 text-[#64748B]" />
       </button>
@@ -41,15 +47,15 @@ export default function UserMenu() {
       {isOpen && (
         <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-[#E2E8F0] bg-white py-1.5 shadow-lg">
           <div className="border-b border-[#E2E8F0] px-4 py-2.5">
-            <div className="text-sm font-semibold text-[#1E293B]">{mockAttendee.name}</div>
-            <div className="text-xs text-[#64748B]">{mockAttendee.email}</div>
+            <div className="text-sm font-semibold text-[#1E293B]">{name}</div>
+            <div className="text-xs text-[#64748B]">{email}</div>
           </div>
 
           <button
             type="button"
             onClick={() => {
               setIsOpen(false);
-              navigate("/attendee/profile");
+              navigate(profileRoute);
             }}
             className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-[#1E293B] hover:bg-[#F8FAFC]"
           >
