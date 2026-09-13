@@ -15,12 +15,12 @@ export default function Button({
   ...rest
 }: ButtonProps) {
   const base =
-    "w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+    "w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
   const variants = {
-    primary: "bg-[#12173D] text-white hover:bg-[#1A2050] focus-visible:outline-[#3A63D6]",
+    primary: "bg-[#2563EB] text-white hover:bg-[#1D4ED8] focus-visible:outline-[#2563EB]",
     secondary:
-      "bg-white text-[#12173D] border border-[#E2E5F5] hover:bg-[#F4F6FC] focus-visible:outline-[#3A63D6]",
+      "bg-white text-[#1E293B] border border-[#E2E8F0] hover:bg-[#F8FAFC] focus-visible:outline-[#2563EB]",
   };
 
   return (
