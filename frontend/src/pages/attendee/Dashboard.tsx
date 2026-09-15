@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { mockAttendee } from "../../lib/mockUser";
+import DashboardBackdrop from "../../components/ui/DashboardBackdrop";
 
 const stats = [
   { label: "Upcoming Events", value: 3 },
@@ -13,7 +14,9 @@ const upcomingTickets = ["Tech Fest 2026", "Developer Workshop", "Cultural Eveni
 
 export default function Dashboard() {
   return (
-    <div>
+    <div className="relative isolate -m-6 min-h-full overflow-hidden p-6 sm:-m-8 sm:p-8">
+      <DashboardBackdrop />
+      <div className="relative z-10">
       <h2 className="text-2xl font-bold text-[#1E293B]">
         Welcome back, {mockAttendee.name.split(" ")[0]}!
       </h2>
@@ -68,6 +71,7 @@ export default function Dashboard() {
             ))}
           </ul>
         </div>
+      </div>
       </div>
     </div>
   );

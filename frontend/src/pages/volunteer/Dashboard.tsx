@@ -2,10 +2,13 @@ import { Link } from "react-router-dom";
 import StatCard from "../../components/volunteer/StatCard";
 import StatusBadge from "../../components/volunteer/StatusBadge";
 import { mockVolunteer, volunteerStats, nextShift, myEvents, recentActivity } from "../../lib/volunteerMockData";
+import DashboardBackdrop from "../../components/ui/DashboardBackdrop";
 
 export default function VolunteerDashboard() {
   return (
-    <div>
+    <div className="relative isolate -m-6 min-h-full overflow-hidden p-6 sm:-m-8 sm:p-8">
+      <DashboardBackdrop />
+      <div className="relative z-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-[#1E293B]">
@@ -82,6 +85,7 @@ export default function VolunteerDashboard() {
             ))}
           </ul>
         </div>
+      </div>
       </div>
     </div>
   );
