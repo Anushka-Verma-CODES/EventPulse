@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bell, Check, LockKeyhole, Palette, UserRound } from "lucide-react";
 
-type SettingsRole = "attendee" | "organizer" | "volunteer";
+type SettingsRole = "attendee" | "organizer" | "volunteer" | "scanner";
 
 interface SettingsPageProps {
   role: SettingsRole;
@@ -11,6 +11,7 @@ const roleLabels: Record<SettingsRole, string> = {
   attendee: "Attendee",
   organizer: "Organizer",
   volunteer: "Volunteer",
+  scanner: "Scanner",
 };
 
 export default function SettingsPage({ role }: SettingsPageProps) {

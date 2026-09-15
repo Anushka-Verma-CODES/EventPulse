@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Settings, LogOut, ChevronDown, Check, Repeat2 } from "lucide-react";
 
-type UserRole = "attendee" | "organizer" | "volunteer";
+type UserRole = "attendee" | "organizer" | "volunteer" | "scanner";
 
 const roleOptions: Array<{ id: UserRole; label: string; route: string }> = [
   { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
   { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
   { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
+  { id: "scanner", label: "Scanner", route: "/scanner" },
 ];
 
 interface UserMenuProps {
