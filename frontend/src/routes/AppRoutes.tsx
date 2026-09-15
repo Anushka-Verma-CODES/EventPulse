@@ -42,14 +42,6 @@ import SelectGate from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
 import ScanHistory from '../pages/scanner/ScanHistory';
 
-import EventDetails from '../pages/EventDetails';
-import AttendeeDetails from '../pages/registration/AttendeeDetails';
-import AttendeePayment from '../pages/registration/AttendeePayment';
-import RegistrationSuccess from '../pages/registration/RegistrationSuccess';
-import VolunteerDetails from '../pages/registration/VolunteerDetails';
-import VolunteerReview from '../pages/registration/VolunteerReview';
-import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
-
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -71,8 +63,7 @@ export function AppRoutes() {
         <Route index element={<Navigate to="/attendee/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="tickets" element={<MyTickets />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile" element={<ProfilePage role="attendee" />} />
       </Route>
 
       {/* Organizer routes with their own layout */}
@@ -88,8 +79,7 @@ export function AppRoutes() {
         <Route path="resources" element={<Resources />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="predictions" element={<Predictions />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile" element={<ProfilePage role="organizer" />} />
       </Route>
 
       {/* Volunteer routes with their own layout */}
@@ -102,34 +92,26 @@ export function AppRoutes() {
         <Route path="shifts" element={<MyShifts />} />
         <Route path="shifts/:shiftId" element={<ShiftDetail />} />
         <Route path="tasks" element={<MyTasks />} />
-        <Route path="notifications" element={<VolunteerNotifications />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile" element={<ProfilePage role="volunteer" />} />
       </Route>
 
-      <Route element={<ScannerLayout />}>
-        <Route path="/scanner" element={<ScannerHome />} />
-        <Route path="/scanner/event/:eventId" element={<SelectGate />} />
-        <Route path="/scanner/event/:eventId/gate/:gateId" element={<QRScannerPage />} />
-        <Route path="/scanner/history" element={<ScanHistory />} />
+      {/* Scanner routes with their own minimal layout */}
+      <Route path="/scanner" element={<ScannerLayout />}>
+        <Route index element={<ScannerHome />} />
+        <Route path="event/:eventId" element={<SelectGate />} />
+        <Route path="event/:eventId/gate/:gateId" element={<QRScannerPage />} />
+        <Route path="history" element={<ScanHistory />} />
+        <Route path="profile" element={<ProfilePage role="scanner" />} />
       </Route>
-
 
       {/* Existing pages keep the Navbar via MainLayout */}
       <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
       <Route path="/events" element={<MainLayout><EventsListPage /></MainLayout>} />
-      {/* <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} /> */}
-      <Route path="/profile" element={<MainLayout><ProfilePage /></MainLayout>} />
+      <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} />
+      {/* /profile now lives at role-specific routes (e.g. /attendee/profile) — redirect stragglers */}
+      <Route path="/profile" element={<Navigate to="/login" replace />} />
       <Route path="/events/new" element={<MainLayout><CreateEventPage /></MainLayout>} />
-
-      {/* Event details + attendee/volunteer registration flow */}
-      <Route path="/events/:eventId" element={<MainLayout><EventDetails /></MainLayout>} />
-      <Route path="/events/:eventId/register/attendee" element={<MainLayout><AttendeeDetails /></MainLayout>} />
-      <Route path="/events/:eventId/register/attendee/payment" element={<MainLayout><AttendeePayment /></MainLayout>} />
-      <Route path="/events/:eventId/registration-success" element={<MainLayout><RegistrationSuccess /></MainLayout>} />
-      <Route path="/events/:eventId/register/volunteer" element={<MainLayout><VolunteerDetails /></MainLayout>} />
-      <Route path="/events/:eventId/register/volunteer/review" element={<MainLayout><VolunteerReview /></MainLayout>} />
-      <Route path="/events/:eventId/volunteer/application-success" element={<MainLayout><VolunteerApplicationSuccess /></MainLayout>} />
     </Routes>
   );
 }
