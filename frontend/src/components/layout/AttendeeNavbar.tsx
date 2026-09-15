@@ -12,6 +12,13 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[#E2E8F0]/80 bg-white/75 px-3 backdrop-blur-md sm:px-5">
       <div className="flex items-center gap-3">
+        <span
+          title="Attendee"
+          aria-label="Attendee role"
+          className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2563EB] text-xs font-bold text-white"
+        >
+          A
+        </span>
         <button
           type="button"
           onClick={onOpenMobileSidebar}
