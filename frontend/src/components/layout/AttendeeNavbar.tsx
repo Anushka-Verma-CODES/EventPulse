@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Menu, Search, Bell } from "lucide-react";
+import { Menu, Search, Bell, CalendarDays } from "lucide-react";
 import UserMenu from "./UserMenu";
 import { mockAttendee, mockUnreadNotifications } from "../../lib/mockUser";
 
@@ -35,6 +35,14 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
+        <Link
+          to="/events"
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-[#475569] transition hover:bg-[#F8FAFC] hover:text-[#2563EB]"
+          aria-label="Events"
+        >
+          <CalendarDays className="h-4 w-4" />
+          <span className="hidden sm:inline">Events</span>
+        </Link>
         <Link
           to="/attendee/notifications"
           className="relative rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC]"

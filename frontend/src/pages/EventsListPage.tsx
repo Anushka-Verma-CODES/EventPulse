@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { EventItem } from '../types/event';
 import { getEvents } from '../features/events/api/eventsApi';
 import { EventCard } from '../features/events/components/EventCard';
@@ -65,10 +64,6 @@ export default function EventsListPage() {
     animation: 'eventsHeroDrift 14s ease-in-out infinite',
   }}
 >
-  <Link to="/events/new" className="btn btn-primary absolute top-0 right-6">
-     Create Event
-  </Link>
-
   <div className="hero-content flex-col items-start max-w-6xl w-full">
     <h1 className="text-3xl font-bold mb-1">What's happening on campus</h1>
     <p className="opacity-70 mb-6">Browse and register for upcoming events</p>

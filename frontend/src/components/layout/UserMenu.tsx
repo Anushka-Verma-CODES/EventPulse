@@ -10,6 +10,12 @@ const roleOptions: Array<{ id: UserRole; label: string; route: string }> = [
   { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
 ];
 
+const roleLabels: Record<UserRole, string> = {
+  attendee: "Attendee",
+  organizer: "Organizer",
+  volunteer: "Volunteer",
+};
+
 interface UserMenuProps {
   name: string;
   email: string;
@@ -52,6 +58,9 @@ export default function UserMenu({ name, email, initials, profileRoute, settings
         <span className="hidden font-medium text-[#1E293B] sm:inline">
           {name.split(" ")[0]}
         </span>
+        <span className="hidden rounded-full bg-[#EFF6FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#2563EB] md:inline">
+          {roleLabels[currentRole]}
+        </span>
         <ChevronDown className="h-4 w-4 text-[#64748B]" />
       </button>
 
@@ -59,7 +68,10 @@ export default function UserMenu({ name, email, initials, profileRoute, settings
         <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-[#E2E8F0] bg-white py-1.5 shadow-lg">
           <div className="border-b border-[#E2E8F0] px-4 py-2.5">
             <div className="text-sm font-semibold text-[#1E293B]">{name}</div>
-            <div className="text-xs text-[#64748B]">{email}</div>
+            <div className="mt-0.5 flex items-center justify-between gap-3 text-xs text-[#64748B]">
+              <span>{email}</span>
+              <span className="font-semibold text-[#2563EB]">{roleLabels[currentRole]}</span>
+            </div>
           </div>
 
           <button
