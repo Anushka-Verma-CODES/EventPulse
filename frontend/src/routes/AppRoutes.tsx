@@ -42,6 +42,14 @@ import SelectGate from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
 import ScanHistory from '../pages/scanner/ScanHistory';
 
+import EventDetails from '../pages/EventDetails';
+import AttendeeDetails from '../pages/registration/AttendeeDetails';
+import AttendeePayment from '../pages/registration/AttendeePayment';
+import RegistrationSuccess from '../pages/registration/RegistrationSuccess';
+import VolunteerDetails from '../pages/registration/VolunteerDetails';
+import VolunteerReview from '../pages/registration/VolunteerReview';
+import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
+
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -102,9 +110,8 @@ export function AppRoutes() {
         <Route path="/scanner" element={<ScannerHome />} />
         <Route path="/scanner/event/:eventId" element={<SelectGate />} />
         <Route path="/scanner/event/:eventId/gate/:gateId" element={<QRScannerPage />} />
-        <Route path="/scanner/result" element={<ScanResultPage />} />
         <Route path="/scanner/history" element={<ScanHistory />} />
-      </Route>;
+      </Route>
 
 
       {/* Existing pages keep the Navbar via MainLayout */}
