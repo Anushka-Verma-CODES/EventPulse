@@ -37,10 +37,10 @@ import MyTasks from '../pages/volunteer/MyTasks';
 import VolunteerNotifications from '../pages/volunteer/Notifications';
 
 import ScannerLayout from '../components/layout/ScannerLayout';
-import ScannerHome from '../pages/scanner/ScannerHome';
-import SelectGate from '../pages/scanner/SelectGate';
+import { ScannerHome } from '../pages/scanner/ScannerHome';
+import { SelectGate } from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
-import ScanHistory from '../pages/scanner/ScanHistory';
+import { ScanHistory } from '../pages/scanner/ScanHistory';
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
