@@ -111,7 +111,7 @@ export function AppRoutes() {
       </Route>
 
       {/* Existing pages keep the Navbar via MainLayout */}
-      <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
       <Route
         path="/events"

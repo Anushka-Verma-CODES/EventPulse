@@ -7,6 +7,20 @@ export default function Hero() {
         className="pointer-events-none absolute -top-24 right-0 h-96 w-96 rounded-full bg-[#DBEAFE] opacity-60 blur-3xl"
         aria-hidden="true"
       />
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2 sm:right-6 sm:top-6">
+        <Link
+          to="/login"
+          className="rounded-lg border border-[#CBD5E1] bg-white/90 px-3.5 py-2 text-sm font-semibold text-[#1E293B] shadow-sm backdrop-blur transition hover:border-[#93C5FD] hover:bg-white hover:text-[#2563EB]"
+        >
+          Login
+        </Link>
+        <Link
+          to="/register"
+          className="rounded-lg bg-[#2563EB] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8]"
+        >
+          Register
+        </Link>
+      </div>
       <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
           <style>{`
