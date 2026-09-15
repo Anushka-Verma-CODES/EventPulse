@@ -37,12 +37,14 @@ import ShiftDetail from '../pages/volunteer/ShiftDetail';
 import MyTasks from '../pages/volunteer/MyTasks';
 import VolunteerNotifications from '../pages/volunteer/Notifications';
 
-import { ScannerLayout } from "../components/layout/ScannerLayout";
-import { ScannerHome } from "../pages/scanner/ScannerHome";
-import { SelectGate } from "../pages/scanner/SelectGate";
-import { QRScannerPage } from "../pages/scanner/QRScannerPage";
-import { ScanResultPage } from "../pages/scanner/ScanResultPage";
-import { ScanHistory } from "../pages/scanner/ScanHistory";
+import EventDetails from '../pages/EventDetails';
+import AttendeeDetails from '../pages/registration/AttendeeDetails';
+import AttendeePayment from '../pages/registration/AttendeePayment';
+import RegistrationSuccess from '../pages/registration/RegistrationSuccess';
+import VolunteerDetails from '../pages/registration/VolunteerDetails';
+import VolunteerReview from '../pages/registration/VolunteerReview';
+import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
+
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -100,22 +102,24 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
-      <Route element={<ScannerLayout />}>
-        <Route path="/scanner" element={<ScannerHome />} />
-        <Route path="/scanner/event/:eventId" element={<SelectGate />} />
-        <Route path="/scanner/event/:eventId/gate/:gateId" element={<QRScannerPage />} />
-        <Route path="/scanner/result" element={<ScanResultPage />} />
-        <Route path="/scanner/history" element={<ScanHistory />} />
-      </Route>;
 
 
       {/* Existing pages keep the Navbar via MainLayout */}
       <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
       <Route path="/events" element={<MainLayout><EventsListPage /></MainLayout>} />
-      <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} />
+      {/* <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} /> */}
       <Route path="/profile" element={<MainLayout><ProfilePage /></MainLayout>} />
       <Route path="/events/new" element={<MainLayout><CreateEventPage /></MainLayout>} />
+
+      {/* Event details + attendee/volunteer registration flow */}
+      <Route path="/events/:eventId" element={<MainLayout><EventDetails /></MainLayout>} />
+      <Route path="/events/:eventId/register/attendee" element={<MainLayout><AttendeeDetails /></MainLayout>} />
+      <Route path="/events/:eventId/register/attendee/payment" element={<MainLayout><AttendeePayment /></MainLayout>} />
+      <Route path="/events/:eventId/registration-success" element={<MainLayout><RegistrationSuccess /></MainLayout>} />
+      <Route path="/events/:eventId/register/volunteer" element={<MainLayout><VolunteerDetails /></MainLayout>} />
+      <Route path="/events/:eventId/register/volunteer/review" element={<MainLayout><VolunteerReview /></MainLayout>} />
+      <Route path="/events/:eventId/volunteer/application-success" element={<MainLayout><VolunteerApplicationSuccess /></MainLayout>} />
     </Routes>
   );
 }
