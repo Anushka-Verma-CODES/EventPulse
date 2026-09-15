@@ -6,8 +6,8 @@ import {
   Ticket,
   User,
   LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const navItems = [
@@ -19,11 +19,12 @@ const navItems = [
 
 interface AttendeeSidebarProps {
   onNavigate?: () => void;
+  initiallyCollapsed?: boolean;
 }
 
-export default function AttendeeSidebar({ onNavigate }: AttendeeSidebarProps) {
+export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true }: AttendeeSidebarProps) {
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(initiallyCollapsed);
 
   function handleLogout() {
     // Later: clear the auth session/token here before redirecting.
@@ -32,7 +33,7 @@ export default function AttendeeSidebar({ onNavigate }: AttendeeSidebarProps) {
   return (
     <aside
       className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
-        isCollapsed ? "w-[76px]" : "w-[248px]"
+        isCollapsed ? "w-[64px]" : "w-[216px]"
       }`}
     >
       <Link
@@ -49,14 +50,14 @@ export default function AttendeeSidebar({ onNavigate }: AttendeeSidebarProps) {
       <button
         type="button"
         onClick={() => setIsCollapsed((collapsed) => !collapsed)}
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={`mx-3 mb-4 flex items-center rounded-lg py-2 text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#2563EB] ${
+        aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+        className={`mx-3 mb-4 flex items-center rounded-lg border border-transparent py-2 text-[#64748B] transition-colors hover:border-[#DBEAFE] hover:bg-[#EFF6FF] hover:text-[#2563EB] ${
           isCollapsed ? "justify-center" : "gap-2 px-3"
         }`}
       >
-        {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        {!isCollapsed && <span className="text-xs font-semibold">Collapse menu</span>}
+        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        {!isCollapsed && <span className="text-xs font-semibold">Collapse navigation</span>}
       </button>
 
       {!isCollapsed && (
@@ -73,6 +74,7 @@ export default function AttendeeSidebar({ onNavigate }: AttendeeSidebarProps) {
               key={item.to}
               to={item.to}
               onClick={onNavigate}
+              title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
                   isCollapsed ? "justify-center px-2" : "justify-between px-3" 

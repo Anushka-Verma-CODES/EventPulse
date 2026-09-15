@@ -21,7 +21,7 @@ export default function OrganizerMobileSidebar({ isOpen, onClose }: OrganizerMob
         >
           <X className="h-5 w-5" />
         </button>
-        <OrganizerSidebar onNavigate={onClose} />
+        <OrganizerSidebar onNavigate={onClose} initiallyCollapsed={false} />
       </div>
     </div>
   );

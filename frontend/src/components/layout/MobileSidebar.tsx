@@ -25,7 +25,7 @@ export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         >
           <X className="h-5 w-5" />
         </button>
-        <AttendeeSidebar onNavigate={onClose} />
+        <AttendeeSidebar onNavigate={onClose} initiallyCollapsed={false} />
       </div>
     </div>
   );

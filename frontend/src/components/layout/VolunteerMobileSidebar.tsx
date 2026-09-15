@@ -21,7 +21,7 @@ export default function VolunteerMobileSidebar({ isOpen, onClose }: VolunteerMob
         >
           <X className="h-5 w-5" />
         </button>
-        <VolunteerSidebar onNavigate={onClose} />
+        <VolunteerSidebar onNavigate={onClose} initiallyCollapsed={false} />
       </div>
     </div>
   );
