@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import StatCard from "../../components/organizer/StatCard";
-import StatusBadge from "../../components/organizer/StatusBadge";
 import {
   mockOrganizer,
   quickStats,
@@ -15,7 +14,7 @@ export default function OrganizerDashboard() {
   const maxAttendance = Math.max(...weeklyAttendance.map((d) => d.value));
 
   return (
-    <div className="relative isolate -m-6 min-h-full overflow-hidden p-6 sm:-m-8 sm:p-8">
+    <div className="relative isolate -m-6 min-h-[calc(100vh-3rem)] overflow-hidden p-6 sm:-m-8 sm:p-8">
       <DashboardBackdrop />
       <div className="relative z-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -42,7 +41,7 @@ export default function OrganizerDashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[#1E293B]">Upcoming Events</h3>
             <Link to="/organizer/events" className="text-xs font-medium text-[#2563EB] hover:underline">
@@ -72,7 +71,7 @@ export default function OrganizerDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
           <h3 className="mb-4 text-sm font-semibold text-[#1E293B]">Attendance Overview</h3>
           <div className="flex h-40 items-end gap-4">
             {weeklyAttendance.map((day) => (
@@ -88,7 +87,7 @@ export default function OrganizerDashboard() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+      <div className="mt-4 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
         <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">Recent Activity</h3>
         <ul className="flex flex-col divide-y divide-[#E2E8F0]">
           {recentActivity.map((item, i) => (

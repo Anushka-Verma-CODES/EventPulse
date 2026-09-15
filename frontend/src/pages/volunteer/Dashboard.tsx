@@ -6,7 +6,7 @@ import DashboardBackdrop from "../../components/ui/DashboardBackdrop";
 
 export default function VolunteerDashboard() {
   return (
-    <div className="relative isolate -m-6 min-h-full overflow-hidden p-6 sm:-m-8 sm:p-8">
+    <div className="relative isolate -m-6 min-h-[calc(100vh-3rem)] overflow-hidden p-6 sm:-m-8 sm:p-8">
       <DashboardBackdrop />
       <div className="relative z-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -32,7 +32,7 @@ export default function VolunteerDashboard() {
         ))}
       </div>
 
-      <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+      <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#1E293B]">Upcoming Shift</h3>
           <StatusBadge status={nextShift.status} />
@@ -53,7 +53,7 @@ export default function VolunteerDashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
           <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">My Events</h3>
           <div className="flex flex-col divide-y divide-[#E2E8F0]">
             {myEvents.map((event) => (
@@ -69,7 +69,7 @@ export default function VolunteerDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:border-[#BFDBFE] hover:shadow-md">
           <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">Recent Activity</h3>
           <ul className="flex flex-col divide-y divide-[#E2E8F0]">
             {recentActivity.map((item, i) => (

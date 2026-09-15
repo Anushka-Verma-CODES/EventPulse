@@ -37,13 +37,32 @@ export default function EventsListPage() {
 
   return (
     <div className="min-h-screen bg-base-200">
+      <style>{`
+        @keyframes eventsHeroDrift {
+          0%, 100% { background-position: 50% 50%; }
+          50% { background-position: 56% 44%; }
+        }
 
+        @keyframes eventCardEnter {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .event-card-enter {
+          animation: eventCardEnter 0.55s ease-out both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .events-hero-motion, .event-card-enter { animation: none !important; }
+        }
+      `}</style>
 
 <div
-  className="hero py-14 text-neutral-content bg-cover bg-center relative"
+  className="hero events-hero-motion relative bg-cover bg-center py-14 text-neutral-content"
   style={{
     backgroundImage:
       "linear-gradient(rgba(23,23,23,0.75), rgba(23,23,23,0.75)), url('/event-hero.png')",
+    animation: 'eventsHeroDrift 14s ease-in-out infinite',
   }}
 >
   <Link to="/events/new" className="btn btn-primary absolute top-0 right-6">
@@ -86,9 +105,15 @@ export default function EventsListPage() {
         {filteredEvents.length === 0 ? (
           <div className="text-center text-base-content/50 py-16">No events match your search.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {filteredEvents.map((event, index) => (
+              <div
+                key={event.id}
+                className="event-card-enter"
+                style={{ animationDelay: `${index * 70}ms` }}
+              >
+                <EventCard event={event} />
+              </div>
             ))}
           </div>
         )}

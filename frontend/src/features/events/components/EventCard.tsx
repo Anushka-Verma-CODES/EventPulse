@@ -20,10 +20,10 @@ export function EventCard({ event }: EventCardProps) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="card bg-base-100 shadow-sm hover:shadow-md transition-shadow border border-base-300 overflow-hidden"
+      className="card group h-full overflow-hidden border border-base-300 bg-base-100 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
       <figure className="h-40">
-        <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+        <img src={event.imageUrl} alt={event.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
       </figure>
 
       <div className="card-body gap-3">
@@ -48,7 +48,7 @@ export function EventCard({ event }: EventCardProps) {
           ) : (
             <span className="text-xs text-base-content/50">{seatsLeft} seats left</span>
           )}
-          <span className="text-sm font-medium text-primary">View details →</span>
+          <span className="text-sm font-medium text-primary transition-transform group-hover:translate-x-1">View details →</span>
         </div>
       </div>
     </Link>
