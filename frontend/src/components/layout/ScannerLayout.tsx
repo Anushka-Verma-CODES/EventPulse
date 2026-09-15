@@ -1,15 +1,13 @@
 import { Outlet } from "react-router-dom";
-import { ScannerProvider } from "../../context/ScannerContext";
+import ScannerHeader from "../scanner/ScannerHeader";
 
-// Deliberately NOT reusing AttendeeLayout/OrganizerLayout/VolunteerLayout here.
-// The scanner is a fast, single-purpose tool for gate staff - no sidebar,
-// no nav menu, just the current screen. See ScannerTopBar for the shared header.
-export function ScannerLayout() {
+export default function ScannerLayout() {
   return (
-    <ScannerProvider>
-      <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
+      <ScannerHeader />
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-6">
         <Outlet />
-      </div>
-    </ScannerProvider>
+      </main>
+    </div>
   );
 }
