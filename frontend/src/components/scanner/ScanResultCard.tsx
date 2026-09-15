@@ -1,99 +1,163 @@
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import type { ScanResult, ScannerEvent, ScannerGate } from "../../types/scanner";
+import { useEffect, useState } from "react";
+import type { ScanResult } from "../../lib/scannerMockData";
 
 interface ScanResultCardProps {
   result: ScanResult;
-  event: ScannerEvent;
-  gate: ScannerGate;
+  onScanNext: () => void;
 }
 
-const META: Record<
+const config: Record<
   ScanResult["type"],
-  { icon: typeof CheckCircle2; iconColor: string; bg: string; title: string; subtitle: string }
+  { icon: string; tone: "success" | "error"; heading: string; subheading: string }
 > = {
-  valid: { icon: CheckCircle2, iconColor: "text-green-600", bg: "bg-green-50", title: "Ticket valid", subtitle: "Entry approved" },
-  duplicate: { icon: XCircle, iconColor: "text-red-600", bg: "bg-red-50", title: "Ticket already used", subtitle: "Entry rejected" },
-  invalid: { icon: XCircle, iconColor: "text-red-600", bg: "bg-red-50", title: "Invalid ticket", subtitle: "Entry rejected" },
-  wrongEvent: { icon: AlertTriangle, iconColor: "text-amber-600", bg: "bg-amber-50", title: "Wrong event", subtitle: "Entry rejected" },
-  expired: { icon: AlertTriangle, iconColor: "text-amber-600", bg: "bg-amber-50", title: "Ticket expired", subtitle: "Entry rejected" },
-  transferred: { icon: XCircle, iconColor: "text-red-600", bg: "bg-red-50", title: "Ticket no longer valid", subtitle: "Entry rejected" },
+  valid: { icon: "\u2713", tone: "success", heading: "Ticket Valid", subheading: "Entry Approved" },
+  duplicate: {
+    icon: "\u2715",
+    tone: "error",
+    heading: "Ticket Already Used",
+    subheading: "Entry Rejected",
+  },
+  invalid: {
+    icon: "\u2715",
+    tone: "error",
+    heading: "Invalid Ticket",
+    subheading: "Entry Rejected",
+  },
+  wrong_event: {
+    icon: "!",
+    tone: "error",
+    heading: "Wrong Event",
+    subheading: "This ticket belongs to another event.",
+  },
+  expired: {
+    icon: "!",
+    tone: "error",
+    heading: "Ticket Expired",
+    subheading: "This ticket is no longer valid.",
+  },
+  transferred: {
+    icon: "\u2715",
+    tone: "error",
+    heading: "Ticket No Longer Valid",
+    subheading: "This ticket has been transferred to another attendee.",
+  },
 };
 
-function DetailRow({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
-  return (
-    <div className="flex items-center justify-between border-b border-gray-100 py-2.5 last:border-b-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-medium text-gray-900 ${mono ? "font-mono" : ""}`}>{value}</span>
-    </div>
-  );
-}
+const toneStyles = {
+  success: { bg: "bg-[#F0FDF4]", text: "text-[#16A34A]", ring: "border-[#BBF7D0]" },
+  error: { bg: "bg-[#FEF2F2]", text: "text-[#DC2626]", ring: "border-[#FECACA]" },
+};
 
-export function ScanResultCard({ result, event, gate }: ScanResultCardProps) {
-  const meta = META[result.type];
-  const Icon = meta.icon;
+export default function ScanResultCard({ result, onScanNext }: ScanResultCardProps) {
+  const meta = config[result.type];
+  const tone = toneStyles[meta.tone];
+  const [secondsLeft, setSecondsLeft] = useState(result.type === "valid" ? 4 : 0);
+
+  // Only auto-advance on a clean valid scan — rejections stay on screen
+  // until staff dismiss them, since they may need a moment to explain
+  // the issue to the attendee.
+  useEffect(() => {
+    if (result.type !== "valid") return;
+    if (secondsLeft <= 0) {
+      onScanNext();
+      return;
+    }
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [result.type, secondsLeft, onScanNext]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-      <div className={`flex flex-col items-center gap-2 ${meta.bg} px-6 py-9`}>
-        <Icon className={`h-12 w-12 ${meta.iconColor}`} strokeWidth={1.6} />
-        <div className="text-xl font-semibold text-gray-900">{meta.title}</div>
-        <div className="text-sm text-gray-500">{meta.subtitle}</div>
+    <div className="mx-auto w-full max-w-sm">
+      <div className={`rounded-xl border ${tone.ring} ${tone.bg} p-8 text-center`}>
+        <div
+          className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white text-4xl font-bold ${tone.text}`}
+        >
+          {meta.icon}
+        </div>
+        <h3 className="mt-4 text-2xl font-bold text-[#1E293B]">{meta.heading}</h3>
+        <p className="mt-1 text-base text-[#64748B]">{meta.subheading}</p>
       </div>
 
-      <div className="px-5 py-2">
-        {result.type === "invalid" && (
+      <div className="rounded-b-xl border border-t-0 border-[#E2E8F0] bg-white p-5 text-sm">
+        {result.type === "valid" && (
           <>
-            <p className="py-3 text-sm leading-relaxed text-gray-500">
-              This ticket could not be verified. Ask the attendee to check their confirmation email.
-            </p>
-            <DetailRow label="Ticket ID" value={result.code} mono />
+            <div className="text-xs text-[#64748B]">{result.eventName}</div>
+            <div className="mt-2 font-semibold text-[#1E293B]">{result.attendeeName}</div>
+            <div className="text-[#64748B]">{result.ticketType}</div>
+            <div className="mt-3 flex justify-between border-t border-[#E2E8F0] pt-3">
+              <span className="text-[#64748B]">Ticket ID</span>
+              <span className="font-medium text-[#1E293B]">{result.ticketId}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#64748B]">Gate</span>
+              <span className="font-medium text-[#1E293B]">{result.gate}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#64748B]">Checked in</span>
+              <span className="font-medium text-[#1E293B]">{result.checkedInAt}</span>
+            </div>
           </>
         )}
 
-        {result.type === "wrongEvent" && (
+        {result.type === "duplicate" && (
           <>
-            <p className="py-3 text-sm leading-relaxed text-gray-500">
-              This ticket belongs to a different event and can't be used at this gate.
-            </p>
-            <DetailRow label="Ticket" value={result.code} mono />
-            <DetailRow label="Ticket's event" value={result.ticketEventName} />
-            <DetailRow label="Expected event" value={event.name} />
+            <div className="font-semibold text-[#1E293B]">{result.attendeeName}</div>
+            <div className="text-[#64748B]">{result.ticketType}</div>
+            <div className="mt-3 flex justify-between border-t border-[#E2E8F0] pt-3">
+              <span className="text-[#64748B]">Ticket ID</span>
+              <span className="font-medium text-[#1E293B]">{result.ticketId}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#64748B]">Checked in at</span>
+              <span className="font-medium text-[#1E293B]">{result.checkedInAt}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#64748B]">Previous Gate</span>
+              <span className="font-medium text-[#1E293B]">{result.previousGate}</span>
+            </div>
+          </>
+        )}
+
+        {result.type === "invalid" && (
+          <>
+            <p className="text-[#64748B]">This ticket could not be verified.</p>
+            <div className="mt-3 flex justify-between border-t border-[#E2E8F0] pt-3">
+              <span className="text-[#64748B]">Ticket ID</span>
+              <span className="font-medium text-[#1E293B]">{result.ticketId}</span>
+            </div>
+          </>
+        )}
+
+        {result.type === "wrong_event" && (
+          <>
+            <div className="mt-1 flex justify-between">
+              <span className="text-[#64748B]">Ticket</span>
+              <span className="font-medium text-[#1E293B]">{result.ticketId}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#64748B]">Expected</span>
+              <span className="font-medium text-[#1E293B]">{result.expectedEventName}</span>
+            </div>
           </>
         )}
 
         {result.type === "expired" && (
-          <>
-            <p className="py-3 text-sm leading-relaxed text-gray-500">This ticket is no longer valid for entry.</p>
-            <DetailRow label="Attendee" value={result.ticket?.attendee} />
-            <DetailRow label="Ticket ID" value={result.code} mono />
-            <DetailRow label="Event" value={event.name} />
-          </>
-        )}
-
-        {result.type === "transferred" && (
-          <>
-            <p className="py-3 text-sm leading-relaxed text-gray-500">
-              This ticket has been transferred to another attendee. The original QR code is no longer valid.
-            </p>
-            <DetailRow label="Ticket ID" value={result.code} mono />
-          </>
-        )}
-
-        {(result.type === "valid" || result.type === "duplicate") && (
-          <>
-            <DetailRow label="Attendee" value={result.ticket?.attendee} />
-            <DetailRow label="Ticket type" value={result.ticket?.type} />
-            <DetailRow label="Ticket ID" value={result.code} mono />
-            <DetailRow label="Gate" value={gate.name} />
-            <DetailRow
-              label={result.type === "duplicate" ? "Checked in" : "Checked in at"}
-              value={result.type === "duplicate" ? result.ticket?.checkedInTime : result.time}
-              mono
-            />
-            {result.type === "duplicate" && <DetailRow label="Previous gate" value={result.ticket?.checkedInGate} />}
-          </>
+          <div className="flex justify-between">
+            <span className="text-[#64748B]">Event</span>
+            <span className="font-medium text-[#1E293B]">{result.eventName}</span>
+          </div>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={onScanNext}
+        className="mt-4 w-full rounded-lg bg-[#2563EB] py-4 text-base font-medium text-white hover:bg-[#1D4ED8]"
+      >
+        {result.type === "valid"
+          ? `Scan Next Ticket (${secondsLeft}s)`
+          : "Scan Again"}
+      </button>
     </div>
   );
 }

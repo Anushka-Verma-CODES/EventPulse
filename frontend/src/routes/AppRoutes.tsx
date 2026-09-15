@@ -6,9 +6,8 @@ import EventDetailsPage from '../pages/EventDetailsPage';
 import CreateEventPage from '../pages/CreateEventPage';
 import ProfilePage from '../pages/ProfilePage';
 import Login from '../pages/auth/Login';
-import HomePage from '../pages/HomePage';
 import Signup from '../pages/auth/Signup';
-
+import HomePage from '../pages/HomePage';
 
 import AttendeeLayout from '../components/layout/AttendeeLayout';
 import Dashboard from '../pages/attendee/Dashboard';
@@ -37,12 +36,11 @@ import ShiftDetail from '../pages/volunteer/ShiftDetail';
 import MyTasks from '../pages/volunteer/MyTasks';
 import VolunteerNotifications from '../pages/volunteer/Notifications';
 
-import { ScannerLayout } from "../components/layout/ScannerLayout";
-import { ScannerHome } from "../pages/scanner/ScannerHome";
-import { SelectGate } from "../pages/scanner/SelectGate";
-import { QRScannerPage } from "../pages/scanner/QRScannerPage";
-import { ScanResultPage } from "../pages/scanner/ScanResultPage";
-import { ScanHistory } from "../pages/scanner/ScanHistory";
+import ScannerLayout from '../components/layout/ScannerLayout';
+import ScannerHome from '../pages/scanner/ScannerHome';
+import SelectGate from '../pages/scanner/SelectGate';
+import QRScannerPage from '../pages/scanner/QRScannerPage';
+import ScanHistory from '../pages/scanner/ScanHistory';
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -56,7 +54,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 export function AppRoutes() {
   return (
     <Routes>
-      {/* No Navbar on the login page */}
+      {/* No Navbar on the login/signup pages */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Signup />} />
 
@@ -100,14 +98,13 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
-      <Route element={<ScannerLayout />}>
-        <Route path="/scanner" element={<ScannerHome />} />
-        <Route path="/scanner/event/:eventId" element={<SelectGate />} />
-        <Route path="/scanner/event/:eventId/gate/:gateId" element={<QRScannerPage />} />
-        <Route path="/scanner/result" element={<ScanResultPage />} />
-        <Route path="/scanner/history" element={<ScanHistory />} />
-      </Route>;
-
+      {/* Scanner routes with their own minimal layout */}
+      <Route path="/scanner" element={<ScannerLayout />}>
+        <Route index element={<ScannerHome />} />
+        <Route path="event/:eventId" element={<SelectGate />} />
+        <Route path="event/:eventId/gate/:gateId" element={<QRScannerPage />} />
+        <Route path="history" element={<ScanHistory />} />
+      </Route>
 
       {/* Existing pages keep the Navbar via MainLayout */}
       <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
