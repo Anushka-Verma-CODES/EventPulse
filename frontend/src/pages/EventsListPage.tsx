@@ -59,7 +59,7 @@ export default function EventsListPage() {
       placeholder="Search events…"
       value={search}
       onChange={(e) => setSearch(e.target.value)}
-      className="input input-bordered w-full max-w-md"
+      className="input input-bordered w-full max-w-md text-black"
     />
   </div>
 </div>
