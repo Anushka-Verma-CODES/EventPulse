@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Menu, Search, Bell } from "lucide-react";
 import UserMenu from "./UserMenu";
 import { mockAttendee, mockUnreadNotifications } from "../../lib/mockUser";
@@ -35,8 +36,8 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
-        <button
-          type="button"
+        <Link
+          to="/attendee/notifications"
           className="relative rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC]"
           aria-label="Notifications"
         >
@@ -46,7 +47,7 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
               {mockUnreadNotifications}
             </span>
           )}
-        </button>
+        </Link>
         <UserMenu
           name={mockAttendee.name}
           email={mockAttendee.email}

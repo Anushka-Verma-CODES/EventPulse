@@ -138,6 +138,16 @@ export async function registerForEvent(eventId: string): Promise<{ success: bool
   return { success: true, message: 'Registration successful.' };
 }
 
+export function registerPurchasedTicket(eventId: string): { success: boolean; message?: string } {
+  const event = MOCK_EVENTS.find((item) => item.id === eventId);
+  if (!event) {
+    return { success: false, message: 'Event not found.' };
+  }
+
+  event.isRegistered = true;
+  return { success: true };
+}
+
 export async function createEvent(input: NewEventInput): Promise<EventItem> {
   await new Promise((resolve) => setTimeout(resolve, 500));
 

@@ -14,7 +14,9 @@ const pageTitles: Record<string, string> = {
 export default function AttendeeLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
-  const pageTitle = pageTitles[location.pathname] ?? "Dashboard";
+  const pageTitle = location.pathname.startsWith("/attendee/tickets/")
+    ? "Ticket Details"
+    : pageTitles[location.pathname] ?? "Dashboard";
 
   return (
     <div className="flex h-screen bg-[#F8FAFC]">

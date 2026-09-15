@@ -10,8 +10,10 @@ import Signup from '../pages/auth/Signup';
 import HomePage from '../pages/HomePage';
 
 import AttendeeLayout from '../components/layout/AttendeeLayout';
+import EventAttendeeLayout from '../components/layout/EventAttendeeLayout';
 import Dashboard from '../pages/attendee/Dashboard';
 import MyTickets from '../pages/attendee/MyTickets';
+import TicketDetail from '../pages/attendee/TicketDetail';
 import Notifications from '../pages/attendee/Notifications';
 
 import OrganizerLayout from '../components/layout/OrganizerLayout';
@@ -37,10 +39,10 @@ import MyTasks from '../pages/volunteer/MyTasks';
 import VolunteerNotifications from '../pages/volunteer/Notifications';
 
 import ScannerLayout from '../components/layout/ScannerLayout';
-import { ScannerHome } from '../pages/scanner/ScannerHome';
-import { SelectGate } from '../pages/scanner/SelectGate';
+import  ScannerHome from '../pages/scanner/ScannerHome';
+import  SelectGate  from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
-import { ScanHistory } from '../pages/scanner/ScanHistory';
+import  ScanHistory from '../pages/scanner/ScanHistory';
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -63,6 +65,8 @@ export function AppRoutes() {
         <Route index element={<Navigate to="/attendee/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="tickets" element={<MyTickets />} />
+        <Route path="tickets/:ticketId" element={<TicketDetail />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="attendee" />} />
       </Route>
 
@@ -79,6 +83,7 @@ export function AppRoutes() {
         <Route path="resources" element={<Resources />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="predictions" element={<Predictions />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="organizer" />} />
       </Route>
 
@@ -92,6 +97,7 @@ export function AppRoutes() {
         <Route path="shifts" element={<MyShifts />} />
         <Route path="shifts/:shiftId" element={<ShiftDetail />} />
         <Route path="tasks" element={<MyTasks />} />
+        <Route path="notifications" element={<VolunteerNotifications />} />
         <Route path="profile" element={<ProfilePage role="volunteer" />} />
       </Route>
 
@@ -107,11 +113,25 @@ export function AppRoutes() {
       {/* Existing pages keep the Navbar via MainLayout */}
       <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
-      <Route path="/events" element={<MainLayout><EventsListPage /></MainLayout>} />
-      <Route path="/events/:id" element={<MainLayout><EventDetailsPage /></MainLayout>} />
+      <Route
+        path="/events"
+        element={
+          <EventAttendeeLayout pageTitle="Events">
+            <EventsListPage />
+          </EventAttendeeLayout>
+        }
+      />
+      <Route
+        path="/events/:id"
+        element={
+          <EventAttendeeLayout pageTitle="Event Details">
+            <EventDetailsPage />
+          </EventAttendeeLayout>
+        }
+      />
       {/* /profile now lives at role-specific routes (e.g. /attendee/profile) — redirect stragglers */}
       <Route path="/profile" element={<Navigate to="/login" replace />} />
-      <Route path="/events/new" element={<MainLayout><CreateEventPage /></MainLayout>} />
+      <Route path="/events/new" element={<CreateEventPage />} />
     </Routes>
   );
 }
