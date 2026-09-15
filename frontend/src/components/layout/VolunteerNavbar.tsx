@@ -54,6 +54,7 @@ export default function VolunteerNavbar({ onOpenMobileSidebar }: VolunteerNavbar
           initials={mockVolunteer.initials}
           profileRoute="/volunteer/profile"
           settingsRoute="/volunteer/settings"
+          currentRole="volunteer"
         />
       </div>
     </header>

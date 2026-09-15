@@ -53,6 +53,7 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
           initials={mockAttendee.initials}
           profileRoute="/attendee/profile"
           settingsRoute="/attendee/settings"
+          currentRole="attendee"
         />
       </div>
     </header>

@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Settings, LogOut, ChevronDown } from "lucide-react";
+import { User, Settings, LogOut, ChevronDown, Check, Repeat2 } from "lucide-react";
+
+type UserRole = "attendee" | "organizer" | "volunteer";
+
+const roleOptions: Array<{ id: UserRole; label: string; route: string }> = [
+  { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
+  { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
+  { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
+];
 
 interface UserMenuProps {
   name: string;
@@ -8,10 +16,12 @@ interface UserMenuProps {
   initials: string;
   profileRoute: string;
   settingsRoute: string;
+  currentRole: UserRole;
 }
 
-export default function UserMenu({ name, email, initials, profileRoute, settingsRoute }: UserMenuProps) {
+export default function UserMenu({ name, email, initials, profileRoute, settingsRoute, currentRole }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -75,6 +85,40 @@ export default function UserMenu({ name, email, initials, profileRoute, settings
             <Settings className="h-4 w-4" />
             Settings
           </button>
+
+          <button
+            type="button"
+            onClick={() => setIsRoleMenuOpen((open) => !open)}
+            className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-[#1E293B] hover:bg-[#F8FAFC]"
+          >
+            <Repeat2 className="h-4 w-4 text-[#64748B]" />
+            <span>Switch role</span>
+            <ChevronDown className={`ml-auto h-4 w-4 text-[#64748B] transition-transform ${isRoleMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {isRoleMenuOpen && (
+            <div className="mx-2 mb-1 rounded-lg bg-[#F8FAFC] p-1">
+              {roleOptions.map((role) => (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsRoleMenuOpen(false);
+                    navigate(role.route);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-xs transition-colors ${
+                    currentRole === role.id
+                      ? "bg-white font-semibold text-[#2563EB] shadow-sm"
+                      : "text-[#475569] hover:bg-white hover:text-[#2563EB]"
+                  }`}
+                >
+                  <span>{role.label}</span>
+                  {currentRole === role.id && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             type="button"

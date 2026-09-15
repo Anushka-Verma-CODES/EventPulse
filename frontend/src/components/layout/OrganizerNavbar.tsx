@@ -47,6 +47,7 @@ export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbar
           initials={mockOrganizer.initials}
           profileRoute="/organizer/profile"
           settingsRoute="/organizer/settings"
+          currentRole="organizer"
         />
       </div>
     </header>
