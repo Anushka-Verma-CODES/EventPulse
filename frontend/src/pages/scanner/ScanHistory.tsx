@@ -1,71 +1,104 @@
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ScannerTopBar } from "../../components/scanner/ScannerTopBar";
-import { ScanHistoryTable } from "../../components/scanner/ScanHistoryTable";
-import { useScanner } from "../../context/ScannerContext";
+import { useState } from "react";
+import { scanHistory } from "../../lib/scannerMockData";
 
-type Filter = "all" | "valid" | "rejected";
+const filters = ["All", "Valid", "Rejected"];
 
-export function ScanHistory() {
-  const { selectedEvent, selectedGate, history } = useScanner();
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
+const resultLabel: Record<string, string> = {
+  valid: "\u2713 Valid",
+  duplicate: "\u2715 Duplicate",
+  invalid: "\u2715 Invalid",
+  wrong_event: "\u2715 Wrong Event",
+  expired: "\u2715 Expired",
+  transferred: "\u2715 Transferred",
+};
 
-  const filtered = useMemo(() => {
-    return history.filter((h) => {
-      if (filter === "valid" && h.result !== "valid") return false;
-      if (filter === "rejected" && h.result === "valid") return false;
-      if (query) {
-        const q = query.toLowerCase();
-        if (!h.code.toLowerCase().includes(q) && !h.attendee.toLowerCase().includes(q)) return false;
-      }
+const resultColor: Record<string, string> = {
+  valid: "text-[#16A34A]",
+  duplicate: "text-[#DC2626]",
+  invalid: "text-[#DC2626]",
+  wrong_event: "text-[#DC2626]",
+  expired: "text-[#DC2626]",
+  transferred: "text-[#DC2626]",
+};
+
+export default function ScanHistory() {
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [search, setSearch] = useState("");
+
+  const filtered = scanHistory
+    .filter((entry) => {
+      if (activeFilter === "Valid") return entry.result === "valid";
+      if (activeFilter === "Rejected") return entry.result !== "valid";
       return true;
+    })
+    .filter((entry) => {
+      const query = search.toLowerCase();
+      return (
+        entry.ticketId.toLowerCase().includes(query) ||
+        entry.attendeeName.toLowerCase().includes(query)
+      );
     });
-  }, [history, filter, query]);
-
-  if (!selectedEvent || !selectedGate) {
-    navigate("/scanner", { replace: true });
-    return null;
-  }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col">
-      <ScannerTopBar
-        title="Scan history"
-        subtitle={`${selectedGate.name} \u00b7 ${selectedEvent.name}`}
-        onBack={() => navigate(-1)}
+    <div>
+      <h2 className="text-xl font-bold text-[#1E293B]">Scan History</h2>
+
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search ticket..."
+        className="mt-4 w-full max-w-sm rounded-lg border border-[#E2E8F0] px-3.5 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
       />
 
-      <div className="flex-1 space-y-3 px-4 py-5 sm:px-6">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ticket or attendee"
-            className="w-full rounded-lg border border-gray-300 py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+      <div className="mt-3 flex gap-2">
+        {filters.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => setActiveFilter(filter)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeFilter === filter
+                ? "bg-[#EFF6FF] text-[#2563EB]"
+                : "text-[#64748B] hover:bg-[#F8FAFC]"
+            }`}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex gap-2">
-          {(["all", "valid", "rejected"] as Filter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize ${
-                filter === f
-                  ? "border-blue-600 bg-blue-50 text-blue-600"
-                  : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <ScanHistoryTable entries={filtered} />
+      <div className="mt-4 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
+            <tr>
+              <th className="px-4 py-3 font-medium">Ticket</th>
+              <th className="px-4 py-3 font-medium">Attendee</th>
+              <th className="px-4 py-3 font-medium">Time</th>
+              <th className="px-4 py-3 font-medium">Result</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#E2E8F0]">
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-[#64748B]">
+                  No scans yet this session.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((entry, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3 font-medium text-[#1E293B]">{entry.ticketId}</td>
+                  <td className="px-4 py-3 text-[#64748B]">{entry.attendeeName}</td>
+                  <td className="px-4 py-3 text-[#64748B]">{entry.time}</td>
+                  <td className={`px-4 py-3 font-medium ${resultColor[entry.result]}`}>
+                    {resultLabel[entry.result]}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
