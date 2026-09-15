@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
 import { Zap, ZapOff } from "lucide-react";
 
 interface QRScannerProps {
@@ -37,12 +37,35 @@ export default function QRScanner({ onScan }: QRScannerProps) {
 
     return () => {
       isActive = false;
-      scanner
-        .stop()
-        .then(() => scanner.clear())
-        .catch(() => {
-          // Scanner may already be stopped/unmounted — safe to ignore.
-        });
+
+      // Only call stop() if the camera has actually finished starting.
+      // In dev, React Strict Mode mounts → unmounts → remounts once,
+      // and the first cleanup can fire before start() has resolved —
+      // stop() throws synchronously in that case, so guard on state.
+      let state: number | undefined;
+      try {
+        state = scanner.getState();
+      } catch {
+        state = undefined;
+      }
+
+      if (
+        state === Html5QrcodeScannerState.SCANNING ||
+        state === Html5QrcodeScannerState.PAUSED
+      ) {
+        scanner
+          .stop()
+          .then(() => scanner.clear())
+          .catch(() => {
+            // Already stopped/unmounted — safe to ignore.
+          });
+      } else {
+        try {
+          scanner.clear();
+        } catch {
+          // Nothing was ever rendered — safe to ignore.
+        }
+      }
     };
   }, []);
 
