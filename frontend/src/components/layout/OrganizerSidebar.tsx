@@ -11,6 +11,7 @@ import {
   TrendingUp,
   FileText,
   User,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -104,6 +105,19 @@ export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true
         >
           <User className="h-4.5 w-4.5 text-[#64748B]" />
           {!isCollapsed && "Profile"}
+        </NavLink>
+        <NavLink
+          to="/organizer/settings"
+          onClick={onNavigate}
+          title={isCollapsed ? "Settings" : undefined}
+          className={({ isActive }) =>
+            `mt-1 flex items-center rounded-lg py-2.5 text-sm transition-colors ${isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"} ${
+              isActive ? "bg-[#EFF6FF] font-medium text-[#2563EB]" : "text-[#1E293B] hover:bg-[#F8FAFC]"
+            }`
+          }
+        >
+          <Settings className="h-4.5 w-4.5 text-[#64748B]" />
+          {!isCollapsed && "Settings"}
         </NavLink>
         <button
           type="button"

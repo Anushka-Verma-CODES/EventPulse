@@ -5,6 +5,7 @@ import {
   Calendar,
   Ticket,
   User,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ const navItems = [
   { label: "Events", to: "/events", icon: Calendar },
   { label: "My Tickets", to: "/attendee/tickets", icon: Ticket },
   { label: "Profile", to: "/attendee/profile", icon: User },
+  { label: "Settings", to: "/attendee/settings", icon: Settings },
 ];
 
 interface AttendeeSidebarProps {

@@ -5,6 +5,7 @@ import EventsListPage from '../pages/EventsListPage';
 import EventDetailsPage from '../pages/EventDetailsPage';
 import CreateEventPage from '../pages/CreateEventPage';
 import ProfilePage from '../pages/ProfilePage';
+import SettingsPage from '../pages/SettingsPage';
 import Login from '../pages/auth/Login';
 import Signup from '../pages/auth/Signup';
 import HomePage from '../pages/HomePage';
@@ -68,6 +69,7 @@ export function AppRoutes() {
         <Route path="tickets/:ticketId" element={<TicketDetail />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="attendee" />} />
+        <Route path="settings" element={<SettingsPage role="attendee" />} />
       </Route>
 
       {/* Organizer routes with their own layout */}
@@ -85,6 +87,7 @@ export function AppRoutes() {
         <Route path="predictions" element={<Predictions />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="organizer" />} />
+        <Route path="settings" element={<SettingsPage role="organizer" />} />
       </Route>
 
       {/* Volunteer routes with their own layout */}
@@ -99,6 +102,7 @@ export function AppRoutes() {
         <Route path="tasks" element={<MyTasks />} />
         <Route path="notifications" element={<VolunteerNotifications />} />
         <Route path="profile" element={<ProfilePage role="volunteer" />} />
+        <Route path="settings" element={<SettingsPage role="volunteer" />} />
       </Route>
 
       {/* Scanner routes with their own minimal layout */}

@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Bell,
   User,
+  Settings,
   LogOut,
   Calendar,
   ChevronLeft,
@@ -22,6 +23,7 @@ const navItems = [
   { label: "My Tasks", to: "/volunteer/tasks", icon: CheckSquare },
   { label: "Notifications", to: "/volunteer/notifications", icon: Bell },
   { label: "Profile", to: "/volunteer/profile", icon: User },
+  { label: "Settings", to: "/volunteer/settings", icon: Settings },
 ];
 
 interface VolunteerSidebarProps {

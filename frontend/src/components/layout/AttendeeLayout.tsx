@@ -9,6 +9,7 @@ const pageTitles: Record<string, string> = {
   "/attendee/tickets": "My Tickets",
   "/attendee/notifications": "Notifications",
   "/attendee/profile": "Profile",
+  "/attendee/settings": "Settings",
 };
 
 export default function AttendeeLayout() {

@@ -12,6 +12,7 @@ const staticTitles: Record<string, string> = {
   "/volunteer/tasks": "My Tasks",
   "/volunteer/notifications": "Notifications",
   "/volunteer/profile": "Profile",
+  "/volunteer/settings": "Settings",
 };
 
 export default function VolunteerLayout() {

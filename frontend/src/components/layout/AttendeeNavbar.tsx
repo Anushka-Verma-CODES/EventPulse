@@ -8,9 +8,9 @@ interface AttendeeNavbarProps {
   onOpenMobileSidebar: () => void;
 }
 
-export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: AttendeeNavbarProps) {
+export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[#E2E8F0]/80 bg-white/75 px-3 backdrop-blur-md sm:px-5">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -20,17 +20,16 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold text-[#1E293B]">{pageTitle}</h1>
       </div>
 
-      <div className="hidden flex-1 justify-center px-6 md:flex">
-        <div className="relative w-full max-w-sm">
+      <div className="hidden flex-1 justify-center px-4 md:flex">
+        <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
             placeholder="Search events, tickets, etc."
             // UI only for now — actual search isn't wired up yet.
-            className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pl-9 pr-3 text-sm text-[#1E293B] outline-none placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
+            className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-1.5 pl-9 pr-3 text-sm text-[#1E293B] outline-none placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
           />
         </div>
       </div>
@@ -53,6 +52,7 @@ export default function AttendeeNavbar({ pageTitle, onOpenMobileSidebar }: Atten
           email={mockAttendee.email}
           initials={mockAttendee.initials}
           profileRoute="/attendee/profile"
+          settingsRoute="/attendee/settings"
         />
       </div>
     </header>

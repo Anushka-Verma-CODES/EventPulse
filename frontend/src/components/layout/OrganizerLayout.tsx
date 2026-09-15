@@ -16,6 +16,7 @@ const pageTitles: Record<string, string> = {
   "/organizer/reports": "Reports",
   "/organizer/notifications": "Notifications",
   "/organizer/profile": "Profile",
+  "/organizer/settings": "Settings",
 };
 
 export default function OrganizerLayout() {

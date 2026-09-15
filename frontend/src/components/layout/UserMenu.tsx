@@ -7,9 +7,10 @@ interface UserMenuProps {
   email: string;
   initials: string;
   profileRoute: string;
+  settingsRoute: string;
 }
 
-export default function UserMenu({ name, email, initials, profileRoute }: UserMenuProps) {
+export default function UserMenu({ name, email, initials, profileRoute, settingsRoute }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -65,11 +66,14 @@ export default function UserMenu({ name, email, initials, profileRoute }: UserMe
 
           <button
             type="button"
-            disabled
-            className="flex w-full cursor-not-allowed items-center gap-2.5 px-4 py-2 text-sm text-[#94A3B8]"
+            onClick={() => {
+              setIsOpen(false);
+              navigate(settingsRoute);
+            }}
+            className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-[#1E293B] hover:bg-[#F8FAFC]"
           >
             <Settings className="h-4 w-4" />
-            Settings <span className="ml-auto text-xs">Coming soon</span>
+            Settings
           </button>
 
           <button
