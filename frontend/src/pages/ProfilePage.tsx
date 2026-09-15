@@ -1,42 +1,63 @@
-import { useEffect, useState } from 'react';
-import type { User } from '../types/user';
-import type { EventItem } from '../types/event';
-import { getCurrentUser, getMyRegisteredEvents } from '../features/profile/api/profileApi';
-import { ProfileHeader } from '../features/profile/components/ProfileHeader';
-import { RegisteredEventsList } from '../features/profile/components/RegisteredEventsList';
+import { useState } from "react";
+import ProfileHeader from "../components/profile/ProfileHeader";
+import PersonalInformation from "../components/profile/PersonalInformation";
+import SecuritySection from "../components/profile/SecuritySection";
+import NotificationPreferences from "../components/profile/NotificationPreferences";
+import PreferencesSection from "../components/profile/PreferencesSection";
+import AccountSection from "../components/profile/AccountSection";
+import AttendeeSection from "../components/profile/AttendeeSection";
+import VolunteerSection from "../components/profile/VolunteerSection";
+import OrganizerSection from "../components/profile/OrganizerSection";
+import ScannerSection from "../components/profile/ScannerSection";
+import {
+  personalInfoByRole,
+  initialsByRole,
+  notificationTogglesByRole,
+} from "../lib/profileMockData";
+import type { PersonalInfo, ProfileRole } from "../lib/profileMockData";
 
-export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ProfilePageProps {
+  role: ProfileRole;
+}
 
-  useEffect(() => {
-    Promise.all([getCurrentUser(), getMyRegisteredEvents()]).then(([u, e]) => {
-      setUser(u);
-      setEvents(e);
-      setLoading(false);
-    });
-  }, []);
+// One shared Profile page for all four roles — only the role-specific
+// section (and notification list) changes. Deliberately not four
+// separate themed pages, per the "one EventPulse, not four websites"
+// design rule.
+export default function ProfilePage({ role }: ProfilePageProps) {
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(personalInfoByRole[role]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center mt-20">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
-      </div>
-    );
-  }
-  if (!user) return null;
+  const RoleSection = {
+    attendee: AttendeeSection,
+    volunteer: VolunteerSection,
+    organizer: OrganizerSection,
+    scanner: ScannerSection,
+  }[role];
 
   return (
-    <div className="min-h-screen bg-base-200 py-10 px-6">
-      <div className="max-w-2xl mx-auto flex flex-col gap-6">
-        <ProfileHeader user={user} />
+    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <h1 className="text-2xl font-bold text-[#1E293B]">Profile</h1>
 
-        <div>
-          <h2 className="text-lg font-semibold mb-3">My Registered Events</h2>
-          <RegisteredEventsList events={events} />
-        </div>
+      <ProfileHeader
+        role={role}
+        info={personalInfo}
+        initials={initialsByRole[role]}
+        onEditClick={() => {
+          const el = document.getElementById("personal-information");
+          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
+
+      <div id="personal-information">
+        <PersonalInformation info={personalInfo} onSave={setPersonalInfo} />
       </div>
+
+      <RoleSection />
+
+      <SecuritySection />
+      <NotificationPreferences items={notificationTogglesByRole[role]} />
+      <PreferencesSection showScannerPreferences={role === "scanner"} />
+      <AccountSection role={role} />
     </div>
   );
 }
