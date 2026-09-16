@@ -111,7 +111,9 @@ export function AppRoutes() {
         <Route path="event/:eventId" element={<SelectGate />} />
         <Route path="event/:eventId/gate/:gateId" element={<QRScannerPage />} />
         <Route path="history" element={<ScanHistory />} />
+        <Route path="notifications" element={<ScanHistory />} />
         <Route path="profile" element={<ProfilePage role="scanner" />} />
+        <Route path="settings" element={<SettingsPage role="scanner" />} />
       </Route>
 
       {/* Existing pages keep the Navbar via MainLayout */}
