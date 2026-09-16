@@ -13,15 +13,11 @@ export default function Toggle({ checked, onChange, label }: ToggleProps) {
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
-          checked ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
+        className={`flex h-6 w-11 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+          checked ? "justify-end bg-[#2563EB]" : "justify-start bg-[#E2E8F0]"
         }`}
       >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
-        />
+        <span className="h-5 w-5 rounded-full bg-white shadow" />
       </button>
     </label>
   );
