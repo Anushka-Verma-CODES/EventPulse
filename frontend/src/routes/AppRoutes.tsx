@@ -92,6 +92,7 @@ export function AppRoutes() {
         <Route path="resources" element={<Resources />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="predictions" element={<Predictions />} />
+        <Route path="reports" element={<Reports />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="organizer" />} />
         <Route path="settings" element={<SettingsPage role="organizer" />} />
