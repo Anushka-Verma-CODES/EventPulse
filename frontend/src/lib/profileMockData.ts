@@ -18,7 +18,7 @@ export const initialsByRole: Record<ProfileRole, string> = {
   attendee: "RS",
   volunteer: "RS",
   organizer: "RS",
-  scanner: "AK",
+  scanner: "RS",
 };
 
 const basePersonalInfo: PersonalInfo = {
@@ -33,7 +33,7 @@ export const personalInfoByRole: Record<ProfileRole, PersonalInfo> = {
   volunteer: basePersonalInfo,
   organizer: basePersonalInfo,
   scanner: {
-    fullName: "Amit Kumar",
+    fullName: "Rajat Sharma",
     email: "amit.kumar@example.com",
     phone: "+91 91234 56780",
     organization: "Thapar Institute",

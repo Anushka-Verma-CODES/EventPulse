@@ -1,7 +1,7 @@
 export const mockScannerUser = {
-  name: "Amit Kumar",
+  name: "Rajat Sharma",
   role: "Gate Staff",
-  initials: "AK",
+  initials: "RS",
 };
 
 export interface ScannerEvent {

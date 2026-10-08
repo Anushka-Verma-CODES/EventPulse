@@ -1,10 +1,28 @@
 import { AuthError } from "../types/auth";
 import type { AuthUser, LoginCredentials, RegisterPayload } from "../types/auth";
 
+export const DEMO_CREDENTIALS: LoginCredentials = {
+  email: "demo@eventpulse.com",
+  password: "EventPulse123!",
+};
+
+const demoUser: AuthUser = {
+  name: "EventPulse Demo",
+  email: DEMO_CREDENTIALS.email,
+  role: "attendee",
+};
+
 // Replace this with a real call to your NestJS backend, e.g.
 // POST /auth/login. Keep the same error-mapping shape so LoginForm
 // doesn't need to change when the real endpoint is wired up.
 export async function loginRequest(credentials: LoginCredentials): Promise<AuthUser> {
+  if (
+    credentials.email.trim().toLowerCase() === DEMO_CREDENTIALS.email &&
+    credentials.password === DEMO_CREDENTIALS.password
+  ) {
+    return demoUser;
+  }
+
   let response: Response;
 
   try {
