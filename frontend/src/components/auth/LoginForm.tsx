@@ -4,7 +4,6 @@ import AuthInput from "./AuthInput";
 import PasswordInput from "./PasswordInput";
 import Button from "../ui/Button";
 import Alert from "../ui/Alert";
-import { DEMO_CREDENTIALS } from "../../lib/authApi";
 import { AuthError } from "../../types/auth";
 import type { AuthUser, LoginCredentials } from "../../types/auth";
 
@@ -71,12 +70,6 @@ export default function LoginForm({ onSubmit, onSuccess }: LoginFormProps) {
         <p className="mt-1 text-sm text-[#64748B]">
           Plan, operate and analyze your events from one place.
         </p>
-      </div>
-
-      <div className="rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF]">
-        <p className="font-semibold">Demo credentials</p>
-        <p className="mt-1">Email: {DEMO_CREDENTIALS.email}</p>
-        <p>Password: {DEMO_CREDENTIALS.password}</p>
       </div>
 
       {formError && <Alert tone="error">{formError}</Alert>}

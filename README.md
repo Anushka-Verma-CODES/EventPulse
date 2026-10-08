@@ -93,6 +93,17 @@ http://localhost:5173
 
 Open that URL in your browser to view the project.
 
+### Demo Login
+
+Go to `/login` and use these example credentials to open the attendee dashboard:
+
+```text
+Email:    demo@eventpulse.com
+Password: EventPulse123!
+```
+
+These credentials are for the frontend demo only and are not a production account.
+
 ### 5. Build for production
 
 ```bash
