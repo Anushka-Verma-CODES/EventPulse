@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import TicketPage from '../pages/TicketPage';
 import EventsListPage from '../pages/EventsListPage';
-import EventDetailsPage from '../pages/EventDetailsPage';
+import EventDetails from '../pages/EventDetails';
 import CreateEventPage from '../pages/CreateEventPage';
 import ProfilePage from '../pages/ProfilePage';
 import SettingsPage from '../pages/SettingsPage';
@@ -45,6 +45,13 @@ import  SelectGate  from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
 import  ScanHistory from '../pages/scanner/ScanHistory';
 
+import AttendeeDetails from '../pages/registration/AttendeeDetails';
+import AttendeePayment from '../pages/registration/AttendeePayment';
+import RegistrationSuccess from '../pages/registration/RegistrationSuccess';
+import VolunteerDetails from '../pages/registration/VolunteerDetails';
+import VolunteerReview from '../pages/registration/VolunteerReview';
+import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
+
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -85,6 +92,7 @@ export function AppRoutes() {
         <Route path="resources" element={<Resources />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="predictions" element={<Predictions />} />
+        <Route path="reports" element={<Reports />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<ProfilePage role="organizer" />} />
         <Route path="settings" element={<SettingsPage role="organizer" />} />
@@ -131,10 +139,24 @@ export function AppRoutes() {
         path="/events/:id"
         element={
           <EventAttendeeLayout pageTitle="Event Details">
-            <EventDetailsPage />
+            <EventDetails />
           </EventAttendeeLayout>
         }
       />
+
+      {/* Attendee registration flow — deliberately no site chrome, same as /events/new */}
+      <Route path="/events/:eventId/register/attendee" element={<AttendeeDetails />} />
+      <Route path="/events/:eventId/register/attendee/payment" element={<AttendeePayment />} />
+      <Route path="/events/:eventId/registration-success" element={<RegistrationSuccess />} />
+
+      {/* Volunteer registration flow */}
+      <Route path="/events/:eventId/register/volunteer" element={<VolunteerDetails />} />
+      <Route path="/events/:eventId/register/volunteer/review" element={<VolunteerReview />} />
+      <Route
+        path="/events/:eventId/volunteer/application-success"
+        element={<VolunteerApplicationSuccess />}
+      />
+
       {/* /profile now lives at role-specific routes (e.g. /attendee/profile) — redirect stragglers */}
       <Route path="/profile" element={<Navigate to="/login" replace />} />
       <Route path="/events/new" element={<CreateEventPage />} />

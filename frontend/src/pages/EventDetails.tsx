@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import EventHero from "../components/events/EventHero";
 import RegistrationOptions from "../components/events/RegistrationOptions";
+import TicketMarketplace from "../components/events/TicketMarketplace";
 import EventOverview from "../components/events/EventOverview";
 import EventFAQ from "../components/events/EventFAQ";
 import LiveEntryStatus from "../components/events/LiveEntryStatus";
@@ -20,6 +21,10 @@ export default function EventDetails() {
 
       <div className="mt-6">
         <RegistrationOptions eventId={resolvedEventId} />
+      </div>
+
+      <div className="mt-6">
+        <TicketMarketplace />
       </div>
 
       <div className="mt-6">
