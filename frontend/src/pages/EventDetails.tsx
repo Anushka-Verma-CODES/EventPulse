@@ -1,3 +1,5 @@
+
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EventHero from "../components/events/EventHero";
 import RegistrationOptions from "../components/events/RegistrationOptions";
@@ -5,30 +7,112 @@ import TicketMarketplace from "../components/events/TicketMarketplace";
 import EventOverview from "../components/events/EventOverview";
 import EventFAQ from "../components/events/EventFAQ";
 import LiveEntryStatus from "../components/events/LiveEntryStatus";
-import { mockEventDetail } from "../lib/registrationMockData";
+import {
+  getEventById,
+  getMyRegistrations,
+} from "../features/events/api/eventsApi";
+import type { EventItem } from "../types/event";
 
-// This is a fuller version of the Event Details page than the original
-// EventDetailsPage — replace that route's element with this component,
-// or merge these sections into your existing file, whichever is easier
-// given what else that file already does.
 export default function EventDetails() {
-  const { eventId } = useParams();
-  const resolvedEventId = eventId ?? mockEventDetail.id;
+  const { id } = useParams<{ id: string }>();
+
+  const [event, setEvent] = useState<EventItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [registrationLoading, setRegistrationLoading] = useState(true);
+  const [registrationError, setRegistrationError] = useState("");
+
+  useEffect(() => {
+    if (!id) {
+      setError("Event ID is missing.");
+      setLoading(false);
+      setRegistrationLoading(false);
+      setRegistrationError("Event ID is missing.");
+      return;
+    }
+
+    setLoading(true);
+    setEvent(null);
+    setError("");
+
+    setIsRegistered(false);
+    setRegistrationLoading(true);
+    setRegistrationError("");
+
+    getEventById(id)
+      .then((result) => {
+        if (!result) {
+          setError("Event not found.");
+          return;
+        }
+
+        setEvent(result);
+      })
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : "Failed to load event."
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+
+    getMyRegistrations()
+      .then((registrations) => {
+        setIsRegistered(
+          registrations.some((registration) => registration.eventId === id)
+        );
+        setRegistrationError("");
+      })
+      .catch((err: unknown) => {
+        setRegistrationError(
+          err instanceof Error
+            ? err.message
+            : "Unable to check registration status."
+        );
+      })
+      .finally(() => {
+        setRegistrationLoading(false);
+      });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <p>Loading event...</p>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <p className="text-red-600">{error || "Event not found."}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <EventHero />
+      <EventHero event={event} />
 
       <div className="mt-6">
-        <RegistrationOptions eventId={resolvedEventId} />
+        <RegistrationOptions
+          eventId={event.id}
+          isRegistered={isRegistered}
+          registrationLoading={registrationLoading}
+          registrationError={registrationError}
+        />
       </div>
 
       <div className="mt-6">
-        <TicketMarketplace />
+        <TicketMarketplace eventId={event.id} />
       </div>
 
       <div className="mt-6">
-        <EventOverview />
+        <EventOverview event={event} />
       </div>
 
       <div className="mt-6">

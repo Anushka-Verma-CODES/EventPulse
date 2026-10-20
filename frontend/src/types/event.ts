@@ -7,6 +7,8 @@ export interface EventItem {
   id: string;
   name: string;
   date: string;
+  startDate: string;
+  endDate: string;
   venue: string;
   category: string;
   shortDescription: string;
@@ -21,6 +23,8 @@ export interface EventItem {
 export interface NewEventInput {
   name: string;
   date: string;
+  startTime: string;
+  endTime: string;
   venue: string;
   category: string;
   shortDescription: string;

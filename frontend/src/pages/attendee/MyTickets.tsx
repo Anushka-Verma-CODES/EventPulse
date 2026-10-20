@@ -1,6 +1,8 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getEvents } from "../../features/events/api/eventsApi";
+import { getMyRegistrations } from "../../features/events/api/eventsApi";
+import type { MyRegistration } from "../../features/events/api/eventsApi";
 
 type TicketItem = {
   id: string;
@@ -18,30 +20,56 @@ type TicketItem = {
 export default function MyTickets() {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadTickets() {
-      const events = await getEvents();
-      if (!isMounted) return;
+      try {
+        const registrations: MyRegistration[] = await getMyRegistrations();
 
-      const registered = events.filter((event) => event.isRegistered);
-      const mappedTickets = registered.map((event, index) => ({
-        id: `${event.id}-ticket`,
-        eventId: event.id,
-        eventName: event.name,
-        date: event.date,
-        venue: event.venue,
-        gate: event.gates[0]?.name ?? "Main Entry",
-        ticketNumber: `EP-${String(index + 1).padStart(4, "0")}`,
-        section: event.category,
-        status: "Confirmed",
-        imageUrl: event.imageUrl,
-      }));
+        if (!isMounted) return;
 
-      setTickets(mappedTickets);
-      setLoading(false);
+        const mappedTickets = registrations.map((registration, index) => {
+          const event = registration.event;
+
+          return {
+            id: registration.id,
+            eventId: registration.eventId,
+            eventName: event.title,
+            date: new Date(event.startDate).toLocaleString("en-IN", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              timeZone: "Asia/Kolkata",
+            }),
+            venue: event.location,
+            gate: "Main Entry",
+            ticketNumber: `EP-${String(index + 1).padStart(4, "0")}`,
+            section: event.category,
+            status: "Registration Confirmed",
+            imageUrl: event.bannerImage || "/event-hero.png",
+          };
+        });
+
+        setTickets(mappedTickets);
+      } catch (err: unknown) {
+        if (!isMounted) return;
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load your registered events."
+        );
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     }
 
     loadTickets();
@@ -56,7 +84,7 @@ export default function MyTickets() {
       <div>
         <h2 className="text-2xl font-bold text-[#1E293B]">My Tickets</h2>
         <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-8 text-sm text-[#64748B] shadow-sm">
-          Loading your tickets...
+          Loading your registrations...
         </div>
       </div>
     );
@@ -68,15 +96,27 @@ export default function MyTickets() {
         <div>
           <h2 className="text-2xl font-bold text-[#1E293B]">My Tickets</h2>
           <p className="mt-1 text-sm text-[#64748B]">
-            Your registered event tickets and access details.
+            Your registered events and access details.
           </p>
         </div>
       </div>
 
-      {tickets.length === 0 ? (
+      {error ? (
+        <div
+          role="alert"
+          className="mt-6 rounded-xl border border-red-200 bg-white p-6 text-sm text-red-600 shadow-sm"
+        >
+          {error}
+        </div>
+      ) : tickets.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-[#E2E8F0] bg-white p-10 text-center shadow-sm">
-          <p className="text-sm text-[#64748B]">You haven&apos;t registered for any events yet.</p>
-          <Link to="/events" className="mt-3 inline-block text-sm font-medium text-[#2563EB] hover:underline">
+          <p className="text-sm text-[#64748B]">
+            You haven't registered for any events yet.
+          </p>
+          <Link
+            to="/events"
+            className="mt-3 inline-block text-sm font-medium text-[#2563EB] hover:underline"
+          >
             Browse events →
           </Link>
         </div>
@@ -88,7 +128,7 @@ export default function MyTickets() {
               to={`/attendee/tickets/${ticket.id}`}
               className="group rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#93C5FD] hover:shadow-md"
             >
-              <div className="mb-4 overflow-hidden rounded-lg bg-[#E2E8F0] aspect-[16/9]">
+              <div className="mb-4 aspect-[16/9] overflow-hidden rounded-lg bg-[#E2E8F0]">
                 <img
                   src={ticket.imageUrl}
                   alt={`${ticket.eventName} event`}
@@ -106,13 +146,20 @@ export default function MyTickets() {
                 </span>
               </div>
 
-              <h3 className="mt-3 truncate text-base font-bold text-[#1E293B]">{ticket.eventName}</h3>
-              <p className="mt-1 truncate text-sm text-[#64748B]">{ticket.date}</p>
+              <h3 className="mt-3 truncate text-base font-bold text-[#1E293B]">
+                {ticket.eventName}
+              </h3>
+
+              <p className="mt-1 truncate text-sm text-[#64748B]">
+                {ticket.date}
+              </p>
 
               <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3 text-xs">
-                <span className="truncate text-[#64748B]">{ticket.venue}</span>
+                <span className="truncate text-[#64748B]">
+                  {ticket.venue}
+                </span>
                 <span className="ml-3 shrink-0 font-semibold text-[#2563EB] group-hover:underline">
-                  View ticket
+                  View details
                 </span>
               </div>
             </Link>

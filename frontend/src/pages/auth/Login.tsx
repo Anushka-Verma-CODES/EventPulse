@@ -1,12 +1,10 @@
+
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import LoginForm from "../../components/auth/LoginForm";
-import { loginRequest } from "../../lib/authApi";
+import { loginRequest, getMyProfile } from "../../lib/authApi";
 import type { AuthUser, UserRole } from "../../types/auth";
 
-// The backend is the source of truth for role — the frontend only
-// reads user.role from the authenticated response and routes on it.
-// It never lets a client-side choice grant access.
 const roleRoutes: Record<UserRole, string> = {
   attendee: "/attendee/dashboard",
   organizer: "/organizer/dashboard",
@@ -17,13 +15,30 @@ const roleRoutes: Record<UserRole, string> = {
 export default function Login() {
   const navigate = useNavigate();
 
-  function handleSuccess(user: AuthUser) {
-    navigate(roleRoutes[user.role]);
+  async function handleSuccess(_user: AuthUser) {
+    try {
+      const profile = await getMyProfile();
+      console.log("Authenticated profile:", profile);
+
+      const role = profile.roles[0];
+
+      if (!role || !roleRoutes[role]) {
+        throw new Error("No valid role found for this user.");
+      }
+
+      navigate(roleRoutes[role], { replace: true });
+    } catch (error) {
+      console.error("Profile authentication failed:", error);
+      alert("Could not verify your login. Please log in again.");
+    }
   }
 
   return (
     <AuthLayout>
-      <LoginForm onSubmit={loginRequest} onSuccess={handleSuccess} />
+      <LoginForm
+        onSubmit={loginRequest}
+        onSuccess={handleSuccess}
+      />
     </AuthLayout>
   );
 }

@@ -1,80 +1,204 @@
+
 import { AuthError } from "../types/auth";
-import type { AuthUser, LoginCredentials, RegisterPayload } from "../types/auth";
+import type {
+  AuthUser,
+  LoginCredentials,
+  RegisterPayload,
+  UserRole,
+} from "../types/auth";
 
-export const DEMO_CREDENTIALS: LoginCredentials = {
-  email: "demo@eventpulse.com",
-  password: "EventPulse123!",
+const API_BASE_URL = "http://localhost:3000";
+
+type BackendUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  roles: string[];
 };
 
-const demoUser: AuthUser = {
-  name: "EventPulse Demo",
-  email: DEMO_CREDENTIALS.email,
-  role: "attendee",
+type LoginResponse = {
+  message: string;
+  accessToken: string;
+  user: BackendUser;
 };
 
-// Replace this with a real call to your NestJS backend, e.g.
-// POST /auth/login. Keep the same error-mapping shape so LoginForm
-// doesn't need to change when the real endpoint is wired up.
-export async function loginRequest(credentials: LoginCredentials): Promise<AuthUser> {
-  if (
-    credentials.email.trim().toLowerCase() === DEMO_CREDENTIALS.email &&
-    credentials.password === DEMO_CREDENTIALS.password
-  ) {
-    return demoUser;
+type ProfileResponse = BackendUser;
+
+function mapUser(user: BackendUser): AuthUser {
+  const roleMap: Record<string, UserRole> = {
+    attendee: "attendee",
+    organizer: "organizer",
+    volunteer: "volunteer",
+    scanner_staff: "scanner",
+    scanner: "scanner",
+  };
+
+  const roles = [
+    ...new Set(
+      user.roles
+        .map((role) => roleMap[role])
+        .filter((role): role is UserRole => role !== undefined)
+    ),
+  ];
+
+  if (roles.length === 0) {
+    throw new AuthError(
+      "server_error",
+      "No valid role is assigned to this account."
+    );
   }
 
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone ?? null,
+    roles,
+  };
+}
+
+export function getAuthHeaders(): HeadersInit {
+  const token = sessionStorage.getItem("eventpulse_access_token");
+
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
+export async function loginRequest(
+  credentials: LoginCredentials
+): Promise<AuthUser> {
   let response: Response;
 
   try {
-    response = await fetch("/api/auth/login", {
+    response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(credentials),
     });
   } catch {
     throw new AuthError(
       "network_error",
-      "Unable to connect to EventPulse. Please check your internet connection."
+      "Unable to connect to EventPulse. Please check your connection."
     );
   }
 
   if (response.status === 401) {
-    throw new AuthError("invalid_credentials", "Invalid email or password.");
+    throw new AuthError(
+      "invalid_credentials",
+      "Invalid email or password."
+    );
   }
 
   if (!response.ok) {
-    throw new AuthError("server_error", "Something went wrong. Please try again.");
+    throw new AuthError(
+      "server_error",
+      "Something went wrong. Please try again."
+    );
   }
 
-  const data = await response.json();
-  return data.user as AuthUser;
+  try {
+    const data: LoginResponse = await response.json();
+    const user = mapUser(data.user);
+
+    sessionStorage.setItem(
+      "eventpulse_access_token",
+      data.accessToken
+    );
+
+    return user;
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+
+    throw new AuthError(
+      "server_error",
+      "Invalid server response."
+    );
+  }
 }
 
-// Replace this with a real call to your NestJS backend, e.g. POST /auth/register.
-// Per the current design, this deliberately doesn't log the user in automatically —
-// SignupForm shows a success panel and sends the user to /login themselves,
-// since the actual backend/session flow isn't built yet.
-export async function registerRequest(payload: RegisterPayload): Promise<void> {
+export async function registerRequest(
+  payload: RegisterPayload
+): Promise<void> {
   let response: Response;
 
   try {
-    response = await fetch("/api/auth/register", {
+    response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(payload),
     });
   } catch {
     throw new AuthError(
       "network_error",
-      "Unable to connect to EventPulse. Please check your internet connection."
+      "Unable to connect to EventPulse. Please check your connection."
     );
   }
 
   if (response.status === 409) {
-    throw new AuthError("email_exists", "An account with this email already exists.");
+    throw new AuthError(
+      "email_exists",
+      "An account with this email already exists."
+    );
   }
 
   if (!response.ok) {
-    throw new AuthError("server_error", "Something went wrong. Please try again.");
+    throw new AuthError(
+      "server_error",
+      "Something went wrong. Please try again."
+    );
+  }
+}
+
+export async function getMyProfile(): Promise<AuthUser> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+  } catch {
+    throw new AuthError(
+      "network_error",
+      "Unable to connect to EventPulse. Please check your connection."
+    );
+  }
+
+  if (response.status === 401) {
+    sessionStorage.removeItem("eventpulse_access_token");
+
+    throw new AuthError(
+      "invalid_credentials",
+      "Your session is invalid or expired. Please log in again."
+    );
+  }
+
+  if (!response.ok) {
+    throw new AuthError(
+      "server_error",
+      "Unable to fetch your profile."
+    );
+  }
+
+  try {
+    const data: ProfileResponse = await response.json();
+    return mapUser(data);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+
+    throw new AuthError(
+      "server_error",
+      "Invalid server response."
+    );
   }
 }

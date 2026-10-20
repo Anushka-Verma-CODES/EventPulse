@@ -1,6 +1,15 @@
+
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Settings, LogOut, ChevronDown, Check, Repeat2 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import {
+  User,
+  Settings,
+  LogOut,
+  ChevronDown,
+  Check,
+  Repeat2,
+} from "lucide-react";
 
 type UserRole = "attendee" | "organizer" | "volunteer" | "scanner";
 
@@ -20,46 +29,68 @@ interface UserMenuProps {
   currentRole: UserRole;
 }
 
-export default function UserMenu({ name, email, initials, profileRoute, settingsRoute, currentRole }: UserMenuProps) {
+export default function UserMenu({
+  name,
+  email,
+  initials,
+  profileRoute,
+  settingsRoute,
+  currentRole,
+}: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
+        setIsRoleMenuOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   function handleLogout() {
-    navigate("/login");
+    setIsOpen(false);
+    setIsRoleMenuOpen(false);
+    logout();
+    navigate("/login", { replace: true });
   }
 
   return (
     <div ref={menuRef} className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => setIsOpen((value) => !value)}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-[#F8FAFC]"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">
           {initials}
         </span>
+
         <span className="hidden font-medium text-[#1E293B] sm:inline">
           {name.split(" ")[0]}
         </span>
+
         <ChevronDown className="h-4 w-4 text-[#64748B]" />
       </button>
 
       {isOpen && (
         <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-[#E2E8F0] bg-white py-1.5 shadow-lg">
           <div className="border-b border-[#E2E8F0] px-4 py-2.5">
-            <div className="text-sm font-semibold text-[#1E293B]">{name}</div>
+            <div className="text-sm font-semibold text-[#1E293B]">
+              {name}
+            </div>
             <div className="text-xs text-[#64748B]">{email}</div>
           </div>
 
@@ -94,7 +125,12 @@ export default function UserMenu({ name, email, initials, profileRoute, settings
           >
             <Repeat2 className="h-4 w-4 text-[#64748B]" />
             <span>Switch role</span>
-            <ChevronDown className={`ml-auto h-4 w-4 text-[#64748B] transition-transform ${isRoleMenuOpen ? "rotate-180" : ""}`} />
+
+            <ChevronDown
+              className={`ml-auto h-4 w-4 text-[#64748B] transition-transform ${
+                isRoleMenuOpen ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
           {isRoleMenuOpen && (
@@ -115,7 +151,9 @@ export default function UserMenu({ name, email, initials, profileRoute, settings
                   }`}
                 >
                   <span>{role.label}</span>
-                  {currentRole === role.id && <Check className="h-3.5 w-3.5" />}
+                  {currentRole === role.id && (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
                 </button>
               ))}
             </div>
