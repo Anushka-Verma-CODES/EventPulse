@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EventHero from "../components/events/EventHero";
@@ -101,6 +100,7 @@ export default function EventDetails() {
       <div className="mt-6">
         <RegistrationOptions
           eventId={event.id}
+          price={event.price}
           isRegistered={isRegistered}
           registrationLoading={registrationLoading}
           registrationError={registrationError}

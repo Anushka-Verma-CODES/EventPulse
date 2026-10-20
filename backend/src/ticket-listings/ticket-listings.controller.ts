@@ -6,9 +6,12 @@ import {
   Param,
   Post,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { TicketListingsService } from './ticket-listings.service';
 import { TicketListing } from './ticket-listing.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('ticket-listings')
 export class TicketListingsController {
@@ -24,10 +27,15 @@ export class TicketListingsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   async createListing(
+    @Req() request: { user: { userId: string } },
     @Body() body: Partial<TicketListing>,
   ): Promise<TicketListing> {
-    return this.ticketListingsService.create(body);
+    return this.ticketListingsService.create(
+      request.user.userId,
+      body,
+    );
   }
 
   @Get(':id')

@@ -18,6 +18,7 @@ export interface EventItem {
   isRegistered: boolean;
   imageUrl: string;
   gates: Gate[];
+  price: number;
 }
 
 export interface NewEventInput {
@@ -31,4 +32,5 @@ export interface NewEventInput {
   fullDescription: string;
   capacityTotal: number;
   gates: string[];
+  price: number;
 }

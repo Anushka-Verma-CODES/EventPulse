@@ -2,7 +2,8 @@
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import LoginForm from "../../components/auth/LoginForm";
-import { loginRequest, getMyProfile } from "../../lib/authApi";
+import { loginRequest } from "../../lib/authApi";
+import { useAuth } from "../../context/AuthContext";
 import type { AuthUser, UserRole } from "../../types/auth";
 
 const roleRoutes: Record<UserRole, string> = {
@@ -14,13 +15,13 @@ const roleRoutes: Record<UserRole, string> = {
 
 export default function Login() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
 
-  async function handleSuccess(_user: AuthUser) {
+  async function handleSuccess(user: AuthUser) {
     try {
-      const profile = await getMyProfile();
-      console.log("Authenticated profile:", profile);
+      await refreshProfile();
 
-      const role = profile.roles[0];
+      const role = user.roles[0];
 
       if (!role || !roleRoutes[role]) {
         throw new Error("No valid role found for this user.");

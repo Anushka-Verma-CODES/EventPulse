@@ -78,6 +78,7 @@ function mapBackendEvent(event: BackendEvent): EventItem {
     shortDescription: event.description,
     fullDescription: event.description,
     capacityTotal: event.capacity,
+    price: Number(event.price),
     capacityRegistered: 0,
     isRegistered: false,
     imageUrl: event.bannerImage || '/event-hero.png',
@@ -174,7 +175,7 @@ export async function createEvent(
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       capacity: input.capacityTotal,
-      price: 0,
+      price: input.price,
       bannerImage: null,
     }),
   });
