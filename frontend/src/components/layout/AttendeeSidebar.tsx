@@ -1,3 +1,4 @@
+import { useAuth } from "../../context/AuthContext";
 import { useState } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import {
@@ -24,14 +25,19 @@ interface AttendeeSidebarProps {
   initiallyCollapsed?: boolean;
 }
 
-export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true }: AttendeeSidebarProps) {
+export default function AttendeeSidebar({
+  onNavigate,
+  initiallyCollapsed = true,
+}: AttendeeSidebarProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(initiallyCollapsed);
 
   function handleLogout() {
-    // Later: clear the auth session/token here before redirecting.
-    navigate("/login");
+    logout();
+    navigate("/login", { replace: true });
   }
+
   return (
     <aside
       className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
@@ -41,12 +47,19 @@ export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true 
       <Link
         to="/"
         title="EventPulse home"
-        className={`flex items-center gap-2 py-5 hover:opacity-80 ${isCollapsed ? "justify-center px-3" : "px-5"}`}
+        className={`flex items-center gap-2 py-5 hover:opacity-80 ${
+          isCollapsed ? "justify-center px-3" : "px-5"
+        }`}
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2563EB] text-white">
           <Calendar className="h-4 w-4" />
         </span>
-        {!isCollapsed && <span className="text-lg font-semibold text-[#1E293B]">EventPulse</span>}
+
+        {!isCollapsed && (
+          <span className="text-lg font-semibold text-[#1E293B]">
+            EventPulse
+          </span>
+        )}
       </Link>
 
       <button
@@ -58,8 +71,17 @@ export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true 
           isCollapsed ? "justify-center" : "gap-2 px-3"
         }`}
       >
-        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        {!isCollapsed && <span className="text-xs font-semibold">Collapse navigation</span>}
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+
+        {!isCollapsed && (
+          <span className="text-xs font-semibold">
+            Collapse navigation
+          </span>
+        )}
       </button>
 
       {!isCollapsed && (
@@ -71,6 +93,7 @@ export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true 
       <nav className="flex flex-1 flex-col gap-1 px-3">
         {navItems.map((item) => {
           const Icon = item.icon;
+
           return (
             <NavLink
               key={item.to}
@@ -79,7 +102,9 @@ export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true 
               title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
-                  isCollapsed ? "justify-center px-2" : "justify-between px-3" 
+                  isCollapsed
+                    ? "justify-center px-2"
+                    : "justify-between px-3"
                 } ${
                   isActive
                     ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
@@ -88,8 +113,17 @@ export default function AttendeeSidebar({ onNavigate, initiallyCollapsed = true 
               }
             >
               {({ isActive }) => (
-                <span className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5"}`}>
-                  <Icon className={`h-4.5 w-4.5 ${isActive ? "text-[#2563EB]" : "text-[#64748B]"}`} />
+                <span
+                  className={`flex items-center ${
+                    isCollapsed ? "justify-center" : "gap-2.5"
+                  }`}
+                >
+                  <Icon
+                    className={`h-4.5 w-4.5 ${
+                      isActive ? "text-[#2563EB]" : "text-[#64748B]"
+                    }`}
+                  />
+
                   {!isCollapsed && item.label}
                 </span>
               )}

@@ -1,3 +1,5 @@
+import ProtectedRoute from "./ProtectedRoute";
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import TicketPage from '../pages/TicketPage';
@@ -69,6 +71,7 @@ export function AppRoutes() {
       <Route path="/register" element={<Signup />} />
 
       {/* Attendee routes with their own layout */}
+    <Route element={<ProtectedRoute allowedRoles={["attendee"]} />}>
       <Route path="/attendee" element={<AttendeeLayout />}>
         <Route index element={<Navigate to="/attendee/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
@@ -78,8 +81,10 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage role="attendee" />} />
         <Route path="settings" element={<SettingsPage role="attendee" />} />
       </Route>
+    </Route>
 
       {/* Organizer routes with their own layout */}
+    <Route element={<ProtectedRoute allowedRoles={["organizer"]} />}>
       <Route path="/organizer" element={<OrganizerLayout />}>
         <Route index element={<Navigate to="/organizer/dashboard" replace />} />
         <Route path="dashboard" element={<OrganizerDashboard />} />
@@ -97,8 +102,10 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage role="organizer" />} />
         <Route path="settings" element={<SettingsPage role="organizer" />} />
       </Route>
+    </Route>
 
       {/* Volunteer routes with their own layout */}
+    <Route element={<ProtectedRoute allowedRoles={["volunteer"]} />}>
       <Route path="/volunteer" element={<VolunteerLayout />}>
         <Route index element={<Navigate to="/volunteer/dashboard" replace />} />
         <Route path="dashboard" element={<VolunteerDashboard />} />
@@ -112,8 +119,10 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage role="volunteer" />} />
         <Route path="settings" element={<SettingsPage role="volunteer" />} />
       </Route>
+    </Route>
 
       {/* Scanner routes with their own minimal layout */}
+    <Route element={<ProtectedRoute allowedRoles={["scanner"]} />}>
       <Route path="/scanner" element={<ScannerLayout />}>
         <Route index element={<ScannerHome />} />
         <Route path="event/:eventId" element={<SelectGate />} />
@@ -123,7 +132,8 @@ export function AppRoutes() {
         <Route path="profile" element={<ProfilePage role="scanner" />} />
         <Route path="settings" element={<SettingsPage role="scanner" />} />
       </Route>
-
+    </Route>
+    
       {/* Existing pages keep the Navbar via MainLayout */}
       <Route path="/" element={<HomePage />} />
       <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
   Calendar,
@@ -34,21 +35,41 @@ interface OrganizerSidebarProps {
   initiallyCollapsed?: boolean;
 }
 
-export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true }: OrganizerSidebarProps) {
+export default function OrganizerSidebar({
+  onNavigate,
+  initiallyCollapsed = true,
+}: OrganizerSidebarProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(initiallyCollapsed);
 
   function handleLogout() {
-    navigate("/login");
+    logout();
+    navigate("/login", { replace: true });
   }
 
   return (
-    <aside className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${isCollapsed ? "w-[64px]" : "w-[216px]"}`}>
-      <Link to="/" title="EventPulse home" className={`flex items-center gap-2 py-5 hover:opacity-80 ${isCollapsed ? "justify-center px-3" : "px-5"}`}>
+    <aside
+      className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
+        isCollapsed ? "w-[64px]" : "w-[216px]"
+      }`}
+    >
+      <Link
+        to="/"
+        title="EventPulse home"
+        className={`flex items-center gap-2 py-5 hover:opacity-80 ${
+          isCollapsed ? "justify-center px-3" : "px-5"
+        }`}
+      >
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2563EB] text-white">
           <Calendar className="h-4 w-4" />
         </span>
-        {!isCollapsed && <span className="text-lg font-semibold text-[#1E293B]">EventPulse</span>}
+
+        {!isCollapsed && (
+          <span className="text-lg font-semibold text-[#1E293B]">
+            EventPulse
+          </span>
+        )}
       </Link>
 
       <button
@@ -56,17 +77,33 @@ export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true
         onClick={() => setIsCollapsed((collapsed) => !collapsed)}
         aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
         title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
-        className={`mx-3 mb-4 flex items-center rounded-lg border border-transparent py-2 text-[#64748B] transition-colors hover:border-[#DBEAFE] hover:bg-[#EFF6FF] hover:text-[#2563EB] ${isCollapsed ? "justify-center" : "gap-2 px-3"}`}
+        className={`mx-3 mb-4 flex items-center rounded-lg border border-transparent py-2 text-[#64748B] transition-colors hover:border-[#DBEAFE] hover:bg-[#EFF6FF] hover:text-[#2563EB] ${
+          isCollapsed ? "justify-center" : "gap-2 px-3"
+        }`}
       >
-        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        {!isCollapsed && <span className="text-xs font-semibold">Collapse navigation</span>}
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+
+        {!isCollapsed && (
+          <span className="text-xs font-semibold">
+            Collapse navigation
+          </span>
+        )}
       </button>
 
-      {!isCollapsed && <div className="px-5 pb-2 text-[11px] font-semibold tracking-wide text-[#94A3B8]">ORGANIZER</div>}
+      {!isCollapsed && (
+        <div className="px-5 pb-2 text-[11px] font-semibold tracking-wide text-[#94A3B8]">
+          ORGANIZER
+        </div>
+      )}
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
         {navItems.map((item) => {
           const Icon = item.icon;
+
           return (
             <NavLink
               key={item.to}
@@ -74,7 +111,9 @@ export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true
               onClick={onNavigate}
               title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
-                `flex items-center rounded-lg py-2.5 text-sm transition-colors ${isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"} ${
+                `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+                  isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+                } ${
                   isActive
                     ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
                     : "text-[#1E293B] hover:bg-[#F8FAFC] hover:text-[#2563EB]"
@@ -83,7 +122,11 @@ export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={`h-4.5 w-4.5 ${isActive ? "text-[#2563EB]" : "text-[#64748B]"}`} />
+                  <Icon
+                    className={`h-4.5 w-4.5 ${
+                      isActive ? "text-[#2563EB]" : "text-[#64748B]"
+                    }`}
+                  />
                   {!isCollapsed && item.label}
                 </>
               )}
@@ -98,32 +141,44 @@ export default function OrganizerSidebar({ onNavigate, initiallyCollapsed = true
           onClick={onNavigate}
           title={isCollapsed ? "Profile" : undefined}
           className={({ isActive }) =>
-            `flex items-center rounded-lg py-2.5 text-sm transition-colors ${isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"} ${
-              isActive ? "bg-[#EFF6FF] font-medium text-[#2563EB]" : "text-[#1E293B] hover:bg-[#F8FAFC]"
+            `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+              isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+            } ${
+              isActive
+                ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
+                : "text-[#1E293B] hover:bg-[#F8FAFC]"
             }`
           }
         >
           <User className="h-4.5 w-4.5 text-[#64748B]" />
           {!isCollapsed && "Profile"}
         </NavLink>
+
         <NavLink
           to="/organizer/settings"
           onClick={onNavigate}
           title={isCollapsed ? "Settings" : undefined}
           className={({ isActive }) =>
-            `mt-1 flex items-center rounded-lg py-2.5 text-sm transition-colors ${isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"} ${
-              isActive ? "bg-[#EFF6FF] font-medium text-[#2563EB]" : "text-[#1E293B] hover:bg-[#F8FAFC]"
+            `mt-1 flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+              isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+            } ${
+              isActive
+                ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
+                : "text-[#1E293B] hover:bg-[#F8FAFC]"
             }`
           }
         >
           <Settings className="h-4.5 w-4.5 text-[#64748B]" />
           {!isCollapsed && "Settings"}
         </NavLink>
+
         <button
           type="button"
           onClick={handleLogout}
           title="Logout"
-          className={`mt-1 flex w-full items-center rounded-lg py-2.5 text-sm text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#DC2626] ${isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"}`}
+          className={`mt-1 flex w-full items-center rounded-lg py-2.5 text-sm text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#DC2626] ${
+            isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+          }`}
         >
           <LogOut className="h-4.5 w-4.5" />
           {!isCollapsed && "Logout"}
