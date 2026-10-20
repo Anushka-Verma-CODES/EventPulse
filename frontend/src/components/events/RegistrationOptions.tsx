@@ -1,7 +1,12 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getVolunteerApplication } from "../../lib/registrationMockData";
 import { registerForEvent } from "../../features/events/api/eventsApi";
+import {
+  createPaymentOrder,
+  verifyPayment,
+} from "../../features/payments/api/paymentsApi";
 
 interface RegistrationOptionsProps {
   eventId: string;
@@ -9,6 +14,46 @@ interface RegistrationOptionsProps {
   isRegistered: boolean;
   registrationLoading: boolean;
   registrationError?: string;
+}
+
+interface RazorpaySuccessResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpaySuccessResponse) => void | Promise<void>;
+  modal: {
+    ondismiss: () => void;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (
+    event: "payment.failed",
+    handler: (response: {
+      error?: { description?: string };
+    }) => void,
+  ) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (
+      options: RazorpayOptions,
+    ) => RazorpayInstance;
+  }
 }
 
 export default function RegistrationOptions({
@@ -39,24 +84,86 @@ export default function RegistrationOptions({
       return;
     }
 
-    // Paid registration must wait for payment integration.
-    if (price > 0) {
-      setMessage("Online payment is not available yet. Please try again later.");
-      setMessageIsError(true);
-      return;
-    }
-
     setSubmitting(true);
     setMessage("");
     setMessageIsError(false);
 
     try {
+      if (price > 0) {
+        if (!window.Razorpay) {
+          throw new Error(
+            "Razorpay Checkout could not be loaded. Please refresh the page and try again.",
+          );
+        }
+
+        const order = await createPaymentOrder(eventId);
+
+        const checkout = new window.Razorpay({
+          key: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: "EventPulse",
+          description: `Ticket for ${order.eventName}`,
+          order_id: order.orderId,
+          theme: {
+            color: "#2563EB",
+          },
+          modal: {
+            ondismiss: () => {
+              setSubmitting(false);
+              setMessage("Payment cancelled. You have not been registered.");
+              setMessageIsError(true);
+            },
+          },
+          handler: async (response) => {
+            try {
+              setMessage("Verifying payment...");
+              setMessageIsError(false);
+
+              const result = await verifyPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              setRegistered(true);
+              setMessage(
+                result.message ||
+                  "Payment successful! You are registered for this event.",
+              );
+              setMessageIsError(false);
+            } catch (error) {
+              setMessage(
+                error instanceof Error
+                  ? error.message
+                  : "Payment verification failed. Please contact support before trying to pay again.",
+              );
+              setMessageIsError(true);
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        });
+
+        checkout.on("payment.failed", (response) => {
+          setMessage(
+            response.error?.description ||
+              "Payment failed. Please try again.",
+          );
+          setMessageIsError(true);
+          setSubmitting(false);
+        });
+
+        checkout.open();
+        return;
+      }
+
       const result = await registerForEvent(eventId);
 
       if (result.success) {
         setRegistered(true);
         setMessage(
-          result.message || "Successfully registered for this event."
+          result.message || "Successfully registered for this event.",
         );
       } else {
         setMessage(result.message || "Registration failed.");
@@ -66,7 +173,7 @@ export default function RegistrationOptions({
       setMessage(
         error instanceof Error
           ? error.message
-          : "Registration failed. Please try again."
+          : "Unable to start registration. Please try again.",
       );
       setMessageIsError(true);
     } finally {
@@ -105,7 +212,6 @@ export default function RegistrationOptions({
       )}
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {/* Attendee card */}
         <div className="rounded-xl border border-[#E2E8F0] p-5">
           <div className="text-2xl">&#127903;&#65039;</div>
 
@@ -153,15 +259,14 @@ export default function RegistrationOptions({
               className="mt-4 block w-full rounded-lg bg-[#2563EB] px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting
-                ? "Registering..."
+                ? "Processing..."
                 : price > 0
-                  ? "Payment Coming Soon"
+                  ? `Pay ${formattedPrice}`
                   : "Register for Free"}
             </button>
           )}
         </div>
 
-        {/* Volunteer card */}
         <div className="rounded-xl border border-[#E2E8F0] p-5">
           <div className="text-2xl">&#129309;</div>
 

@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   ConflictException,
@@ -32,6 +31,12 @@ export class RegistrationsService {
     if (event.status !== EventStatus.PUBLISHED) {
       throw new BadRequestException(
         "You can only register for published events",
+      );
+    }
+
+    if (Number(event.price) > 0) {
+      throw new BadRequestException(
+        "Paid events require payment verification.",
       );
     }
 

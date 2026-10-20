@@ -1,4 +1,3 @@
-
 import {
   Body,
   Controller,
@@ -14,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersService } from '../users/users.service';
+import { ActivateRoleDto } from './dto/activate-role.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -49,6 +49,40 @@ export class AuthController {
     }
 
     return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      roles: user.roleAssignments.map(
+        (assignment) => assignment.role,
+      ),
+    };
+  }
+    @Post('activate-role')
+  @UseGuards(JwtAuthGuard)
+  async activateRole(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: ActivateRoleDto,
+  ) {
+    if (!req.user?.userId) {
+      throw new UnauthorizedException();
+    }
+
+    await this.usersService.assignRole(
+      req.user.userId,
+      dto.role,
+    );
+
+    const user = await this.usersService.findById(
+      req.user.userId,
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      message: 'Role activated successfully',
       id: user.id,
       fullName: user.fullName,
       email: user.email,
