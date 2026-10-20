@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { TicketListingsModule } from './ticket-listings/ticket-listings.module';
+import { Payment } from './payments/entities/payment.entity';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TicketListingsModule } from './ticket-listings/ticket-listings.module';
     EventsModule,
     RegistrationsModule,
     TicketListingsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

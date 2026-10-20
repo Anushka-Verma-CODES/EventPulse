@@ -206,3 +206,47 @@ export async function getMyProfile(): Promise<AuthUser> {
     );
   }
 }
+
+export async function activateRoleRequest(
+  role: "organizer" | "volunteer"
+): Promise<AuthUser> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/activate-role`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role }),
+    });
+  } catch {
+    throw new AuthError(
+      "network_error",
+      "Unable to connect to EventPulse. Please check your connection."
+    );
+  }
+
+  if (!response.ok) {
+    throw new AuthError(
+      "server_error",
+      "Unable to activate this role. Please try again."
+    );
+  }
+
+  try {
+    const data: ProfileResponse = await response.json();
+    return mapUser(data);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+
+    throw new AuthError(
+      "server_error",
+      "Invalid server response."
+    );
+  }
+}
+

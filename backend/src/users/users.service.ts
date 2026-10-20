@@ -1,4 +1,3 @@
-
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -73,12 +72,21 @@ export class UsersService {
   return this.usersRepository.save(user);
 }
 
-    async assignRole(userId: string, role: UserRole): Promise<void> {
-        const assignment = this.rolesRepository.create({
-        userId,
-        role,
-        });
+  async assignRole(userId: string, role: UserRole): Promise<void> {
+    const existingAssignment = await this.rolesRepository.findOne({
+      where: { userId, role },
+    });
+
+    if (existingAssignment) {
+      return;
+    }
+
+    const assignment = this.rolesRepository.create({
+      userId,
+      role,
+    });
+
     await this.rolesRepository.save(assignment);
-}
+  }
 
 }

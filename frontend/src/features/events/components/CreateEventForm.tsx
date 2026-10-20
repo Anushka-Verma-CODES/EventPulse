@@ -85,7 +85,7 @@ export function CreateEventForm() {
       };
 
       const created = await createEvent(input);
-      navigate(`/events/${created.id}`);
+      navigate(`/organizer/events/${created.id}`);
     } catch (err) {
       setError(
         err instanceof Error
