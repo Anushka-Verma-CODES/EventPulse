@@ -163,7 +163,11 @@ export async function getMyProfile(): Promise<AuthUser> {
   try {
     response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: {
+    ...getAuthHeaders(),
+    "Cache-Control": "no-cache",
+    },
+    cache: "no-store",
     });
   } catch {
     throw new AuthError(

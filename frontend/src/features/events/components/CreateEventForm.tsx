@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { NewEventInput } from '../../../types/event';
@@ -20,6 +19,7 @@ export function CreateEventForm() {
   const [shortDescription, setShortDescription] = useState('');
   const [fullDescription, setFullDescription] = useState('');
   const [capacityTotal, setCapacityTotal] = useState<number>(100);
+  const [price, setPrice] = useState<number>(0);
   const [gates, setGates] = useState<string[]>(['']);
 
   function updateGate(index: number, value: string) {
@@ -55,6 +55,11 @@ export function CreateEventForm() {
       return;
     }
 
+    if (!Number.isFinite(price) || price < 0) {
+      setError('Ticket price cannot be negative.');
+      return;
+    }
+
     if (!name.trim() || !venue.trim()) {
       setError('Please enter the event name and venue.');
       return;
@@ -73,6 +78,7 @@ export function CreateEventForm() {
         shortDescription: shortDescription.trim(),
         fullDescription: fullDescription.trim(),
         capacityTotal,
+        price,
         gates: gates
           .map((gate) => gate.trim())
           .filter((gate) => gate.length > 0),
@@ -214,6 +220,23 @@ export function CreateEventForm() {
           step={1}
           className={inputClass}
         />
+      </div>
+
+      <div>
+        <label className={labelClass}>Ticket price (₹)</label>
+        <input
+          type="number"
+          value={price}
+          onChange={(e) => setPrice(Number(e.target.value))}
+          required
+          min={0}
+          step="0.01"
+          className={inputClass}
+          placeholder="0 for a free event"
+        />
+        <p className="mt-1 text-xs text-[#64748B]">
+          Enter 0 for a free event.
+        </p>
       </div>
 
       <div>

@@ -23,21 +23,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   async function refreshProfile() {
-    const token = sessionStorage.getItem("eventpulse_access_token");
+  const token = sessionStorage.getItem("eventpulse_access_token");
 
-    if (!token) {
-      setProfile(null);
-      return;
-    }
-
-    try {
-      const result = await getMyProfile();
-      setProfile(result);
-    } catch {
-      setProfile(null);
-      sessionStorage.removeItem("eventpulse_access_token");
-    }
+  if (!token) {
+    setProfile(null);
+    return;
   }
+
+  try {
+    const result = await getMyProfile();
+    setProfile(result);
+  } catch (error) {
+    console.error("Failed to refresh EventPulse profile:", error);
+
+    setProfile(null);
+  }
+}
 
   useEffect(() => {
     refreshProfile().finally(() => setIsLoading(false));

@@ -5,14 +5,18 @@ import { registerForEvent } from "../../features/events/api/eventsApi";
 
 interface RegistrationOptionsProps {
   eventId: string;
+  price: number;
   isRegistered: boolean;
   registrationLoading: boolean;
+  registrationError?: string;
 }
 
 export default function RegistrationOptions({
   eventId,
+  price,
   isRegistered,
   registrationLoading,
+  registrationError,
 }: RegistrationOptionsProps) {
   const volunteerApp = getVolunteerApplication(eventId);
 
@@ -32,6 +36,13 @@ export default function RegistrationOptions({
       isRegistered ||
       registrationLoading
     ) {
+      return;
+    }
+
+    // Paid registration must wait for payment integration.
+    if (price > 0) {
+      setMessage("Online payment is not available yet. Please try again later.");
+      setMessageIsError(true);
       return;
     }
 
@@ -65,21 +76,31 @@ export default function RegistrationOptions({
 
   const hasAttendeeRegistration = registered || isRegistered;
 
+  const formattedPrice =
+    price === 0
+      ? "Free"
+      : `₹${price.toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+
   return (
     <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-[#1E293B]">
         How would you like to participate?
       </h2>
 
-      {message && (
+      {(message || registrationError) && (
         <p
           role="status"
           aria-live="polite"
           className={`mt-3 text-sm ${
-            messageIsError ? "text-red-600" : "text-[#16A34A]"
+            messageIsError || registrationError
+              ? "text-red-600"
+              : "text-[#16A34A]"
           }`}
         >
-          {message}
+          {message || registrationError}
         </p>
       )}
 
@@ -93,7 +114,11 @@ export default function RegistrationOptions({
           </h3>
 
           <p className="mt-1 text-sm text-[#64748B]">
-            Purchase a ticket and get your QR entry pass.
+            Get your ticket and QR entry pass.
+          </p>
+
+          <p className="mt-3 text-xl font-bold text-[#1E293B]">
+            {formattedPrice}
           </p>
 
           <ul className="mt-3 flex flex-col gap-1 text-sm text-[#64748B]">
@@ -127,7 +152,11 @@ export default function RegistrationOptions({
               disabled={submitting || registrationLoading}
               className="mt-4 block w-full rounded-lg bg-[#2563EB] px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Registering..." : "Register as Attendee"}
+              {submitting
+                ? "Registering..."
+                : price > 0
+                  ? "Payment Coming Soon"
+                  : "Register for Free"}
             </button>
           )}
         </div>
