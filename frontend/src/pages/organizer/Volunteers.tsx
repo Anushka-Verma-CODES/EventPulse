@@ -1,326 +1,371 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import StatCard from "../../components/organizer/StatCard";
 import StatusBadge from "../../components/organizer/StatusBadge";
-import {
-  volunteerOverview,
-  volunteerShifts,
-} from "../../lib/organizerMockData";
+import { volunteerShifts } from "../../lib/organizerMockData";
 import { getMyEvents } from "../../features/events/api/eventsApi";
+import { getAuthHeaders } from "../../lib/authApi";
 import {
   createVolunteerAssignment,
   getOrganizerVolunteerAssignments,
 } from "../../features/volunteers/api/volunteersApi";
-import type { VolunteerAssignment } from "../../features/volunteers/api/volunteersApi";
-import { getAuthHeaders } from "../../lib/authApi";
 
 const API_BASE_URL = "http://localhost:3000";
 
-type OrganizerEventOption = {
+type OrganizerEvent = {
   id: string;
   title: string;
-  location?: string;
-  startDate?: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  status: string;
 };
 
-type ApplicationStatus = "pending" | "accepted" | "rejected";
+type Volunteer = {
+  id: string;
+  fullName?: string;
+  email?: string;
+};
 
-type OrganizerApplication = {
+type VolunteerApplication = {
   id: string;
   volunteerId: string;
   eventId: string;
-  reason: string;
-  availability: string[];
-  status: ApplicationStatus;
-  createdAt: string;
-  event: {
+  status: string;
+  reason?: string;
+  availability?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  volunteer?: Volunteer;
+  event?: {
     id: string;
     title: string;
-    startDate?: string;
-    organizerId?: string;
-  };
-  volunteer: {
-    id: string;
-    fullName?: string;
-    email?: string;
   };
 };
 
+type Assignment = {
+  id: string;
+  volunteerId: string;
+  eventId: string;
+  assignedRole: string;
+  status: string;
+  hoursWorked?: string;
+  createdAt?: string;
+  volunteer?: Volunteer;
+  event?: {
+    id: string;
+    title: string;
+    location?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+};
+
+type Overview = {
+  totalVolunteers: number;
+  pendingApplications: number;
+  activeAssignments: number;
+  completedTasks: number;
+};
+
+async function fetchJson<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    const message = Array.isArray(error?.message)
+      ? error.message.join(", ")
+      : error?.message;
+
+    throw new Error(message || `Request failed (${response.status})`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function getEventId(application: VolunteerApplication): string {
+  return application.eventId || application.event?.id || "";
+}
+
+function getVolunteerName(volunteer?: Volunteer): string {
+  return volunteer?.fullName || volunteer?.email || "Unknown volunteer";
+}
+
+function formatDate(date?: string): string {
+  if (!date) return "—";
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) return "—";
+
+  return parsedDate.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function displayStatus(status: string): string {
+  if (!status) return "Unknown";
+
+  return status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function Volunteers() {
-  const [events, setEvents] = useState<OrganizerEventOption[]>([]);
-  const [assignments, setAssignments] = useState<VolunteerAssignment[]>([]);
-  const [applications, setApplications] = useState<OrganizerApplication[]>([]);
+  const [events, setEvents] = useState<OrganizerEvent[]>([]);
+  const [applications, setApplications] = useState<VolunteerApplication[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [overview, setOverview] = useState<Overview>({
+    totalVolunteers: 0,
+    pendingApplications: 0,
+    activeAssignments: 0,
+    completedTasks: 0,
+  });
 
-  const [eventId, setEventId] = useState("");
-  const [volunteerId, setVolunteerId] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [selectedVolunteerId, setSelectedVolunteerId] = useState("");
   const [assignedRole, setAssignedRole] = useState("");
+  const [activeTab, setActiveTab] = useState<
+    "assignments" | "applications"
+  >("applications");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [reviewingApplicationId, setReviewingApplicationId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+  const [reviewingId, setReviewingId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  async function loadAssignments() {
-    const data = await getOrganizerVolunteerAssignments();
-    setAssignments(data);
-  }
-
-  async function loadApplications() {
-    const response = await fetch(
-      `${API_BASE_URL}/volunteers/organizer/applications`,
-      {
-        headers: getAuthHeaders(),
-      },
-    );
-
-    if (!response.ok) {
-      const responseData = await response.json().catch(() => null);
-      const message = responseData?.message;
-
-      throw new Error(
-        Array.isArray(message)
-          ? message.join(" ")
-          : message || "Unable to load volunteer applications.",
-      );
-    }
-
-    const data: OrganizerApplication[] = await response.json();
-    setApplications(data);
-  }
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadPageData() {
-      try {
-        const [eventData, assignmentData] = await Promise.all([
-          getMyEvents(),
-          getOrganizerVolunteerAssignments(),
-        ]);
-
-        if (!isMounted) return;
-
-        setEvents(eventData);
-        setAssignments(assignmentData);
-
-        const response = await fetch(
-          `${API_BASE_URL}/volunteers/organizer/applications`,
-          {
-            headers: getAuthHeaders(),
-          },
-        );
-
-        if (!response.ok) {
-          const responseData = await response.json().catch(() => null);
-          const message = responseData?.message;
-
-          throw new Error(
-            Array.isArray(message)
-              ? message.join(" ")
-              : message || "Unable to load volunteer applications.",
-          );
-        }
-
-        const applicationData: OrganizerApplication[] =
-          await response.json();
-
-        if (isMounted) {
-          setApplications(applicationData);
-        }
-      } catch (err: unknown) {
-        if (isMounted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Unable to load volunteer management data.",
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadPageData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const acceptedApplications = applications.filter(
-    (application) =>
-      application.eventId === eventId &&
-      application.status === "accepted",
-  );
-
-  async function handleAssignVolunteer() {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     setError("");
-    setSuccess("");
-
-    if (!eventId || !volunteerId || !assignedRole.trim()) {
-      setError(
-        "Select an event, select an accepted volunteer, and enter an assigned role.",
-      );
-      return;
-    }
-
-    const hasAcceptedApplication = acceptedApplications.some(
-      (application) => application.volunteerId === volunteerId,
-    );
-
-    if (!hasAcceptedApplication) {
-      setError(
-        "Only volunteers with accepted applications for the selected event can be assigned.",
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
 
     try {
-      await createVolunteerAssignment({
-        eventId,
-        volunteerId,
-        assignedRole: assignedRole.trim(),
+      const [
+        overviewData,
+        eventData,
+        applicationData,
+        assignmentData,
+      ] = await Promise.all([
+        fetchJson<Overview>("/volunteers/organizer/overview"),
+        getMyEvents(),
+        fetchJson<VolunteerApplication[]>(
+          "/volunteers/organizer/applications",
+        ),
+        getOrganizerVolunteerAssignments(),
+      ]);
+
+      setOverview(overviewData);
+
+      setEvents(
+        eventData.map((event) => ({
+          id: event.id,
+          title: event.title,
+          location: event.location,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          status: event.status,
+        })),
+      );
+
+      setApplications(applicationData);
+      setAssignments(assignmentData as Assignment[]);
+
+      setSelectedEventId((currentId) => {
+        if (currentId && eventData.some((event) => event.id === currentId)) {
+          return currentId;
+        }
+
+        return eventData[0]?.id ?? "";
       });
-
-      await loadAssignments();
-
-      setSuccess("Volunteer assigned successfully.");
-      setVolunteerId("");
-      setAssignedRole("");
-    } catch (err: unknown) {
+    } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to assign or refresh volunteer assignments.",
+          : "Unable to load volunteer information.",
       );
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  }
+  }, []);
 
-  async function handleReviewApplication(
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const acceptedApplicants = useMemo(() => {
+    const alreadyAssigned = new Set(
+      assignments
+        .filter(
+          (assignment) =>
+            assignment.eventId === selectedEventId &&
+            assignment.status !== "cancelled",
+        )
+        .map((assignment) => assignment.volunteerId),
+    );
+
+    const uniqueApplicants = new Map<string, VolunteerApplication>();
+
+    applications.forEach((application) => {
+      const volunteerId =
+        application.volunteerId || application.volunteer?.id;
+
+      if (
+        getEventId(application) !== selectedEventId ||
+        !["accepted", "approved"].includes(
+          application.status.toLowerCase(),
+        ) ||
+        !volunteerId ||
+        !application.volunteer ||
+        alreadyAssigned.has(volunteerId)
+      ) {
+        return;
+      }
+
+      uniqueApplicants.set(volunteerId, application);
+    });
+
+    return Array.from(uniqueApplicants.values());
+  }, [applications, assignments, selectedEventId]);
+
+  useEffect(() => {
+    setSelectedVolunteerId("");
+  }, [selectedEventId]);
+
+  async function reviewApplication(
     applicationId: string,
     status: "accepted" | "rejected",
   ) {
+    setReviewingId(applicationId);
     setError("");
     setSuccess("");
-    setReviewingApplicationId(applicationId);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/volunteers/applications/${applicationId}/review`,
+      await fetchJson<VolunteerApplication>(
+        `/volunteers/applications/${applicationId}/review`,
         {
           method: "PATCH",
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({ status }),
         },
       );
 
-      if (!response.ok) {
-        const responseData = await response.json().catch(() => null);
-        const message = responseData?.message;
-
-        throw new Error(
-          Array.isArray(message)
-            ? message.join(" ")
-            : message || "Unable to review this application.",
-        );
-      }
-
-      await Promise.all([loadApplications(), loadAssignments()]);
-
       setSuccess(
         status === "accepted"
-          ? "Volunteer application accepted. You can now assign a task."
+          ? "Volunteer application accepted."
           : "Volunteer application rejected.",
       );
-    } catch (err: unknown) {
+
+      await loadData();
+    } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to review this application.",
+          : "Unable to update the application.",
       );
     } finally {
-      setReviewingApplicationId("");
+      setReviewingId("");
     }
   }
 
-  function getVolunteerName(assignment: VolunteerAssignment) {
-    const volunteer = assignment.volunteer;
-
-    if (volunteer && typeof volunteer === "object") {
-      return volunteer.fullName ?? volunteer.email ?? "Volunteer";
+  async function assignVolunteer() {
+    if (!selectedEventId || !selectedVolunteerId || !assignedRole.trim()) {
+      setError("Select an event, an accepted applicant, and enter an assigned role.");
+      return;
     }
 
-    return "Volunteer";
-  }
-
-  function getApplicationVolunteerName(
-    application: OrganizerApplication,
-  ) {
-    return (
-      application.volunteer?.fullName ??
-      application.volunteer?.email ??
-      "Volunteer"
+    const isAcceptedApplicant = acceptedApplicants.some(
+      (application) =>
+        (application.volunteerId || application.volunteer?.id) ===
+        selectedVolunteerId,
     );
-  }
 
-  function getAssignmentStatus(status: VolunteerAssignment["status"]) {
-    switch (status) {
-      case "assigned":
-        return "Pending";
-      case "in_progress":
-        return "In Progress";
-      case "completed":
-        return "Completed";
-      case "cancelled":
-        return "Cancelled";
-      default:
-        return status;
+    if (!isAcceptedApplicant) {
+      setError(
+        "Only accepted applicants for the selected event can be assigned.",
+      );
+      return;
+    }
+
+    setAssigning(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await createVolunteerAssignment({
+        eventId: selectedEventId,
+        volunteerId: selectedVolunteerId,
+        assignedRole: assignedRole.trim(),
+      });
+
+      setSelectedVolunteerId("");
+      setAssignedRole("");
+      setSuccess("Volunteer assigned successfully.");
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to assign the volunteer.",
+      );
+    } finally {
+      setAssigning(false);
     }
   }
 
-  function getApplicationStatus(status: ApplicationStatus) {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  }
+  const stats = [
+    {
+      label: "Total Volunteers",
+      value: String(overview.totalVolunteers),
+    },
+    {
+      label: "Pending Applications",
+      value: String(overview.pendingApplications),
+    },
+    {
+      label: "Active Assignments",
+      value: String(overview.activeAssignments),
+    },
+    {
+      label: "Completed Tasks",
+      value: String(overview.completedTasks),
+    },
+  ];
 
-  function formatDate(dateString: string) {
-    const date = new Date(dateString);
+  const selectedEvent = events.find(
+    (event) => event.id === selectedEventId,
+  );
 
-    if (Number.isNaN(date.getTime())) {
-      return "—";
-    }
-
-    return date.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Asia/Kolkata",
-    });
-  }
+  const selectedApplicant = acceptedApplicants.find(
+    (application) =>
+      (application.volunteerId || application.volunteer?.id) ===
+      selectedVolunteerId,
+  );
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-[#1E293B]">Volunteers</h2>
-
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {volunteerOverview.map((stat) => (
-          <StatCard key={stat.label} label={stat.label} value={stat.value} />
-        ))}
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-[#1E293B]">Volunteers</h2>
+        <p className="mt-1 text-sm text-[#64748B]">
+          Review applications and manage event volunteer assignments.
+        </p>
       </div>
 
       {error && (
         <div
           role="alert"
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
           {error}
         </div>
@@ -329,329 +374,326 @@ export default function Volunteers() {
       {success && (
         <div
           role="status"
-          className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+          className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
         >
           {success}
         </div>
       )}
 
-      <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-[#1E293B]">
-          Assign Volunteer
-        </h3>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+          />
+        ))}
+      </div>
 
-        <p className="mt-1 text-sm text-[#64748B]">
-          Assign a task to a volunteer whose application has been accepted
-          for the selected event.
-        </p>
-
-        {isLoading ? (
-          <p className="mt-4 text-sm text-[#64748B]">
-            Loading events and volunteers...
+      <section className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+        <div className="border-b border-[#E2E8F0] px-5 py-4">
+          <h3 className="font-semibold text-[#1E293B]">
+            Assign Volunteer
+          </h3>
+          <p className="mt-1 text-sm text-[#64748B]">
+            Only accepted applicants for the chosen event can be assigned.
           </p>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="assignment-event"
-                className="mb-1.5 block text-sm font-medium text-[#334155]"
-              >
-                Event
-              </label>
+        </div>
 
-              <select
-                id="assignment-event"
-                value={eventId}
-                onChange={(event) => {
-                  setEventId(event.target.value);
-                  setVolunteerId("");
-                }}
-                className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#1E293B] outline-none focus:border-[#2563EB]"
-              >
-                <option value="">Select an event</option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.title}
-                  </option>
-                ))}
-              </select>
+        <div className="grid gap-4 p-5 md:grid-cols-2">
+          <div>
+            <label
+              htmlFor="volunteer-event"
+              className="mb-2 block text-sm font-medium text-[#334155]"
+            >
+              Event
+            </label>
+            <select
+              id="volunteer-event"
+              value={selectedEventId}
+              onChange={(event) => setSelectedEventId(event.target.value)}
+              className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+            >
+              <option value="">Select an event</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              {events.length === 0 && (
-                <p className="mt-1.5 text-xs text-[#64748B]">
-                  You need to create an event before assigning volunteers.
-                </p>
-              )}
-            </div>
+          <div>
+            <label
+              htmlFor="accepted-volunteer"
+              className="mb-2 block text-sm font-medium text-[#334155]"
+            >
+              Accepted applicant
+            </label>
+            <select
+              id="accepted-volunteer"
+              value={selectedVolunteerId}
+              onChange={(event) =>
+                setSelectedVolunteerId(event.target.value)
+              }
+              disabled={!selectedEventId || acceptedApplicants.length === 0}
+              className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
+            >
+              <option value="">
+                {!selectedEventId
+                  ? "Select an event first"
+                  : acceptedApplicants.length === 0
+                    ? "No unassigned accepted applicants"
+                    : "Select an applicant"}
+              </option>
+              {acceptedApplicants.map((application) => {
+                const volunteerId =
+                  application.volunteerId || application.volunteer!.id;
 
-            <div>
-              <label
-                htmlFor="assignment-volunteer"
-                className="mb-1.5 block text-sm font-medium text-[#334155]"
-              >
-                Accepted Volunteer
-              </label>
-
-              <select
-                id="assignment-volunteer"
-                value={volunteerId}
-                onChange={(event) => setVolunteerId(event.target.value)}
-                disabled={!eventId || acceptedApplications.length === 0}
-                className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#1E293B] outline-none focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-[#F8FAFC]"
-              >
-                <option value="">Select a volunteer</option>
-                {acceptedApplications.map((application) => (
-                  <option
-                    key={application.id}
-                    value={application.volunteerId}
-                  >
-                    {getApplicationVolunteerName(application)}
+                return (
+                  <option key={application.id} value={volunteerId}>
+                    {getVolunteerName(application.volunteer)}
                     {application.volunteer?.email
                       ? ` (${application.volunteer.email})`
                       : ""}
                   </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label
+              htmlFor="assigned-role"
+              className="mb-2 block text-sm font-medium text-[#334155]"
+            >
+              Assigned role / task
+            </label>
+            <input
+              id="assigned-role"
+              type="text"
+              value={assignedRole}
+              onChange={(event) => setAssignedRole(event.target.value)}
+              placeholder="e.g. Registration Desk, Gate Volunteer"
+              maxLength={100}
+              className="w-full rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {selectedEvent && selectedApplicant && (
+            <div className="rounded-lg bg-[#F8FAFC] p-3 text-sm text-[#475569] md:col-span-2">
+              Assigning{" "}
+              <span className="font-medium text-[#1E293B]">
+                {getVolunteerName(selectedApplicant.volunteer)}
+              </span>{" "}
+              to{" "}
+              <span className="font-medium text-[#1E293B]">
+                {selectedEvent.title}
+              </span>
+              .
+            </div>
+          )}
+
+          <div className="md:col-span-2">
+            <button
+              type="button"
+              onClick={assignVolunteer}
+              disabled={
+                assigning ||
+                !selectedEventId ||
+                !selectedVolunteerId ||
+                !assignedRole.trim()
+              }
+              className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {assigning ? "Assigning..." : "Assign Volunteer"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2E8F0] px-5 py-4">
+          <h3 className="font-semibold text-[#1E293B]">
+            Volunteer Management
+          </h3>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("applications")}
+              className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                activeTab === "applications"
+                  ? "bg-[#DBEAFE] text-[#1D4ED8]"
+                  : "text-[#64748B] hover:bg-gray-100"
+              }`}
+            >
+              Applications ({applications.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("assignments")}
+              className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                activeTab === "assignments"
+                  ? "bg-[#DBEAFE] text-[#1D4ED8]"
+                  : "text-[#64748B] hover:bg-gray-100"
+              }`}
+            >
+              Assignments ({assignments.length})
+            </button>
+          </div>
+        </div>
+
+        {activeTab === "applications" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-650px text-left text-sm">
+              <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Applicant</th>
+                  <th className="px-4 py-3 font-medium">Event</th>
+                  <th className="px-4 py-3 font-medium">Applied On</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {!loading && applications.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-[#64748B]"
+                    >
+                      No volunteer applications received yet.
+                    </td>
+                  </tr>
+                )}
+
+                {applications.map((application) => (
+                  <tr key={application.id}>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[#1E293B]">
+                        {getVolunteerName(application.volunteer)}
+                      </div>
+                      {application.volunteer?.email && (
+                        <div className="mt-1 text-xs text-[#64748B]">
+                          {application.volunteer.email}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {application.event?.title ||
+                        events.find(
+                          (event) => event.id === getEventId(application),
+                        )?.title ||
+                        "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {formatDate(
+                        application.createdAt || application.updatedAt,
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge
+                        status={displayStatus(application.status)}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {application.status.toLowerCase() === "pending" ? (
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            disabled={reviewingId === application.id}
+                            onClick={() =>
+                              reviewApplication(application.id, "accepted")
+                            }
+                            className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            disabled={reviewingId === application.id}
+                            onClick={() =>
+                              reviewApplication(application.id, "rejected")
+                            }
+                            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[#64748B]">—</span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </select>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-650px text-left text-sm">
+              <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Volunteer</th>
+                  <th className="px-4 py-3 font-medium">Assigned Role</th>
+                  <th className="px-4 py-3 font-medium">Event</th>
+                  <th className="px-4 py-3 font-medium">Hours</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {!loading && assignments.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-[#64748B]"
+                    >
+                      No volunteer assignments yet.
+                    </td>
+                  </tr>
+                )}
 
-              {eventId && acceptedApplications.length === 0 && (
-                <p className="mt-1.5 text-xs text-[#64748B]">
-                  No accepted applications for this event yet.
-                </p>
-              )}
-            </div>
-
-            <div className="md:col-span-2">
-              <label
-                htmlFor="assignment-role"
-                className="mb-1.5 block text-sm font-medium text-[#334155]"
-              >
-                Assigned Role / Task
-              </label>
-
-              <input
-                id="assignment-role"
-                type="text"
-                value={assignedRole}
-                onChange={(event) => setAssignedRole(event.target.value)}
-                placeholder="e.g. Registration Desk, Crowd Management"
-                maxLength={100}
-                className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2.5 text-sm text-[#1E293B] outline-none focus:border-[#2563EB]"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="button"
-                onClick={handleAssignVolunteer}
-                disabled={
-                  isSubmitting ||
-                  !eventId ||
-                  !volunteerId ||
-                  !assignedRole.trim()
-                }
-                className="rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSubmitting ? "Assigning..." : "Assign Volunteer"}
-              </button>
-            </div>
+                {assignments.map((assignment) => (
+                  <tr key={assignment.id}>
+                    <td className="px-4 py-3 font-medium text-[#1E293B]">
+                      {getVolunteerName(assignment.volunteer)}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {assignment.assignedRole}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {assignment.event?.title ||
+                        events.find(
+                          (event) => event.id === assignment.eventId,
+                        )?.title ||
+                        "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {Number(assignment.hoursWorked || 0)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge
+                        status={displayStatus(assignment.status)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
-        <div className="border-b border-[#E2E8F0] px-5 py-3 text-sm font-semibold text-[#1E293B]">
-          Volunteers
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Event</th>
-                <th className="px-4 py-3 font-medium">Shift</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-[#E2E8F0]">
-              {assignments.map((assignment) => (
-                <tr key={assignment.id}>
-                  <td className="px-4 py-3 font-medium text-[#1E293B]">
-                    {getVolunteerName(assignment)}
-                  </td>
-
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {assignment.assignedRole}
-                  </td>
-
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {assignment.event?.title ?? "Event"}
-                  </td>
-
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {assignment.event?.startDate
-                      ? new Date(assignment.event.startDate).toLocaleString(
-                          "en-IN",
-                          {
-                            day: "numeric",
-                            month: "short",
-                            hour: "numeric",
-                            minute: "2-digit",
-                            timeZone: "Asia/Kolkata",
-                          },
-                        )
-                      : "Not specified"}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <StatusBadge
-                      status={getAssignmentStatus(assignment.status)}
-                    />
-                  </td>
-                </tr>
-              ))}
-
-              {!isLoading && assignments.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-6 text-center text-sm text-[#64748B]"
-                  >
-                    No volunteer assignments yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-6 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
-        <div className="border-b border-[#E2E8F0] px-5 py-3 text-sm font-semibold text-[#1E293B]">
-          Applications
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Applicant</th>
-                <th className="px-4 py-3 font-medium">Event</th>
-                <th className="px-4 py-3 font-medium">Applied On</th>
-                <th className="px-4 py-3 font-medium">Availability</th>
-                <th className="px-4 py-3 font-medium">Reason</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-[#E2E8F0]">
-              {applications.map((application) => (
-                <tr key={application.id}>
-                  <td className="px-4 py-3 font-medium text-[#1E293B]">
-                    <div>{getApplicationVolunteerName(application)}</div>
-                    {application.volunteer?.email && (
-                      <div className="mt-1 text-xs font-normal text-[#64748B]">
-                        {application.volunteer.email}
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {application.event?.title ?? "Event"}
-                  </td>
-
-                  <td className="whitespace-nowrap px-4 py-3 text-[#64748B]">
-                    {formatDate(application.createdAt)}
-                  </td>
-
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {application.availability?.join(", ") || "—"}
-                  </td>
-
-                  <td className="max-w-xs px-4 py-3 text-[#64748B]">
-                    <p className="whitespace-normal">{application.reason}</p>
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <StatusBadge
-                      status={getApplicationStatus(application.status)}
-                    />
-                  </td>
-
-                  <td className="px-4 py-3">
-                    {application.status === "pending" ? (
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleReviewApplication(application.id, "accepted")
-                          }
-                          disabled={reviewingApplicationId === application.id}
-                          className="text-xs font-medium text-[#16A34A] hover:underline disabled:opacity-50"
-                        >
-                          {reviewingApplicationId === application.id
-                            ? "Processing..."
-                            : "Accept"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleReviewApplication(application.id, "rejected")
-                          }
-                          disabled={reviewingApplicationId === application.id}
-                          className="text-xs font-medium text-[#DC2626] hover:underline disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-[#64748B]">
-                        Reviewed
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-
-              {!isLoading && applications.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-6 text-center text-sm text-[#64748B]"
-                  >
-                    No volunteer applications yet.
-                  </td>
-                </tr>
-              )}
-
-              {isLoading && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-6 text-center text-sm text-[#64748B]"
-                  >
-                    Loading applications...
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
         <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">
-          Volunteer Shifts
+          Volunteer Shift Reference
         </h3>
-
         <div className="flex flex-col divide-y divide-[#E2E8F0]">
           {volunteerShifts.map((shift) => (
             <div
-              key={shift.location}
-              className="flex items-center justify-between py-2.5 text-sm"
+              key={`${shift.location}-${shift.time}`}
+              className="flex items-center justify-between gap-4 py-2.5 text-sm"
             >
               <span className="font-medium text-[#1E293B]">
                 {shift.location}
@@ -660,7 +702,13 @@ export default function Volunteers() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      {loading && (
+        <p className="text-sm text-[#64748B]">
+          Loading volunteer information...
+        </p>
+      )}
     </div>
   );
 }

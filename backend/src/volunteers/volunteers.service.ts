@@ -482,4 +482,78 @@ export class VolunteersService {
       activeAssignments,
     };
   }
+
+  async getOrganizerOverview(organizerId: string) {
+    const isOrganizer = await this.usersService.hasRole(
+      organizerId,
+      UserRole.ORGANIZER,
+    );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Activate the organizer role to view volunteer statistics.',
+      );
+    }
+
+    const [
+      applications,
+      assignments,
+    ] = await Promise.all([
+      this.volunteerApplicationRepository
+        .createQueryBuilder('application')
+        .innerJoin('application.event', 'event')
+        .select('application.volunteerId', 'volunteerId')
+        .addSelect('application.status', 'status')
+        .where('event.organizerId = :organizerId', {
+          organizerId,
+        })
+        .getRawMany<{
+          volunteerId: string;
+          status: string;
+        }>(),
+
+      this.volunteerAssignmentRepository
+        .createQueryBuilder('assignment')
+        .innerJoin('assignment.event', 'event')
+        .select('assignment.volunteerId', 'volunteerId')
+        .addSelect('assignment.status', 'status')
+        .where('event.organizerId = :organizerId', {
+          organizerId,
+        })
+        .getRawMany<{
+          volunteerId: string;
+          status: VolunteerAssignmentStatus;
+        }>(),
+    ]);
+
+    const volunteerIds = new Set<string>();
+
+    applications.forEach((application) => {
+      volunteerIds.add(application.volunteerId);
+    });
+
+    assignments.forEach((assignment) => {
+      volunteerIds.add(assignment.volunteerId);
+    });
+
+    return {
+      totalVolunteers: volunteerIds.size,
+
+      pendingApplications: applications.filter(
+        (application) => application.status === 'pending',
+      ).length,
+
+      activeAssignments: assignments.filter(
+        (assignment) =>
+          assignment.status === VolunteerAssignmentStatus.ASSIGNED ||
+          assignment.status === VolunteerAssignmentStatus.IN_PROGRESS,
+      ).length,
+
+      completedTasks: assignments.filter(
+        (assignment) =>
+          assignment.status === VolunteerAssignmentStatus.COMPLETED,
+      ).length,
+    };
+  }
+
 }
