@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+
+import {
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserRoleAssignment } from './entities/user-role-assignment.entity';
 import { UserRole } from './enums/user-role.enum';
@@ -55,21 +59,83 @@ export class UsersService {
 
     return assignment !== null;
   }
-  
-  async createUser(data: {
-  fullName: string;
-  email: string;
-  phone?: string;
-  passwordHash: string;
-}): Promise<User> {
-  const user = this.usersRepository.create({
-    fullName: data.fullName,
-    email: data.email.trim().toLowerCase(),
-    phone: data.phone ?? null,
-    passwordHash: data.passwordHash,
-  });
 
-  return this.usersRepository.save(user);
+  async createUser(data: {
+    fullName: string;
+    email: string;
+    phone?: string;
+    passwordHash: string;
+  }): Promise<User> {
+    const user = this.usersRepository.create({
+      fullName: data.fullName,
+      email: data.email.trim().toLowerCase(),
+      phone: data.phone ?? null,
+      passwordHash: data.passwordHash,
+    });
+
+    return this.usersRepository.save(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      fullName: string;
+      email: string;
+      phone?: string | null;
+    },
+  ): Promise<User> {
+    const email = data.email.trim().toLowerCase();
+
+    const existingUser = await this.usersRepository.findOne({
+      where: {
+        email,
+        id: Not(userId),
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException(
+        'This email address is already in use',
+      );
+    }
+
+    const user = await this.findById(userId);
+
+    if (!user) {
+      throw new ConflictException('User not found');
+    }
+
+    user.fullName = data.fullName.trim();
+    user.email = email;
+    user.phone = data.phone?.trim() || null;
+
+    return this.usersRepository.save(user);
+  }
+
+  async findVolunteers(): Promise<
+  { id: string; fullName: string; email: string }[]
+> {
+  const volunteers = await this.usersRepository
+    .createQueryBuilder('user')
+    .innerJoin(
+      'user.roleAssignments',
+      'roleAssignment',
+      'roleAssignment.role = :role',
+      { role: UserRole.VOLUNTEER },
+    )
+    .select([
+      'user.id',
+      'user.fullName',
+      'user.email',
+    ])
+    .orderBy('user.fullName', 'ASC')
+    .getMany();
+
+  return volunteers.map((volunteer) => ({
+    id: volunteer.id,
+    fullName: volunteer.fullName,
+    email: volunteer.email,
+  }));
 }
 
   async assignRole(userId: string, role: UserRole): Promise<void> {
@@ -88,5 +154,4 @@ export class UsersService {
 
     await this.rolesRepository.save(assignment);
   }
-
 }

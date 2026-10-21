@@ -1,4 +1,3 @@
-
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "../types/auth";
@@ -12,6 +11,7 @@ const backendRoleMap: Record<string, UserRole> = {
   organizer: "organizer",
   volunteer: "volunteer",
   scanner_staff: "scanner",
+  scanner: "scanner",
 };
 
 export default function ProtectedRoute({

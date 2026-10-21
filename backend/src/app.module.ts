@@ -10,6 +10,7 @@ import { RegistrationsModule } from './registrations/registrations.module';
 import { TicketListingsModule } from './ticket-listings/ticket-listings.module';
 import { Payment } from './payments/entities/payment.entity';
 import { PaymentsModule } from './payments/payments.module';
+import { VolunteersModule } from './volunteers/volunteers.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PaymentsModule } from './payments/payments.module';
     RegistrationsModule,
     TicketListingsModule,
     PaymentsModule,
+    VolunteersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

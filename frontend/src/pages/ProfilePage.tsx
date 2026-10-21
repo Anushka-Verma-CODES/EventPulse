@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import PersonalInformation from "../components/profile/PersonalInformation";
 import SecuritySection from "../components/profile/SecuritySection";
@@ -11,7 +12,6 @@ import OrganizerSection from "../components/profile/OrganizerSection";
 import ScannerSection from "../components/profile/ScannerSection";
 import {
   personalInfoByRole,
-  initialsByRole,
   notificationTogglesByRole,
 } from "../lib/profileMockData";
 import type { PersonalInfo, ProfileRole } from "../lib/profileMockData";
@@ -20,12 +20,24 @@ interface ProfilePageProps {
   role: ProfileRole;
 }
 
-// One shared Profile page for all four roles — only the role-specific
-// section (and notification list) changes. Deliberately not four
-// separate themed pages, per the "one EventPulse, not four websites"
-// design rule.
 export default function ProfilePage({ role }: ProfilePageProps) {
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(personalInfoByRole[role]);
+  const { profile } = useAuth();
+
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(() => ({
+    ...personalInfoByRole[role],
+    fullName: profile?.fullName ?? "",
+    email: profile?.email ?? "",
+    phone: profile?.phone ?? "",
+  }));
+
+  useEffect(() => {
+    setPersonalInfo((current) => ({
+      ...current,
+      fullName: profile?.fullName ?? "",
+      email: profile?.email ?? "",
+      phone: profile?.phone ?? "",
+    }));
+  }, [profile?.fullName, profile?.email, profile?.phone]);
 
   const RoleSection = {
     attendee: AttendeeSection,
@@ -34,6 +46,15 @@ export default function ProfilePage({ role }: ProfilePageProps) {
     scanner: ScannerSection,
   }[role];
 
+  const initials = personalInfo.fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-[#1E293B]">Profile</h1>
@@ -41,7 +62,7 @@ export default function ProfilePage({ role }: ProfilePageProps) {
       <ProfileHeader
         role={role}
         info={personalInfo}
-        initials={initialsByRole[role]}
+        initials={initials || "U"}
         onEditClick={() => {
           const el = document.getElementById("personal-information");
           el?.scrollIntoView({ behavior: "smooth", block: "start" });

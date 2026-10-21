@@ -208,7 +208,7 @@ export async function getMyProfile(): Promise<AuthUser> {
 }
 
 export async function activateRoleRequest(
-  role: "organizer" | "volunteer"
+  role: "organizer" | "volunteer" | "scanner"
 ): Promise<AuthUser> {
   let response: Response;
 
@@ -219,7 +219,9 @@ export async function activateRoleRequest(
         ...getAuthHeaders(),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({
+  role: role === "scanner" ? "scanner_staff" : role,
+}),
     });
   } catch {
     throw new AuthError(
@@ -232,6 +234,71 @@ export async function activateRoleRequest(
     throw new AuthError(
       "server_error",
       "Unable to activate this role. Please try again."
+    );
+  }
+
+  try {
+    const data: ProfileResponse = await response.json();
+    return mapUser(data);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+
+    throw new AuthError(
+      "server_error",
+      "Invalid server response."
+    );
+  }
+}
+
+
+export async function updateMyProfile(payload: {
+  fullName: string;
+  email: string;
+  phone: string;
+}): Promise<AuthUser> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: "PATCH",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new AuthError(
+      "network_error",
+      "Unable to connect to EventPulse. Please check your connection."
+    );
+  }
+
+  if (response.status === 401) {
+    throw new AuthError(
+      "invalid_credentials",
+      "Your session is invalid or expired. Please log in again."
+    );
+  }
+
+  if (response.status === 409) {
+    throw new AuthError(
+      "email_exists",
+      "This email address is already in use."
+    );
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const message = Array.isArray(errorData?.message)
+      ? errorData.message.join(", ")
+      : errorData?.message;
+
+    throw new AuthError(
+      "server_error",
+      message || "Unable to update your profile."
     );
   }
 
