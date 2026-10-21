@@ -26,6 +26,9 @@ type BackendRegistration = {
   attendeeId: string;
   eventId: string;
   registeredAt: string;
+  qrToken: string | null;
+  isCheckedIn: boolean;
+  checkedInAt: string | null;
 };
 
 export type MyRegistration = BackendRegistration & {
@@ -90,6 +93,10 @@ export async function getEvents(): Promise<EventItem[]> {
   const events = await request<BackendEvent[]>('/events');
 
   return events.map(mapBackendEvent);
+}
+
+export async function getMyEvents(): Promise<BackendEvent[]> {
+  return request<BackendEvent[]>('/events/my-events');
 }
 
 export async function getEventById(

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 
 type UserRole = "attendee" | "organizer" | "volunteer" | "scanner";
+type ActivatableRole = "organizer" | "volunteer" | "scanner";
 
 interface RoleOption {
   id: UserRole;
@@ -26,7 +26,7 @@ const roleOptions: RoleOption[] = [
   { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
   { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
   { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
-  { id: "scanner", label: "Scanner", route: "/scanner" },
+  { id: "scanner", label: "Scanner", route: "/scanner/profile" },
 ];
 
 interface UserMenuProps {
@@ -49,9 +49,9 @@ export default function UserMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
-  const [pendingRole, setPendingRole] = useState<
-    "organizer" | "volunteer" | null
-  >(null);
+  const [pendingRole, setPendingRole] = useState<ActivatableRole | null>(
+    null,
+  );
 
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -87,12 +87,11 @@ export default function UserMenu({
       return;
     }
 
-    if (role === "scanner" && !profile?.roles.includes("scanner")) {
-      alert("Scanner access is restricted to authorized staff.");
-      return;
-    }
-
-    if (role === "organizer" || role === "volunteer") {
+    if (
+      role === "organizer" ||
+      role === "volunteer" ||
+      role === "scanner"
+    ) {
       if (profile?.roles.includes(role)) {
         void switchRole(role);
       } else {
@@ -114,7 +113,7 @@ export default function UserMenu({
 
     try {
       if (
-        (role === "organizer" || role === "volunteer") &&
+        role !== "attendee" &&
         !profile?.roles.includes(role)
       ) {
         await activateRoleRequest(role);
@@ -126,7 +125,7 @@ export default function UserMenu({
       setIsRoleMenuOpen(false);
 
       const selectedRole = roleOptions.find(
-        (option) => option.id === role
+        (option) => option.id === role,
       );
 
       if (selectedRole) {
@@ -138,7 +137,7 @@ export default function UserMenu({
       alert(
         error instanceof Error
           ? error.message
-          : "Unable to switch role. Please try again."
+          : "Unable to switch role. Please try again.",
       );
     } finally {
       setIsSwitchingRole(false);
@@ -153,7 +152,14 @@ export default function UserMenu({
     setPendingRole(null);
   }
 
-  const confirmationDetails = {
+  const confirmationDetails: Record<
+    ActivatableRole,
+    {
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  > = {
     organizer: {
       title: "Become an Organizer?",
       description:
@@ -165,6 +171,12 @@ export default function UserMenu({
       description:
         "Activate your Volunteer role to help manage events and support event organizers on EventPulse.",
       confirmLabel: "Activate Volunteer",
+    },
+    scanner: {
+      title: "Become a Scanner?",
+      description:
+        "Activate your Scanner role to scan tickets after an organizer assigns you to an event. This does not grant access to every event.",
+      confirmLabel: "Activate Scanner",
     },
   };
 

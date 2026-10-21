@@ -21,6 +21,7 @@ type TicketDetails = {
   venue: string;
   ticketCode: string;
   category: string;
+  qrToken: string | null;
 };
 
 function mapRegistrationToTicket(
@@ -43,6 +44,7 @@ function mapRegistrationToTicket(
     venue: event.location,
     ticketCode: `EP-${registration.id.slice(0, 8).toUpperCase()}`,
     category: event.category,
+    qrToken: registration.qrToken,
   };
 }
 
@@ -358,10 +360,13 @@ export default function TicketDetail() {
           </p>
 
           <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <QRDisplay
-              value={`eventpulse:registration:${ticket.registrationId}`}
-              size={210}
-            />
+          {ticket.qrToken ? (
+          <QRDisplay value={ticket.qrToken} size={210} />
+            ) : (
+          <p className="py-8 text-sm text-amber-700">
+          QR ticket is not available yet. Please refresh later or contact support.
+          </p>
+        )}
           </div>
 
           <p className="mt-4 text-sm font-semibold text-[#1E3A8A]">

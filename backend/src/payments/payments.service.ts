@@ -13,6 +13,7 @@ import Razorpay from "razorpay";
 import { Event, EventStatus } from "../events/entities/event.entity";
 import { Registration } from "../registrations/entities/registration.entity";
 import { Payment, PaymentStatus } from "./entities/payment.entity";
+import { randomBytes } from "node:crypto";
 
 @Injectable()
 export class PaymentsService {
@@ -295,6 +296,9 @@ export class PaymentsService {
         const registration = manager.create(Registration, {
           attendeeId,
           eventId: currentPayment.eventId,
+          qrToken: randomBytes(32).toString("hex"),
+          isCheckedIn: false,
+          checkedInAt: null,
         });
 
         await manager.save(Registration, registration);

@@ -1,8 +1,10 @@
+
 import {
   Body,
   Controller,
   Post,
   Get,
+  Patch,
   UseGuards,
   Request,
   UnauthorizedException,
@@ -14,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 import { ActivateRoleDto } from './dto/activate-role.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,8 +38,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getProfile(
-    @Request()
-    req: { user: { userId: string } },
+    @Request() req: { user: { userId: string } },
   ) {
     if (!req.user?.userId) {
       throw new UnauthorizedException();
@@ -58,7 +60,34 @@ export class AuthController {
       ),
     };
   }
-    @Post('activate-role')
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    if (!req.user?.userId) {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.usersService.updateProfile(
+      req.user.userId,
+      dto,
+    );
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      roles: user.roleAssignments.map(
+        (assignment) => assignment.role,
+      ),
+    };
+  }
+
+  @Post('activate-role')
   @UseGuards(JwtAuthGuard)
   async activateRole(
     @Request() req: { user: { userId: string } },
@@ -73,9 +102,7 @@ export class AuthController {
       dto.role,
     );
 
-    const user = await this.usersService.findById(
-      req.user.userId,
-    );
+    const user = await this.usersService.findById(req.user.userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
