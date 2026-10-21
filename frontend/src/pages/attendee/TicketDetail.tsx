@@ -11,6 +11,10 @@ import {
   type TicketPaymentMethod,
 } from "../../features/tickets/api/ticketListingsApi";
 import { QRDisplay } from "../../features/tickets/components/QRDisplay";
+import {
+  createIncident,
+  type IncidentSeverity,
+} from "../../features/incidents/api/incidentsApi";
 
 type TicketDetails = {
   registrationId: string;
@@ -66,6 +70,18 @@ export default function TicketDetail() {
   const [price, setPrice] = useState("350");
   const [reason, setReason] = useState("");
 
+  const [isIncidentFormOpen, setIsIncidentFormOpen] = useState(false);
+  const [incidentTitle, setIncidentTitle] = useState("");
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [incidentSeverity, setIncidentSeverity] =
+    useState<IncidentSeverity>("medium");
+  const [incidentLocation, setIncidentLocation] = useState("");
+  const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
+  const [incidentNotice, setIncidentNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -77,6 +93,8 @@ export default function TicketDetail() {
       setIsCheckingListing(false);
       setIsTransferFormOpen(false);
       setTransferNotice(null);
+      setIsIncidentFormOpen(false);
+      setIncidentNotice(null);
 
       try {
         const registrations = await getMyRegistrations();
@@ -195,6 +213,50 @@ export default function TicketDetail() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleIncidentSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!ticket || isSubmittingIncident) return;
+
+    setIsSubmittingIncident(true);
+    setIncidentNotice(null);
+
+    try {
+      await createIncident({
+        eventId: ticket.eventId,
+        title: incidentTitle.trim(),
+        description: incidentDescription.trim(),
+        severity: incidentSeverity,
+        ...(incidentLocation.trim()
+          ? { location: incidentLocation.trim() }
+          : {}),
+      });
+
+      setIncidentNotice({
+        type: "success",
+        message: "Incident reported successfully. The event organizer can now review it.",
+      });
+
+      setIncidentTitle("");
+      setIncidentDescription("");
+      setIncidentSeverity("medium");
+      setIncidentLocation("");
+      setIsIncidentFormOpen(false);
+    } catch (error) {
+      setIncidentNotice({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to report this incident. Please try again.",
+      });
+    } finally {
+      setIsSubmittingIncident(false);
     }
   }
 
@@ -351,6 +413,33 @@ export default function TicketDetail() {
                 </span>
               </div>
             </div>
+
+            <div className="mt-5 border-t border-[#E2E8F0] pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIncidentNotice(null);
+                  setIsIncidentFormOpen(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#FECACA] px-3 py-2 text-xs font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2]"
+              >
+                <span aria-hidden="true">!</span>
+                Report Incident
+              </button>
+
+              {incidentNotice && (
+                <p
+                  role="status"
+                  className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+                    incidentNotice.type === "success"
+                      ? "border border-[#BBF7D0] bg-[#F0FDF4] text-[#166534]"
+                      : "border border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {incidentNotice.message}
+                </p>
+              )}
+            </div>
           </div>
         </section>
 
@@ -360,13 +449,13 @@ export default function TicketDetail() {
           </p>
 
           <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-          {ticket.qrToken ? (
-          <QRDisplay value={ticket.qrToken} size={210} />
+            {ticket.qrToken ? (
+              <QRDisplay value={ticket.qrToken} size={210} />
             ) : (
-          <p className="py-8 text-sm text-amber-700">
-          QR ticket is not available yet. Please refresh later or contact support.
-          </p>
-        )}
+              <p className="py-8 text-sm text-amber-700">
+                QR ticket is not available yet. Please refresh later or contact support.
+              </p>
+            )}
           </div>
 
           <p className="mt-4 text-sm font-semibold text-[#1E3A8A]">
@@ -542,6 +631,133 @@ export default function TicketDetail() {
           </form>
         )}
       </section>
+
+      {isIncidentFormOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0F172A]/50 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isSubmittingIncident) {
+              setIsIncidentFormOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="incident-form-title"
+            className="my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#B91C1C]">
+                  EventPulse support
+                </p>
+                <h2
+                  id="incident-form-title"
+                  className="mt-1 text-xl font-bold text-[#1E293B]"
+                >
+                  Report an incident
+                </h2>
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Event: {ticket.eventName}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={isSubmittingIncident}
+                onClick={() => setIsIncidentFormOpen(false)}
+                aria-label="Close incident form"
+                className="rounded-lg px-2 py-1 text-lg text-[#64748B] hover:bg-[#F1F5F9] disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleIncidentSubmit} className="mt-5 space-y-4">
+              <label className="block text-sm font-medium text-[#334155]">
+                Incident title
+                <input
+                  required
+                  maxLength={200}
+                  value={incidentTitle}
+                  onChange={(event) => setIncidentTitle(event.target.value)}
+                  placeholder="Briefly describe the issue"
+                  className="mt-1.5 w-full rounded-xl border border-[#CBD5E1] px-3 py-2.5 font-normal outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#BFDBFE]"
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-[#334155]">
+                Description
+                <textarea
+                  required
+                  rows={4}
+                  value={incidentDescription}
+                  onChange={(event) =>
+                    setIncidentDescription(event.target.value)
+                  }
+                  placeholder="Explain what happened..."
+                  className="mt-1.5 w-full resize-y rounded-xl border border-[#CBD5E1] px-3 py-2.5 font-normal outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#BFDBFE]"
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-[#334155]">
+                Severity
+                <select
+                  value={incidentSeverity}
+                  onChange={(event) =>
+                    setIncidentSeverity(
+                      event.target.value as IncidentSeverity,
+                    )
+                  }
+                  className="mt-1.5 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#BFDBFE]"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium text-[#334155]">
+                Location <span className="font-normal text-[#94A3B8]">(optional)</span>
+                <input
+                  maxLength={150}
+                  value={incidentLocation}
+                  onChange={(event) =>
+                    setIncidentLocation(event.target.value)
+                  }
+                  placeholder="For example, Main Gate"
+                  className="mt-1.5 w-full rounded-xl border border-[#CBD5E1] px-3 py-2.5 font-normal outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#BFDBFE]"
+                />
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-[#E2E8F0] pt-4">
+                <button
+                  type="button"
+                  disabled={isSubmittingIncident}
+                  onClick={() => setIsIncidentFormOpen(false)}
+                  className="rounded-xl border border-[#CBD5E1] px-4 py-2.5 text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmittingIncident ||
+                    !incidentTitle.trim() ||
+                    !incidentDescription.trim()
+                  }
+                  className="rounded-xl bg-[#DC2626] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmittingIncident ? "Submitting..." : "Submit report"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

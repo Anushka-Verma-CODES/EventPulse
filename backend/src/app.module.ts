@@ -11,6 +11,8 @@ import { TicketListingsModule } from './ticket-listings/ticket-listings.module';
 import { Payment } from './payments/entities/payment.entity';
 import { PaymentsModule } from './payments/payments.module';
 import { VolunteersModule } from './volunteers/volunteers.module';
+import { ResourcesModule } from "./resources/resources.module";
+import { IncidentsModule } from "./incidents/incidents.module";
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { VolunteersModule } from './volunteers/volunteers.module';
     TicketListingsModule,
     PaymentsModule,
     VolunteersModule,
+    ResourcesModule,
+    IncidentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

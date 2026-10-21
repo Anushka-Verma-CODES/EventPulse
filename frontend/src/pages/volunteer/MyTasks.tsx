@@ -117,19 +117,23 @@ export default function MyTasks() {
   }
 
   const filteredAssignments = assignments.filter((assignment) => {
-    if (activeFilter === "Pending") {
-      return (
-        assignment.status === "assigned" ||
-        assignment.status === "in_progress"
-      );
-    }
+  if (assignment.status === "cancelled") {
+    return false;
+  }
 
-    if (activeFilter === "Completed") {
-      return assignment.status === "completed";
-    }
+  if (activeFilter === "Pending") {
+    return (
+      assignment.status === "assigned" ||
+      assignment.status === "in_progress"
+    );
+  }
 
-    return true;
-  });
+  if (activeFilter === "Completed") {
+    return assignment.status === "completed";
+  }
+
+  return true;
+});
 
   return (
     <div>

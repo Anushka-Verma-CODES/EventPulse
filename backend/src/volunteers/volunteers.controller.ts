@@ -166,6 +166,15 @@ async getEligibleVolunteers(
     );
   }
 
+  @Get('organizer/overview')
+  async getOrganizerOverview(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.volunteersService.getOrganizerOverview(
+      request.user.userId,
+    );
+  }
+
     @Get('organizer/assignments')
   async getOrganizerAssignments(
     @Req() request: AuthenticatedRequest,
@@ -195,4 +204,5 @@ async getEligibleVolunteers(
       dto,
     );
   }
+
 }
