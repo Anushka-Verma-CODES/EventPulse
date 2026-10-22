@@ -1,14 +1,15 @@
 import { Link } from "react-router-dom";
 import { Menu, Search, Bell, CalendarDays } from "lucide-react";
 import UserMenu from "./UserMenu";
-import { mockOrganizer } from "../../lib/organizerMockData";
 
 interface OrganizerNavbarProps {
   pageTitle: string;
   onOpenMobileSidebar: () => void;
 }
 
-export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbarProps) {
+export default function OrganizerNavbar({
+  onOpenMobileSidebar,
+}: OrganizerNavbarProps) {
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[#E2E8F0]/80 bg-white/75 px-3 backdrop-blur-md sm:px-5">
       <div className="flex items-center gap-3">
@@ -19,6 +20,7 @@ export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbar
         >
           O
         </span>
+
         <button
           type="button"
           onClick={onOpenMobileSidebar}
@@ -32,6 +34,7 @@ export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbar
       <div className="hidden flex-1 justify-center px-4 md:flex">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+
           <input
             type="text"
             placeholder="Search events, attendees, etc."
@@ -49,6 +52,7 @@ export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbar
           <CalendarDays className="h-4 w-4" />
           <span className="hidden sm:inline">Events</span>
         </Link>
+
         <Link
           to="/organizer/notifications"
           className="relative rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC]"
@@ -56,10 +60,8 @@ export default function OrganizerNavbar({ onOpenMobileSidebar }: OrganizerNavbar
         >
           <Bell className="h-5 w-5" />
         </Link>
+
         <UserMenu
-          name={mockOrganizer.name}
-          email={mockOrganizer.email}
-          initials={mockOrganizer.initials}
           profileRoute="/organizer/profile"
           settingsRoute="/organizer/settings"
           currentRole="organizer"

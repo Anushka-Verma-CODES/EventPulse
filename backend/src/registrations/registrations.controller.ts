@@ -11,6 +11,8 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
 import { UserRole } from "../users/enums/user-role.enum";
 import { RegistrationsService } from "./registrations.service";
+import { CreateRegistrationDto } from "./dto/create-registration.dto";
+import { CheckInDto } from "./dto/check-in.dto";
 
 @Controller("registrations")
 @UseGuards(JwtAuthGuard)
@@ -23,7 +25,7 @@ export class RegistrationsController {
   @Post()
   register(
     @Req() request: { user: { userId: string } },
-    @Body() body: { eventId: string },
+    @Body() body: CreateRegistrationDto,
   ) {
     return this.registrationsService.register(
       request.user.userId,
@@ -32,29 +34,23 @@ export class RegistrationsController {
   }
 
   @Get("my-registrations")
-  getMyRegistrations(
+  getMyRegistrations(@Req() request: { user: { userId: string } }) {
+    return this.registrationsService.getMyRegistrations(request.user.userId);
+  }
+
+  @Post("check-in")
+  async checkIn(
+    @Body() body: CheckInDto,
     @Req() request: { user: { userId: string } },
   ) {
-    return this.registrationsService.getMyRegistrations(
+    return this.registrationsService.checkIn(
+      body.qrToken,
+      body.eventId,
       request.user.userId,
     );
   }
 
-  
-  @Post("check-in")
-  async checkIn(
-  @Body() body: { qrToken: string; eventId: string },
-  @Req() request: { user: { userId: string } },
-  ) {
-  return this.registrationsService.checkIn(
-    body.qrToken,
-    body.eventId,
-    request.user.userId,
-  );
-  }
-
-
-    @Get("organizer/dashboard-stats")
+  @Get("organizer/dashboard-stats")
   async getOrganizerDashboardStats(
     @Req() request: { user: { userId: string } },
   ) {
@@ -74,7 +70,6 @@ export class RegistrationsController {
     );
   }
 
-  
   @Get("organizer/event-registration-counts")
   async getOrganizerEventRegistrationCounts(
     @Req() request: { user: { userId: string } },
@@ -95,25 +90,21 @@ export class RegistrationsController {
     );
   }
 
-  
-@Get("organizer/attendees")
-async getOrganizerAttendees(
-  @Req() request: { user: { userId: string } },
-) {
-  const hasOrganizerRole = await this.usersService.hasRole(
-    request.user.userId,
-    UserRole.ORGANIZER,
-  );
+  @Get("organizer/attendees")
+  async getOrganizerAttendees(@Req() request: { user: { userId: string } }) {
+    const hasOrganizerRole = await this.usersService.hasRole(
+      request.user.userId,
+      UserRole.ORGANIZER,
+    );
 
-  if (!hasOrganizerRole) {
-    throw new ForbiddenException(
-      "Only organizers can view their event attendees.",
+    if (!hasOrganizerRole) {
+      throw new ForbiddenException(
+        "Only organizers can view their event attendees.",
+      );
+    }
+
+    return this.registrationsService.getOrganizerAttendees(
+      request.user.userId,
     );
   }
-
-  return this.registrationsService.getOrganizerAttendees(
-    request.user.userId,
-  );
-}
-
 }

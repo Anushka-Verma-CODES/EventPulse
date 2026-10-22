@@ -49,7 +49,7 @@ export default function VolunteerSidebar({
   return (
     <aside
       className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
-        isCollapsed ? "w-[64px]" : "w-[216px]"
+        isCollapsed ? "w-64px" : "w-216px"
       }`}
     >
       <Link
