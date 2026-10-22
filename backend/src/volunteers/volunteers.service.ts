@@ -21,6 +21,7 @@ import { Event } from '../events/entities/event.entity';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/enums/user-role.enum';
 import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface UpdateVolunteerProfileInput {
   skills?: string[];
@@ -70,6 +71,7 @@ export class VolunteersService {
     private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
 
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getMyProfile(userId: string): Promise<VolunteerProfile> {
@@ -180,7 +182,17 @@ export class VolunteersService {
       status: VolunteerApplicationStatus.PENDING,
     });
 
-    return this.volunteerApplicationRepository.save(application);
+    const savedApplication =
+  await this.volunteerApplicationRepository.save(application);
+
+  await this.notificationsService.create(event.organizerId, {
+  title: 'New volunteer application',
+  message: `A volunteer has applied for "${event.title}". Review the application in your organizer dashboard.`,
+  type: 'volunteer_application',
+  link: '/organizer/volunteers',
+  });
+
+  return savedApplication;
   }
 
   async getMyApplications(
@@ -263,9 +275,27 @@ export class VolunteersService {
       );
     }
 
-    application.status = status;
+    
+application.status = status;
 
-    return this.volunteerApplicationRepository.save(application);
+const savedApplication =
+  await this.volunteerApplicationRepository.save(application);
+
+await this.notificationsService.create(application.volunteerId, {
+  title:
+    status === VolunteerApplicationStatus.ACCEPTED
+      ? "Volunteer application accepted"
+      : "Volunteer application rejected",
+  message:
+    status === VolunteerApplicationStatus.ACCEPTED
+      ? `Your application for "${application.event.title}" has been accepted.`
+      : `Your application for "${application.event.title}" has been rejected.`,
+  type: "volunteer_application",
+  link: "/volunteer/applications",
+});
+
+return savedApplication;
+
   }
 
   async createAssignment(

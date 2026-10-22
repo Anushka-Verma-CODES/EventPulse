@@ -11,7 +11,7 @@ import { IsNull, Repository } from "typeorm";
 import { Event, EventStatus } from "../events/entities/event.entity";
 import { Registration } from "./entities/registration.entity";
 import { User } from "../users/entities/user.entity";
-import { ScannerEventAssignment } from '../volunteers/entities/scanner-event-assignment.entity';
+import { ScannerEventAssignment } from "../volunteers/entities/scanner-event-assignment.entity";
 
 @Injectable()
 export class RegistrationsService {
@@ -26,61 +26,67 @@ export class RegistrationsService {
     private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
   ) {}
 
+  // CHANGED: runs in a transaction and locks the event row so two users
+  // cannot take the last seat at the same time.
   async register(attendeeId: string, eventId: string) {
-    const event = await this.eventsRepository.findOne({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundException("Event not found");
-    }
-
-    if (event.status !== EventStatus.PUBLISHED) {
-      throw new BadRequestException(
-        "You can only register for published events",
-      );
-    }
-
-    if (Number(event.price) > 0) {
-      throw new BadRequestException(
-        "Paid events require payment verification.",
-      );
-    }
-
-    const existingRegistration =
-      await this.registrationsRepository.findOne({
-        where: { attendeeId, eventId },
-      });
-
-    if (existingRegistration) {
-      throw new ConflictException(
-        "You are already registered for this event",
-      );
-    }
-
-    const registrationCount = await this.registrationsRepository.count({
-      where: { eventId },
-    });
-
-    if (registrationCount >= event.capacity) {
-      throw new BadRequestException("This event is full");
-    }
-
-    const registration = this.registrationsRepository.create({
-      attendeeId,
-      eventId,
-      qrToken: randomBytes(32).toString("hex"),
-      isCheckedIn: false,
-      checkedInAt: null,
-    });
-
     try {
-      return await this.registrationsRepository.save(registration);
+      return await this.registrationsRepository.manager.transaction(
+        async (manager) => {
+          const event = await manager.findOne(Event, {
+            where: { id: eventId },
+            lock: { mode: "pessimistic_write" },
+          });
+
+          if (!event) {
+            throw new NotFoundException("Event not found");
+          }
+
+          if (event.status !== EventStatus.PUBLISHED) {
+            throw new BadRequestException(
+              "You can only register for published events",
+            );
+          }
+
+          if (Number(event.price) > 0) {
+            throw new BadRequestException(
+              "Paid events require payment verification.",
+            );
+          }
+
+          const existingRegistration = await manager.findOne(Registration, {
+            where: { attendeeId, eventId },
+          });
+
+          if (existingRegistration) {
+            throw new ConflictException(
+              "You are already registered for this event",
+            );
+          }
+
+          const registrationCount = await manager.count(Registration, {
+            where: { eventId },
+          });
+
+          if (registrationCount >= event.capacity) {
+            throw new BadRequestException("This event is full");
+          }
+
+          const registration = manager.create(Registration, {
+            attendeeId,
+            eventId,
+            qrToken: randomBytes(32).toString("hex"),
+            isCheckedIn: false,
+            checkedInAt: null,
+          });
+
+          return await manager.save(Registration, registration);
+        },
+      );
     } catch (error) {
       if (
         error instanceof Error &&
         "code" in error &&
-        error.code === "23505"
+        (error as { code?: string }).code === "23505"
       ) {
         throw new ConflictException(
           "You are already registered for this event",
@@ -99,39 +105,38 @@ export class RegistrationsService {
     });
   }
 
-  
-async getOrganizerAttendees(organizerId: string) {
-  const registrations = await this.registrationsRepository
-    .createQueryBuilder("registration")
-    .innerJoin("registration.event", "event")
-    .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
-    .select("registration.id", "registrationId")
-    .addSelect("registration.attendeeId", "attendeeId")
-    .addSelect("attendee.fullName", "name")
-    .addSelect("attendee.email", "email")
-    .addSelect("event.title", "eventName")
-    .addSelect("registration.registeredAt", "registeredAt")
-    .addSelect("registration.isCheckedIn", "isCheckedIn")
-    .addSelect("registration.checkedInAt", "checkedInAt")
-    .where("event.organizerId = :organizerId", { organizerId })
-    .orderBy("registration.registeredAt", "DESC")
-    .getRawMany();
+  async getOrganizerAttendees(organizerId: string) {
+    const registrations = await this.registrationsRepository
+      .createQueryBuilder("registration")
+      .innerJoin("registration.event", "event")
+      .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
+      .select("registration.id", "registrationId")
+      .addSelect("registration.attendeeId", "attendeeId")
+      .addSelect("attendee.fullName", "name")
+      .addSelect("attendee.email", "email")
+      .addSelect("event.title", "eventName")
+      .addSelect("registration.registeredAt", "registeredAt")
+      .addSelect("registration.isCheckedIn", "isCheckedIn")
+      .addSelect("registration.checkedInAt", "checkedInAt")
+      .where("event.organizerId = :organizerId", { organizerId })
+      .orderBy("registration.registeredAt", "DESC")
+      .getRawMany();
 
-  return registrations.map((registration) => ({
-    id: registration.registrationId,
-    attendeeId: registration.attendeeId,
-    name: registration.name,
-    email: registration.email,
-    ticket: registration.registrationId.slice(0, 8).toUpperCase(),
-    eventName: registration.eventName,
-    registeredOn: registration.registeredAt,
-    status: registration.isCheckedIn ? "Checked In" : "Not Checked In",
-    checkedInAt: registration.checkedInAt,
-    gate: "—",
-  }));
-}
+    return registrations.map((registration) => ({
+      id: registration.registrationId,
+      attendeeId: registration.attendeeId,
+      name: registration.name,
+      email: registration.email,
+      ticket: registration.registrationId.slice(0, 8).toUpperCase(),
+      eventName: registration.eventName,
+      registeredOn: registration.registeredAt,
+      status: registration.isCheckedIn ? "Checked In" : "Not Checked In",
+      checkedInAt: registration.checkedInAt,
+      gate: "—",
+    }));
+  }
 
-    async getOrganizerDashboardStats(organizerId: string) {
+  async getOrganizerDashboardStats(organizerId: string) {
     const events = await this.eventsRepository.find({
       where: { organizerId },
       order: { startDate: "ASC" },
@@ -162,42 +167,38 @@ async getOrganizerAttendees(organizerId: string) {
 
     const upcomingEvents = events.filter(
       (event) =>
-        event.startDate >= now &&
-        event.status === EventStatus.PUBLISHED,
+        event.startDate >= now && event.status === EventStatus.PUBLISHED,
     );
 
     const totalCheckIns = registrations.filter(
       (registration) => registration.isCheckedIn,
     ).length;
 
-    const weeklyAttendance = Array.from(
-      { length: 7 },
-      (_, index) => {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() - (6 - index));
+    const weeklyAttendance = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
 
-        const nextDate = new Date(date);
-        nextDate.setDate(nextDate.getDate() + 1);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
 
-        const value = registrations.filter((registration) => {
-          if (!registration.checkedInAt) {
-            return false;
-          }
+      const value = registrations.filter((registration) => {
+        if (!registration.checkedInAt) {
+          return false;
+        }
 
-          const checkedInAt = new Date(registration.checkedInAt);
+        const checkedInAt = new Date(registration.checkedInAt);
 
-          return checkedInAt >= date && checkedInAt < nextDate;
-        }).length;
+        return checkedInAt >= date && checkedInAt < nextDate;
+      }).length;
 
-        return {
-          day: date.toLocaleDateString("en-US", {
-            weekday: "short",
-          }),
-          value,
-        };
-      },
-    );
+      return {
+        day: date.toLocaleDateString("en-US", {
+          weekday: "short",
+        }),
+        value,
+      };
+    });
 
     return {
       totalEvents: events.length,
@@ -227,7 +228,6 @@ async getOrganizerAttendees(organizerId: string) {
     };
   }
 
-  
   async getOrganizerEventRegistrationCounts(organizerId: string) {
     const counts = await this.registrationsRepository
       .createQueryBuilder("registration")
@@ -243,7 +243,6 @@ async getOrganizerAttendees(organizerId: string) {
       count: Number(item.count),
     }));
   }
-
 
   async generateMissingQrTokens() {
     const registrations = await this.registrationsRepository.find({
@@ -264,67 +263,70 @@ async getOrganizerAttendees(organizerId: string) {
     };
   }
 
-  async checkIn(
-  qrToken: string,
-  eventId: string,
-  scannerUserId: string,
-) {
-  if (!qrToken || typeof qrToken !== "string") {
-    throw new BadRequestException("QR token is required");
-  }
+  // CHANGED: the "already used" check and the update are now a single atomic
+  // SQL statement, so two scanners can never both succeed on the same ticket.
+  async checkIn(qrToken: string, eventId: string, scannerUserId: string) {
+    if (!qrToken || typeof qrToken !== "string") {
+      throw new BadRequestException("QR token is required");
+    }
 
-  if (!eventId || !scannerUserId) {
-    throw new BadRequestException(
-      "Event ID and scanner user ID are required",
-    );
-  }
+    if (!eventId || !scannerUserId) {
+      throw new BadRequestException(
+        "Event ID and scanner user ID are required",
+      );
+    }
 
-  const scannerAssignment =
-    await this.scannerEventAssignmentRepository.findOne({
-      where: {
-        eventId,
-        scannerUserId,
-        isActive: true,
-      },
+    const scannerAssignment =
+      await this.scannerEventAssignmentRepository.findOne({
+        where: {
+          eventId,
+          scannerUserId,
+          isActive: true,
+        },
+      });
+
+    if (!scannerAssignment) {
+      throw new ForbiddenException(
+        "You do not have scanner access for this event.",
+      );
+    }
+
+    const registration = await this.registrationsRepository.findOne({
+      where: { qrToken },
+      relations: { event: true },
     });
 
-  if (!scannerAssignment) {
-    throw new ForbiddenException(
-      "You do not have scanner access for this event.",
-    );
+    if (!registration) {
+      throw new NotFoundException("Invalid ticket QR code");
+    }
+
+    if (registration.eventId !== eventId) {
+      throw new BadRequestException(
+        "This ticket does not belong to the selected event.",
+      );
+    }
+
+    const checkedInAt = new Date();
+
+    const result = await this.registrationsRepository
+      .createQueryBuilder()
+      .update(Registration)
+      .set({ isCheckedIn: true, checkedInAt })
+      .where('"id" = :id AND "isCheckedIn" = false', {
+        id: registration.id,
+      })
+      .execute();
+
+    if (result.affected === 0) {
+      throw new ConflictException("This ticket has already been used");
+    }
+
+    return {
+      message: "Check-in successful",
+      registrationId: registration.id,
+      eventId: registration.eventId,
+      eventName: registration.event.title,
+      checkedInAt,
+    };
   }
-
-  const registration = await this.registrationsRepository.findOne({
-    where: { qrToken },
-    relations: { event: true },
-  });
-
-  if (!registration) {
-    throw new NotFoundException("Invalid ticket QR code");
-  }
-
-  if (registration.eventId !== eventId) {
-    throw new BadRequestException(
-      "This ticket does not belong to the selected event.",
-    );
-  }
-
-  if (registration.isCheckedIn) {
-    throw new ConflictException("This ticket has already been used");
-  }
-
-  registration.isCheckedIn = true;
-  registration.checkedInAt = new Date();
-
-  await this.registrationsRepository.save(registration);
-
-  return {
-    message: "Check-in successful",
-    registrationId: registration.id,
-    eventId: registration.eventId,
-    eventName: registration.event.title,
-    checkedInAt: registration.checkedInAt,
-  };
-}
-
 }
