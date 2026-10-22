@@ -31,6 +31,14 @@ type BackendRegistration = {
   checkedInAt: string | null;
 };
 
+type ScannerEventAssignment = {
+  id: string;
+  eventId: string;
+  scannerUserId: string;
+  isActive: boolean;
+  event?: BackendEvent;
+};
+
 export type MyRegistration = BackendRegistration & {
   event: BackendEvent;
 };
@@ -97,6 +105,19 @@ export async function getEvents(): Promise<EventItem[]> {
 
 export async function getMyEvents(): Promise<BackendEvent[]> {
   return request<BackendEvent[]>('/events/my-events');
+}
+
+export async function getMyScannerEvents(): Promise<BackendEvent[]> {
+  const assignments = await request<ScannerEventAssignment[]>(
+    '/volunteers/scanner/me/events',
+  );
+
+  return assignments
+    .filter(
+      (assignment) =>
+        assignment.isActive && assignment.event,
+    )
+    .map((assignment) => assignment.event as BackendEvent);
 }
 
 export async function getEventById(
