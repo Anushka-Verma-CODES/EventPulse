@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -50,6 +51,15 @@ export class RegistrationsController {
     );
   }
 
+  @Get("scanner/scan-history")
+  getScannerScanHistory(
+    @Req() request: { user: { userId: string } },
+  ) {
+    return this.registrationsService.getScannerScanHistory(
+      request.user.userId,
+    );
+  }
+
   @Get("organizer/dashboard-stats")
   async getOrganizerDashboardStats(
     @Req() request: { user: { userId: string } },
@@ -91,7 +101,9 @@ export class RegistrationsController {
   }
 
   @Get("organizer/attendees")
-  async getOrganizerAttendees(@Req() request: { user: { userId: string } }) {
+  async getOrganizerAttendees(
+    @Req() request: { user: { userId: string } },
+  ) {
     const hasOrganizerRole = await this.usersService.hasRole(
       request.user.userId,
       UserRole.ORGANIZER,
