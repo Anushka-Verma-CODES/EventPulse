@@ -10,6 +10,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -204,5 +205,55 @@ async getEligibleVolunteers(
       dto,
     );
   }
+
+  
+  @Post('organizer/events/:eventId/scanners')
+  async grantScannerAccess(
+    @Req() request: AuthenticatedRequest,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body() body: { scannerUserId: string },
+  ) {
+    return this.volunteersService.grantScannerAccess(
+      request.user.userId,
+      eventId,
+      body.scannerUserId,
+    );
+  }
+
+  @Get('organizer/events/:eventId/scanners')
+  async getEventScanners(
+    @Req() request: AuthenticatedRequest,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ) {
+    return this.volunteersService.getEventScanners(
+      request.user.userId,
+      eventId,
+    );
+  }
+
+  @Delete(
+    'organizer/events/:eventId/scanners/:scannerUserId',
+  )
+  async revokeScannerAccess(
+    @Req() request: AuthenticatedRequest,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('scannerUserId', ParseUUIDPipe) scannerUserId: string,
+  ) {
+    return this.volunteersService.revokeScannerAccess(
+      request.user.userId,
+      eventId,
+      scannerUserId,
+    );
+  }
+
+  @Get('scanner/me/events')
+async getMyScannerEvents(
+  @Req() request: AuthenticatedRequest,
+) {
+  return this.volunteersService.getMyScannerEvents(
+    request.user.userId,
+  );
+}
+
 
 }

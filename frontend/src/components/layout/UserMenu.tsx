@@ -26,7 +26,7 @@ const roleOptions: RoleOption[] = [
   { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
   { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
   { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
-  { id: "scanner", label: "Scanner", route: "/scanner/profile" },
+  { id: "scanner", label: "Scanner", route: "/scanner/dashboard" },
 ];
 
 interface UserMenuProps {

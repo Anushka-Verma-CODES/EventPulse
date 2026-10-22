@@ -40,24 +40,19 @@ export class RegistrationsController {
     );
   }
 
+  
   @Post("check-in")
   async checkIn(
-    @Req() request: { user: { userId: string } },
-    @Body() body: { qrToken: string },
+  @Body() body: { qrToken: string; eventId: string },
+  @Req() request: { user: { userId: string } },
   ) {
-    const hasScannerRole = await this.usersService.hasRole(
-      request.user.userId,
-      UserRole.SCANNER_STAFF,
-    );
-
-    if (!hasScannerRole) {
-      throw new ForbiddenException(
-        "Only authorized scanner staff can check in tickets",
-      );
-    }
-
-    return this.registrationsService.checkIn(body.qrToken);
+  return this.registrationsService.checkIn(
+    body.qrToken,
+    body.eventId,
+    request.user.userId,
+  );
   }
+
 
     @Get("organizer/dashboard-stats")
   async getOrganizerDashboardStats(

@@ -20,6 +20,7 @@ import {
 import { Event } from '../events/entities/event.entity';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/enums/user-role.enum';
+import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
 
 export interface UpdateVolunteerProfileInput {
   skills?: string[];
@@ -64,6 +65,9 @@ export class VolunteersService {
 
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
+
+    @InjectRepository(ScannerEventAssignment)
+    private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
 
     private readonly usersService: UsersService,
   ) {}
@@ -555,5 +559,199 @@ export class VolunteersService {
       ).length,
     };
   }
+
+  
+  async grantScannerAccess(
+    organizerId: string,
+    eventId: string,
+    scannerUserId: string,
+  ): Promise<ScannerEventAssignment> {
+    const isOrganizer = await this.usersService.hasRole(
+      organizerId,
+      UserRole.ORGANIZER,
+    );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Only organizers can grant scanner access.',
+      );
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found.');
+    }
+
+    if (event.organizerId !== organizerId) {
+      throw new ForbiddenException(
+        'You can only manage scanners for your own events.',
+      );
+    }
+
+    const isVolunteer = await this.usersService.hasRole(
+      scannerUserId,
+      UserRole.VOLUNTEER,
+    );
+
+    if (!isVolunteer) {
+      throw new BadRequestException(
+        'The selected user must have the Volunteer role.',
+      );
+    }
+
+    const acceptedApplication =
+      await this.volunteerApplicationRepository.findOne({
+        where: {
+          volunteerId: scannerUserId,
+          eventId,
+          status: VolunteerApplicationStatus.ACCEPTED,
+        },
+      });
+
+    if (!acceptedApplication) {
+      throw new BadRequestException(
+        'The volunteer must have an accepted application for this event.',
+      );
+    }
+
+    let assignment =
+      await this.scannerEventAssignmentRepository.findOne({
+        where: { eventId, scannerUserId },
+      });
+
+    if (assignment?.isActive) {
+      throw new ConflictException(
+        'This volunteer already has scanner access for this event.',
+      );
+    }
+
+    if (assignment) {
+      assignment.isActive = true;
+      assignment.assignedByOrganizerId = organizerId;
+    } else {
+      assignment = this.scannerEventAssignmentRepository.create({
+        eventId,
+        scannerUserId,
+        assignedByOrganizerId: organizerId,
+        isActive: true,
+      });
+    }
+
+    return this.scannerEventAssignmentRepository.save(assignment);
+  }
+
+  async getEventScanners(
+    organizerId: string,
+    eventId: string,
+  ): Promise<ScannerEventAssignment[]> {
+    const isOrganizer = await this.usersService.hasRole(
+      organizerId,
+      UserRole.ORGANIZER,
+    );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Only organizers can view event scanner assignments.',
+      );
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found.');
+    }
+
+    if (event.organizerId !== organizerId) {
+      throw new ForbiddenException(
+        'You can only view scanners for your own events.',
+      );
+    }
+
+    return this.scannerEventAssignmentRepository.find({
+      where: { eventId, isActive: true },
+      relations: { scanner: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async revokeScannerAccess(
+    organizerId: string,
+    eventId: string,
+    scannerUserId: string,
+  ): Promise<{ message: string }> {
+    const isOrganizer = await this.usersService.hasRole(
+      organizerId,
+      UserRole.ORGANIZER,
+    );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Only organizers can revoke scanner access.',
+      );
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found.');
+    }
+
+    if (event.organizerId !== organizerId) {
+      throw new ForbiddenException(
+        'You can only manage scanners for your own events.',
+      );
+    }
+
+    const assignment =
+      await this.scannerEventAssignmentRepository.findOne({
+        where: { eventId, scannerUserId, isActive: true },
+      });
+
+    if (!assignment) {
+      throw new NotFoundException(
+        'Active scanner assignment not found.',
+      );
+    }
+
+    assignment.isActive = false;
+    await this.scannerEventAssignmentRepository.save(assignment);
+
+    return { message: 'Scanner access revoked successfully.' };
+  }
+
+  async getMyScannerEvents(
+  scannerUserId: string,
+): Promise<ScannerEventAssignment[]> {
+  const isScanner = await this.usersService.hasRole(
+    scannerUserId,
+    UserRole.SCANNER_STAFF,
+  );
+
+  if (!isScanner) {
+    throw new ForbiddenException(
+      'Only users with the Scanner role can view assigned events.',
+    );
+  }
+
+  return this.scannerEventAssignmentRepository.find({
+    where: {
+      scannerUserId,
+      isActive: true,
+    },
+    relations: {
+      event: true,
+    },
+    order: {
+      createdAt: 'DESC',
+    },
+  });
+}
 
 }

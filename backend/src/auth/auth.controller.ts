@@ -1,4 +1,3 @@
-
 import {
   Body,
   Controller,
@@ -44,7 +43,9 @@ export class AuthController {
       throw new UnauthorizedException();
     }
 
-    const user = await this.usersService.findById(req.user.userId);
+    const user = await this.usersService.findById(
+      req.user.userId,
+    );
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -102,21 +103,25 @@ export class AuthController {
       dto.role,
     );
 
-    const user = await this.usersService.findById(req.user.userId);
+    const user = await this.usersService.findById(
+      req.user.userId,
+    );
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
+    const { accessToken, roles } =
+      await this.authService.refreshAccessToken(user.id);
+
     return {
       message: 'Role activated successfully',
+      accessToken,
       id: user.id,
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
-      roles: user.roleAssignments.map(
-        (assignment) => assignment.role,
-      ),
+      roles,
     };
   }
 }

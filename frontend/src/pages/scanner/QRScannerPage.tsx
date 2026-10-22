@@ -1,44 +1,111 @@
-import { useRef, useState } from "react";
-import { Link, useParams, Navigate } from "react-router-dom";
+
+import { useEffect, useRef, useState } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
 import QRScanner from "../../components/scanner/QRScanner";
 import ManualTicketInput from "../../components/scanner/ManualTicketInput";
 import ScanResultCard from "../../components/scanner/ScanResultCard";
-import { scannerEvents, gatesByEvent } from "../../lib/scannerMockData";
 import type { ScanResult } from "../../lib/scannerMockData";
 import { checkInTicket } from "../../features/checkin/api/checkinApi";
+import { getEventById } from "../../features/events/api/eventsApi";
+import type { EventItem } from "../../types/event";
 
 export default function QRScannerPage() {
-  const { eventId, gateId } = useParams();
+  const { eventId, gateId } = useParams<{
+    eventId: string;
+    gateId: string;
+  }>();
+
+  const [event, setEvent] = useState<EventItem | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
+  const [eventError, setEventError] = useState("");
+
   const [mode, setMode] = useState<"camera" | "manual">("camera");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const checkingRef = useRef(false);
 
-  const event = scannerEvents.find((e) => e.id === eventId);
-  const gate = eventId
-    ? gatesByEvent[eventId]?.find((g) => g.id === gateId)
-    : undefined;
+  useEffect(() => {
+    let cancelled = false;
 
-  if (!event || !gate) {
+    async function loadEvent() {
+      if (!eventId) {
+        setLoadingEvent(false);
+        return;
+      }
+
+      try {
+        setLoadingEvent(true);
+        setEventError("");
+
+        const data = await getEventById(eventId);
+
+        if (!cancelled) {
+          setEvent(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setEventError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load event details.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingEvent(false);
+        }
+      }
+    }
+
+    void loadEvent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
+  if (!eventId || gateId !== "general-entry") {
+    return <Navigate to="/scanner" replace />;
+  }
+
+  if (loadingEvent) {
+    return (
+      <div className="p-4 text-sm text-[#64748B]">
+        Loading event details...
+      </div>
+    );
+  }
+
+  if (!event && !eventError) {
     return <Navigate to="/scanner" replace />;
   }
 
   async function handleCode(code: string) {
-    if (checkingRef.current || result) return;
+    if (checkingRef.current || result || !event) return;
 
     checkingRef.current = true;
     setIsChecking(true);
     setErrorMessage(null);
 
     try {
-      const response = await checkInTicket(code.trim());
+      const response = await checkInTicket(code.trim(), event.id);
+
+      if (response.eventId !== event.id) {
+        setResult({
+          type: "wrong_event",
+          ticketId: code.trim(),
+          expectedEventName: event.name,
+        });
+        setErrorMessage("This ticket belongs to a different event.");
+        return;
+      }
 
       setResult({
         type: "valid",
         ticketId: response.registrationId,
         eventName: response.eventName,
-        gate: gate.name,
+        gate: "General Entry",
         checkedInAt: new Date(response.checkedInAt).toLocaleTimeString(
           "en-IN",
           {
@@ -56,12 +123,22 @@ export default function QRScannerPage() {
 
       setErrorMessage(message);
 
-      setResult({
-        type: message.toLowerCase().includes("already been used")
-          ? "duplicate"
-          : "invalid",
-        ticketId: code.trim(),
-      });
+      const normalizedMessage = message.toLowerCase();
+
+      if (normalizedMessage.includes("different event")) {
+        setResult({
+          type: "wrong_event",
+          ticketId: code.trim(),
+          expectedEventName: event.name,
+        });
+      } else {
+        setResult({
+          type: normalizedMessage.includes("already been used")
+            ? "duplicate"
+            : "invalid",
+          ticketId: code.trim(),
+        });
+      }
     } finally {
       checkingRef.current = false;
       setIsChecking(false);
@@ -73,11 +150,25 @@ export default function QRScannerPage() {
     setErrorMessage(null);
   }
 
+  if (eventError) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <p>{eventError}</p>
+        <Link
+          to="/scanner"
+          className="mt-3 inline-block font-semibold underline"
+        >
+          Back to events
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between">
         <Link
-          to={`/scanner/event/${event.id}`}
+         to={`/scanner/event/${eventId}`}
           className="text-sm font-medium text-[#2563EB] hover:underline"
         >
           &larr; Back
@@ -91,9 +182,9 @@ export default function QRScannerPage() {
 
       <div className="mt-2 text-center">
         <h2 className="text-xl font-bold text-[#1E293B]">
-          {event.name}
+          {event?.name ?? "Selected event"}
         </h2>
-        <p className="text-sm text-[#64748B]">{gate.name}</p>
+        <p className="text-sm text-[#64748B]">General Entry</p>
       </div>
 
       <div className="mt-6 flex flex-1 flex-col items-center justify-center">
@@ -152,7 +243,7 @@ export default function QRScannerPage() {
       {!result && (
         <div className="mt-6 flex items-center justify-between border-t border-[#E2E8F0] pt-4 text-sm text-[#64748B]">
           <span>Live check-in enabled</span>
-          <span>Gate: {gate.status}</span>
+          <span>Station: General Entry</span>
         </div>
       )}
     </div>
