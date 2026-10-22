@@ -1,3 +1,4 @@
+
 import { getAuthHeaders } from "../../../lib/authApi";
 
 const API_BASE_URL = "http://localhost:3000";
@@ -12,6 +13,7 @@ export type CheckInResponse = {
 
 export async function checkInTicket(
   qrToken: string,
+  eventId: string,
 ): Promise<CheckInResponse> {
   const response = await fetch(`${API_BASE_URL}/registrations/check-in`, {
     method: "POST",
@@ -19,7 +21,7 @@ export async function checkInTicket(
       ...getAuthHeaders(),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ qrToken }),
+    body: JSON.stringify({ qrToken, eventId }),
   });
 
   const data = await response.json().catch(() => null);

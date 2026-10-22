@@ -8,6 +8,7 @@ import { VolunteersController } from './volunteers.controller';
 import { VolunteersService } from './volunteers.service';
 import { UsersModule } from '../users/users.module';
 import { VolunteerApplication } from './entities/volunteer-application.entity';
+import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { VolunteerApplication } from './entities/volunteer-application.entity';
       VolunteerProfile,
       VolunteerAssignment,
       VolunteerApplication,
+      ScannerEventAssignment,
       Event,
     ]),
     UsersModule,

@@ -46,6 +46,7 @@ import  ScannerHome from '../pages/scanner/ScannerHome';
 import  SelectGate  from '../pages/scanner/SelectGate';
 import QRScannerPage from '../pages/scanner/QRScannerPage';
 import  ScanHistory from '../pages/scanner/ScanHistory';
+import ScannerDashboard from '../pages/scanner/ScannerDashboard';
 
 import AttendeeDetails from '../pages/registration/AttendeeDetails';
 import AttendeePayment from '../pages/registration/AttendeePayment';
@@ -121,16 +122,18 @@ export function AppRoutes() {
       </Route>
     </Route>
 
-      {/* Scanner routes with their own minimal layout */}
+      {/* Scanner routes with their own workspace */}
     <Route element={<ProtectedRoute allowedRoles={["scanner"]} />}>
       <Route path="/scanner" element={<ScannerLayout />}>
-        <Route index element={<ScannerHome />} />
-        <Route path="event/:eventId" element={<SelectGate />} />
-        <Route path="event/:eventId/gate/:gateId" element={<QRScannerPage />} />
-        <Route path="history" element={<ScanHistory />} />
-        <Route path="notifications" element={<ScanHistory />} />
-        <Route path="profile" element={<ProfilePage role="scanner" />} />
-        <Route path="settings" element={<SettingsPage role="scanner" />} />
+      <Route index element={<Navigate to="/scanner/dashboard" replace />} />
+      <Route path="dashboard" element={<ScannerDashboard />} />
+      <Route path="events" element={<ScannerHome />} />
+      <Route path="event/:eventId" element={<SelectGate />} />
+      <Route path="event/:eventId/gate/:gateId"element={<QRScannerPage />}/>
+      <Route path="history" element={<ScanHistory />} />
+      <Route path="notifications" element={<ScanHistory />} />
+      <Route path="profile" element={<ProfilePage role="scanner" />} />
+      <Route path="settings" element={<SettingsPage role="scanner" />} />
       </Route>
     </Route>
     

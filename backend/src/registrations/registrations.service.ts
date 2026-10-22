@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -10,6 +11,7 @@ import { IsNull, Repository } from "typeorm";
 import { Event, EventStatus } from "../events/entities/event.entity";
 import { Registration } from "./entities/registration.entity";
 import { User } from "../users/entities/user.entity";
+import { ScannerEventAssignment } from '../volunteers/entities/scanner-event-assignment.entity';
 
 @Injectable()
 export class RegistrationsService {
@@ -19,6 +21,9 @@ export class RegistrationsService {
 
     @InjectRepository(Event)
     private readonly eventsRepository: Repository<Event>,
+
+    @InjectRepository(ScannerEventAssignment)
+    private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
   ) {}
 
   async register(attendeeId: string, eventId: string) {
@@ -259,35 +264,67 @@ async getOrganizerAttendees(organizerId: string) {
     };
   }
 
-  async checkIn(qrToken: string) {
-    if (!qrToken || typeof qrToken !== "string") {
-      throw new BadRequestException("QR token is required");
-    }
+  async checkIn(
+  qrToken: string,
+  eventId: string,
+  scannerUserId: string,
+) {
+  if (!qrToken || typeof qrToken !== "string") {
+    throw new BadRequestException("QR token is required");
+  }
 
-    const registration = await this.registrationsRepository.findOne({
-      where: { qrToken },
-      relations: { event: true },
+  if (!eventId || !scannerUserId) {
+    throw new BadRequestException(
+      "Event ID and scanner user ID are required",
+    );
+  }
+
+  const scannerAssignment =
+    await this.scannerEventAssignmentRepository.findOne({
+      where: {
+        eventId,
+        scannerUserId,
+        isActive: true,
+      },
     });
 
-    if (!registration) {
-      throw new NotFoundException("Invalid ticket QR code");
-    }
-
-    if (registration.isCheckedIn) {
-      throw new ConflictException("This ticket has already been used");
-    }
-
-    registration.isCheckedIn = true;
-    registration.checkedInAt = new Date();
-
-    await this.registrationsRepository.save(registration);
-
-    return {
-      message: "Check-in successful",
-      registrationId: registration.id,
-      eventId: registration.eventId,
-      eventName: registration.event.title,
-      checkedInAt: registration.checkedInAt,
-    };
+  if (!scannerAssignment) {
+    throw new ForbiddenException(
+      "You do not have scanner access for this event.",
+    );
   }
+
+  const registration = await this.registrationsRepository.findOne({
+    where: { qrToken },
+    relations: { event: true },
+  });
+
+  if (!registration) {
+    throw new NotFoundException("Invalid ticket QR code");
+  }
+
+  if (registration.eventId !== eventId) {
+    throw new BadRequestException(
+      "This ticket does not belong to the selected event.",
+    );
+  }
+
+  if (registration.isCheckedIn) {
+    throw new ConflictException("This ticket has already been used");
+  }
+
+  registration.isCheckedIn = true;
+  registration.checkedInAt = new Date();
+
+  await this.registrationsRepository.save(registration);
+
+  return {
+    message: "Check-in successful",
+    registrationId: registration.id,
+    eventId: registration.eventId,
+    eventName: registration.event.title,
+    checkedInAt: registration.checkedInAt,
+  };
+}
+
 }
