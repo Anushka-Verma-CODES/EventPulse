@@ -50,6 +50,7 @@ export interface ApplyForEventInput {
   eventId: string;
   reason: string;
   availability: string[];
+  preferredRole?: string;
 }
 
 @Injectable()
@@ -137,10 +138,7 @@ export class VolunteersService {
       throw new NotFoundException('Published event not found.');
     }
 
-    if (
-      typeof input.reason !== 'string' ||
-      !input.reason.trim()
-    ) {
+    if (typeof input.reason !== 'string' || !input.reason.trim()) {
       throw new BadRequestException(
         'Please provide a reason for volunteering.',
       );
@@ -157,6 +155,14 @@ export class VolunteersService {
     ) {
       throw new BadRequestException(
         'Select at least one valid availability option.',
+      );
+    }
+
+    const preferredRole = input.preferredRole ?? 'Any Role';
+
+    if (!['Scanner', 'Any Role'].includes(preferredRole)) {
+      throw new BadRequestException(
+        'Preferred role must be Scanner or Any Role.',
       );
     }
 
@@ -179,20 +185,21 @@ export class VolunteersService {
       eventId: input.eventId,
       reason: input.reason.trim(),
       availability: input.availability,
+      preferredRole,
       status: VolunteerApplicationStatus.PENDING,
     });
 
     const savedApplication =
-  await this.volunteerApplicationRepository.save(application);
+      await this.volunteerApplicationRepository.save(application);
 
-  await this.notificationsService.create(event.organizerId, {
-  title: 'New volunteer application',
-  message: `A volunteer has applied for "${event.title}". Review the application in your organizer dashboard.`,
-  type: 'volunteer_application',
-  link: '/organizer/volunteers',
-  });
+    await this.notificationsService.create(event.organizerId, {
+      title: 'New volunteer application',
+      message: `A volunteer has applied for "${event.title}". Review the application in your organizer dashboard.`,
+      type: 'volunteer_application',
+      link: '/organizer/volunteers',
+    });
 
-  return savedApplication;
+    return savedApplication;
   }
 
   async getMyApplications(
@@ -275,27 +282,25 @@ export class VolunteersService {
       );
     }
 
-    
-application.status = status;
+    application.status = status;
 
-const savedApplication =
-  await this.volunteerApplicationRepository.save(application);
+    const savedApplication =
+      await this.volunteerApplicationRepository.save(application);
 
-await this.notificationsService.create(application.volunteerId, {
-  title:
-    status === VolunteerApplicationStatus.ACCEPTED
-      ? "Volunteer application accepted"
-      : "Volunteer application rejected",
-  message:
-    status === VolunteerApplicationStatus.ACCEPTED
-      ? `Your application for "${application.event.title}" has been accepted.`
-      : `Your application for "${application.event.title}" has been rejected.`,
-  type: "volunteer_application",
-  link: "/volunteer/applications",
-});
+    await this.notificationsService.create(application.volunteerId, {
+      title:
+        status === VolunteerApplicationStatus.ACCEPTED
+          ? 'Volunteer application accepted'
+          : 'Volunteer application rejected',
+      message:
+        status === VolunteerApplicationStatus.ACCEPTED
+          ? `Your application for "${application.event.title}" has been accepted.`
+          : `Your application for "${application.event.title}" has been rejected.`,
+      type: 'volunteer_application',
+      link: '/volunteer/applications',
+    });
 
-return savedApplication;
-
+    return savedApplication;
   }
 
   async createAssignment(
@@ -529,18 +534,13 @@ return savedApplication;
       );
     }
 
-    const [
-      applications,
-      assignments,
-    ] = await Promise.all([
+    const [applications, assignments] = await Promise.all([
       this.volunteerApplicationRepository
         .createQueryBuilder('application')
         .innerJoin('application.event', 'event')
         .select('application.volunteerId', 'volunteerId')
         .addSelect('application.status', 'status')
-        .where('event.organizerId = :organizerId', {
-          organizerId,
-        })
+        .where('event.organizerId = :organizerId', { organizerId })
         .getRawMany<{
           volunteerId: string;
           status: string;
@@ -551,9 +551,7 @@ return savedApplication;
         .innerJoin('assignment.event', 'event')
         .select('assignment.volunteerId', 'volunteerId')
         .addSelect('assignment.status', 'status')
-        .where('event.organizerId = :organizerId', {
-          organizerId,
-        })
+        .where('event.organizerId = :organizerId', { organizerId })
         .getRawMany<{
           volunteerId: string;
           status: VolunteerAssignmentStatus;
@@ -590,11 +588,12 @@ return savedApplication;
     };
   }
 
-  
   async grantScannerAccess(
     organizerId: string,
     eventId: string,
     scannerUserId: string,
+    startsAt: string,
+    endsAt: string,
   ): Promise<ScannerEventAssignment> {
     const isOrganizer = await this.usersService.hasRole(
       organizerId,
@@ -618,6 +617,21 @@ return savedApplication;
     if (event.organizerId !== organizerId) {
       throw new ForbiddenException(
         'You can only manage scanners for your own events.',
+      );
+    }
+
+    const startDate = new Date(startsAt);
+    const endDate = new Date(endsAt);
+
+    if (
+      !startsAt ||
+      !endsAt ||
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime()) ||
+      endDate.getTime() <= startDate.getTime()
+    ) {
+      throw new BadRequestException(
+        'A valid start time and an end time after the start are required.',
       );
     }
 
@@ -647,10 +661,9 @@ return savedApplication;
       );
     }
 
-    let assignment =
-      await this.scannerEventAssignmentRepository.findOne({
-        where: { eventId, scannerUserId },
-      });
+    let assignment = await this.scannerEventAssignmentRepository.findOne({
+      where: { eventId, scannerUserId },
+    });
 
     if (assignment?.isActive) {
       throw new ConflictException(
@@ -661,12 +674,16 @@ return savedApplication;
     if (assignment) {
       assignment.isActive = true;
       assignment.assignedByOrganizerId = organizerId;
+      assignment.startsAt = startDate;
+      assignment.endsAt = endDate;
     } else {
       assignment = this.scannerEventAssignmentRepository.create({
         eventId,
         scannerUserId,
         assignedByOrganizerId: organizerId,
         isActive: true,
+        startsAt: startDate,
+        endsAt: endDate,
       });
     }
 
@@ -751,37 +768,37 @@ return savedApplication;
     }
 
     assignment.isActive = false;
+
     await this.scannerEventAssignmentRepository.save(assignment);
 
     return { message: 'Scanner access revoked successfully.' };
   }
 
   async getMyScannerEvents(
-  scannerUserId: string,
-): Promise<ScannerEventAssignment[]> {
-  const isScanner = await this.usersService.hasRole(
-    scannerUserId,
-    UserRole.SCANNER_STAFF,
-  );
-
-  if (!isScanner) {
-    throw new ForbiddenException(
-      'Only users with the Scanner role can view assigned events.',
-    );
-  }
-
-  return this.scannerEventAssignmentRepository.find({
-    where: {
+    scannerUserId: string,
+  ): Promise<ScannerEventAssignment[]> {
+    const isVolunteer = await this.usersService.hasRole(
       scannerUserId,
-      isActive: true,
-    },
-    relations: {
-      event: true,
-    },
-    order: {
-      createdAt: 'DESC',
-    },
-  });
-}
+      UserRole.VOLUNTEER,
+    );
 
+    if (!isVolunteer) {
+      throw new ForbiddenException(
+        'Only volunteers can view their assigned scanner events.',
+      );
+    }
+
+    return this.scannerEventAssignmentRepository.find({
+      where: {
+        scannerUserId,
+        isActive: true,
+      },
+      relations: {
+        event: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
 }

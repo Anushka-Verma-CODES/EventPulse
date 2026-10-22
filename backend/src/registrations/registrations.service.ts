@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -12,6 +13,7 @@ import { Event, EventStatus } from "../events/entities/event.entity";
 import { Registration } from "./entities/registration.entity";
 import { User } from "../users/entities/user.entity";
 import { ScannerEventAssignment } from "../volunteers/entities/scanner-event-assignment.entity";
+import { ScanAttempt } from "./entities/scan-attempt.entity";
 
 @Injectable()
 export class RegistrationsService {
@@ -24,10 +26,31 @@ export class RegistrationsService {
 
     @InjectRepository(ScannerEventAssignment)
     private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
+
+    @InjectRepository(ScanAttempt)
+    private readonly scanAttemptRepository: Repository<ScanAttempt>,
   ) {}
 
-  // CHANGED: runs in a transaction and locks the event row so two users
-  // cannot take the last seat at the same time.
+  private async recordScanAttempt(
+    scannerUserId: string,
+    eventId: string | null,
+    result: string,
+    message: string,
+    registrationId: string | null = null,
+  ): Promise<void> {
+    try {
+      await this.scanAttemptRepository.save({
+        scannerUserId,
+        eventId,
+        registrationId,
+        result,
+        message,
+      });
+    } catch (error) {
+      console.error("Failed to record scan attempt:", error);
+    }
+  }
+
   async register(attendeeId: string, eventId: string) {
     try {
       return await this.registrationsRepository.manager.transaction(
@@ -188,14 +211,11 @@ export class RegistrationsService {
         }
 
         const checkedInAt = new Date(registration.checkedInAt);
-
         return checkedInAt >= date && checkedInAt < nextDate;
       }).length;
 
       return {
-        day: date.toLocaleDateString("en-US", {
-          weekday: "short",
-        }),
+        day: date.toLocaleDateString("en-US", { weekday: "short" }),
         value,
       };
     });
@@ -263,8 +283,6 @@ export class RegistrationsService {
     };
   }
 
-  // CHANGED: the "already used" check and the update are now a single atomic
-  // SQL statement, so two scanners can never both succeed on the same ticket.
   async checkIn(qrToken: string, eventId: string, scannerUserId: string) {
     if (!qrToken || typeof qrToken !== "string") {
       throw new BadRequestException("QR token is required");
@@ -291,16 +309,44 @@ export class RegistrationsService {
       );
     }
 
+    const now = new Date();
+
+    if (
+      !scannerAssignment.startsAt ||
+      !scannerAssignment.endsAt ||
+      now < new Date(scannerAssignment.startsAt) ||
+      now > new Date(scannerAssignment.endsAt)
+    ) {
+      throw new ForbiddenException(
+        "Scanner access is not active at the current date and time.",
+      );
+    }
+
     const registration = await this.registrationsRepository.findOne({
       where: { qrToken },
       relations: { event: true },
     });
 
     if (!registration) {
+      await this.recordScanAttempt(
+        scannerUserId,
+        eventId,
+        "invalid",
+        "Invalid ticket QR code",
+      );
+
       throw new NotFoundException("Invalid ticket QR code");
     }
 
     if (registration.eventId !== eventId) {
+      await this.recordScanAttempt(
+        scannerUserId,
+        eventId,
+        "wrong_event",
+        "This ticket does not belong to the selected event.",
+        registration.id,
+      );
+
       throw new BadRequestException(
         "This ticket does not belong to the selected event.",
       );
@@ -318,8 +364,24 @@ export class RegistrationsService {
       .execute();
 
     if (result.affected === 0) {
+      await this.recordScanAttempt(
+        scannerUserId,
+        eventId,
+        "duplicate",
+        "This ticket has already been used",
+        registration.id,
+      );
+
       throw new ConflictException("This ticket has already been used");
     }
+
+    await this.recordScanAttempt(
+      scannerUserId,
+      eventId,
+      "valid",
+      "Check-in successful",
+      registration.id,
+    );
 
     return {
       message: "Check-in successful",
@@ -328,5 +390,107 @@ export class RegistrationsService {
       eventName: registration.event.title,
       checkedInAt,
     };
+  }
+
+  async getScannerScanHistory(scannerUserId: string) {
+    const assignments = await this.scannerEventAssignmentRepository.find({
+      where: {
+        scannerUserId,
+        isActive: true,
+      },
+      select: {
+        eventId: true,
+      },
+    });
+
+    const eventIds = [...new Set(assignments.map((item) => item.eventId))];
+
+    if (eventIds.length === 0) {
+      return [];
+    }
+
+    const registrations = await this.registrationsRepository
+      .createQueryBuilder("registration")
+      .innerJoin("registration.event", "event")
+      .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
+      .select("registration.id", "registrationId")
+      .addSelect("registration.eventId", "eventId")
+      .addSelect("registration.attendeeId", "attendeeId")
+      .addSelect("attendee.fullName", "attendeeName")
+      .addSelect("event.title", "eventName")
+      .addSelect("registration.checkedInAt", "checkedInAt")
+      .where("registration.eventId IN (:...eventIds)", { eventIds })
+      .andWhere("registration.isCheckedIn = :isCheckedIn", {
+        isCheckedIn: true,
+      })
+      .orderBy("registration.checkedInAt", "DESC")
+      .getRawMany();
+
+    const successfulScans = registrations.map((registration) => ({
+      id: registration.registrationId,
+      registrationId: registration.registrationId,
+      eventId: registration.eventId,
+      attendeeId: registration.attendeeId,
+      attendeeName: registration.attendeeName,
+      eventName: registration.eventName,
+      ticketId: registration.registrationId.slice(0, 8).toUpperCase(),
+      checkedInAt: registration.checkedInAt,
+      scannedAt: registration.checkedInAt,
+      result: "valid",
+      message: "Check-in successful",
+    }));
+
+    const rejectedScans = await this.scanAttemptRepository
+      .createQueryBuilder("scan")
+      .leftJoin(
+        Event,
+        "event",
+        "event.id = scan.eventId",
+      )
+      .leftJoin(
+        Registration,
+        "registration",
+        "registration.id = scan.registrationId",
+      )
+      .leftJoin(
+        User,
+        "attendee",
+        "attendee.id = registration.attendeeId",
+      )
+      .select("scan.id", "id")
+      .addSelect("scan.registrationId", "registrationId")
+      .addSelect("scan.eventId", "eventId")
+      .addSelect("attendee.id", "attendeeId")
+      .addSelect("attendee.fullName", "attendeeName")
+      .addSelect("event.title", "eventName")
+      .addSelect("scan.scannedAt", "scannedAt")
+      .addSelect("scan.result", "result")
+      .addSelect("scan.message", "message")
+      .where("scan.scannerUserId = :scannerUserId", { scannerUserId })
+      .andWhere("scan.result <> :valid", { valid: "valid" })
+      .orderBy("scan.scannedAt", "DESC")
+      .getRawMany();
+
+    const formattedRejectedScans = rejectedScans.map((scan) => ({
+      id: scan.id,
+      registrationId: scan.registrationId ?? null,
+      eventId: scan.eventId ?? null,
+      attendeeId: scan.attendeeId ?? null,
+      attendeeName: scan.attendeeName ?? "Unknown attendee",
+      eventName: scan.eventName ?? "Unknown event",
+      ticketId: scan.registrationId
+        ? scan.registrationId.slice(0, 8).toUpperCase()
+        : "Unknown ticket",
+      checkedInAt: null,
+      scannedAt: scan.scannedAt,
+      result: scan.result,
+      message: scan.message,
+    }));
+
+    return [...successfulScans, ...formattedRejectedScans].sort(
+      (a, b) =>
+        new Date(b.scannedAt).getTime() -
+        new Date(a.scannedAt).getTime(),
+    );
   }
 }

@@ -1,5 +1,6 @@
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "../../lib/authApi";
 
@@ -21,6 +22,9 @@ export default function ApplyModal({
 }: ApplyModalProps) {
   const [reason, setReason] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
+  const [preferredRole, setPreferredRole] = useState<"Any Role" | "Scanner">(
+    "Any Role",
+  );
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -60,12 +64,12 @@ export default function ApplyModal({
           eventId,
           reason: reason.trim(),
           availability,
+          preferredRole,
         }),
       });
 
       if (!response.ok) {
         const responseData = await response.json().catch(() => null);
-
         const message = responseData?.message;
 
         throw new Error(
@@ -156,6 +160,33 @@ export default function ApplyModal({
               required
               className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] px-3.5 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
             />
+
+            <div className="mt-4">
+              <label
+                htmlFor="volunteer-preferred-role"
+                className="block text-sm font-medium text-[#1E293B]"
+              >
+                Preferred Role
+              </label>
+
+              <select
+                id="volunteer-preferred-role"
+                value={preferredRole}
+                onChange={(event) =>
+                  setPreferredRole(event.target.value as "Any Role" | "Scanner")
+                }
+                className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] bg-white px-3.5 py-2.5 text-sm text-[#1E293B] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+              >
+                <option value="Any Role">Any Role</option>
+                <option value="Scanner">Scanner</option>
+              </select>
+
+              <p className="mt-1.5 text-xs text-[#64748B]">
+                Choosing Scanner expresses your preference only. The organizer
+                must separately grant event-specific scanner access and set its
+                permitted dates and times.
+              </p>
+            </div>
 
             <div className="mt-4">
               <div className="text-sm font-medium text-[#1E293B]">
