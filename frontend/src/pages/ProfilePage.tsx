@@ -2,18 +2,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import PersonalInformation from "../components/profile/PersonalInformation";
-import SecuritySection from "../components/profile/SecuritySection";
-import NotificationPreferences from "../components/profile/NotificationPreferences";
-import PreferencesSection from "../components/profile/PreferencesSection";
-import AccountSection from "../components/profile/AccountSection";
 import AttendeeSection from "../components/profile/AttendeeSection";
 import VolunteerSection from "../components/profile/VolunteerSection";
 import OrganizerSection from "../components/profile/OrganizerSection";
 import ScannerSection from "../components/profile/ScannerSection";
-import {
-  personalInfoByRole,
-  notificationTogglesByRole,
-} from "../lib/profileMockData";
 import type { PersonalInfo, ProfileRole } from "../lib/profileMockData";
 
 interface ProfilePageProps {
@@ -23,12 +15,12 @@ interface ProfilePageProps {
 export default function ProfilePage({ role }: ProfilePageProps) {
   const { profile } = useAuth();
 
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(() => ({
-    ...personalInfoByRole[role],
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
     fullName: profile?.fullName ?? "",
     email: profile?.email ?? "",
     phone: profile?.phone ?? "",
-  }));
+    organization: "",
+  });
 
   useEffect(() => {
     setPersonalInfo((current) => ({
@@ -64,21 +56,22 @@ export default function ProfilePage({ role }: ProfilePageProps) {
         info={personalInfo}
         initials={initials || "U"}
         onEditClick={() => {
-          const el = document.getElementById("personal-information");
-          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+          const element = document.getElementById("personal-information");
+          element?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
         }}
       />
 
       <div id="personal-information">
-        <PersonalInformation info={personalInfo} onSave={setPersonalInfo} />
+        <PersonalInformation
+          info={personalInfo}
+          onSave={setPersonalInfo}
+        />
       </div>
 
       <RoleSection />
-
-      <SecuritySection />
-      <NotificationPreferences items={notificationTogglesByRole[role]} />
-      <PreferencesSection showScannerPreferences={role === "scanner"} />
-      <AccountSection role={role} />
     </div>
   );
 }

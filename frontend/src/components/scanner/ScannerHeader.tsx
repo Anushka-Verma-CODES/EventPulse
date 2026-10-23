@@ -1,12 +1,15 @@
 import { Link, useParams } from "react-router-dom";
 import { Calendar, History } from "lucide-react";
 import UserMenu from "../layout/UserMenu";
-import { mockScannerUser, gatesByEvent } from "../../lib/scannerMockData";
+import { gatesByEvent } from "../../lib/scannerMockData";
 
 export default function ScannerHeader() {
   const { eventId, gateId } = useParams();
 
-  const gate = eventId && gateId ? gatesByEvent[eventId]?.find((g) => g.id === gateId) : undefined;
+  const gate =
+    eventId && gateId
+      ? gatesByEvent[eventId]?.find((g) => g.id === gateId)
+      : undefined;
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4">
@@ -14,7 +17,10 @@ export default function ScannerHeader() {
         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2563EB] text-white">
           <Calendar className="h-3.5 w-3.5" />
         </span>
-        <span className="text-sm font-semibold text-[#1E293B]">EventPulse Scanner</span>
+
+        <span className="text-sm font-semibold text-[#1E293B]">
+          EventPulse Scanner
+        </span>
       </Link>
 
       <div className="flex items-center gap-3">
@@ -33,9 +39,6 @@ export default function ScannerHeader() {
         </Link>
 
         <UserMenu
-          name={mockScannerUser.name}
-          email="scanner@eventpulse.io"
-          initials={mockScannerUser.initials}
           profileRoute="/scanner/profile"
           settingsRoute="/scanner/settings"
           currentRole="scanner"

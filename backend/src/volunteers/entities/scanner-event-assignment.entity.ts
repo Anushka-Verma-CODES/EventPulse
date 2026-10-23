@@ -41,6 +41,12 @@ export class ScannerEventAssignment {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  startsAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  endsAt: Date | null;
+  
   @CreateDateColumn()
   createdAt: Date;
 }

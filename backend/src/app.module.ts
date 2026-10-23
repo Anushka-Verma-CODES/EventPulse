@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { VolunteersModule } from './volunteers/volunteers.module';
 import { ResourcesModule } from "./resources/resources.module";
 import { IncidentsModule } from "./incidents/incidents.module";
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { IncidentsModule } from "./incidents/incidents.module";
     VolunteersModule,
     ResourcesModule,
     IncidentsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

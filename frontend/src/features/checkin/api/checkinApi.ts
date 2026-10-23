@@ -11,6 +11,27 @@ export type CheckInResponse = {
   checkedInAt: string;
 };
 
+export type ScanHistoryEntry = {
+  id: string;
+  registrationId: string;
+  eventId: string;
+  attendeeId: string;
+  attendeeName: string;
+  eventName: string;
+  ticketId: string;
+  checkedInAt: string;
+  result: "valid";
+};
+
+async function getErrorMessage(response: Response): Promise<string> {
+  const data = await response.json().catch(() => null);
+  const message = Array.isArray(data?.message)
+    ? data.message.join(", ")
+    : data?.message;
+
+  return message || `Request failed (${response.status})`;
+}
+
 export async function checkInTicket(
   qrToken: string,
   eventId: string,
@@ -24,15 +45,25 @@ export async function checkInTicket(
     body: JSON.stringify({ qrToken, eventId }),
   });
 
-  const data = await response.json().catch(() => null);
-
   if (!response.ok) {
-    const message = Array.isArray(data?.message)
-      ? data.message.join(", ")
-      : data?.message;
-
-    throw new Error(message || `Check-in failed (${response.status})`);
+    throw new Error(await getErrorMessage(response));
   }
 
-  return data as CheckInResponse;
+  return (await response.json()) as CheckInResponse;
+}
+
+export async function getScannerScanHistory(): Promise<ScanHistoryEntry[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/registrations/scanner/scan-history`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return (await response.json()) as ScanHistoryEntry[];
 }

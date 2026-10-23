@@ -1,14 +1,15 @@
 import { Link } from "react-router-dom";
 import { Menu, Search, Bell, CalendarDays } from "lucide-react";
 import UserMenu from "./UserMenu";
-import { mockAttendee, mockUnreadNotifications } from "../../lib/mockUser";
 
 interface AttendeeNavbarProps {
   pageTitle: string;
   onOpenMobileSidebar: () => void;
 }
 
-export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarProps) {
+export default function AttendeeNavbar({
+  onOpenMobileSidebar,
+}: AttendeeNavbarProps) {
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[#E2E8F0]/80 bg-white/75 px-3 backdrop-blur-md sm:px-5">
       <div className="flex items-center gap-3">
@@ -19,6 +20,7 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
         >
           A
         </span>
+
         <button
           type="button"
           onClick={onOpenMobileSidebar}
@@ -35,7 +37,6 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
           <input
             type="text"
             placeholder="Search events, tickets, etc."
-            // UI only for now — actual search isn't wired up yet.
             className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-1.5 pl-9 pr-3 text-sm text-[#1E293B] outline-none placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
           />
         </div>
@@ -50,22 +51,16 @@ export default function AttendeeNavbar({ onOpenMobileSidebar }: AttendeeNavbarPr
           <CalendarDays className="h-4 w-4" />
           <span className="hidden sm:inline">Events</span>
         </Link>
+
         <Link
           to="/attendee/notifications"
           className="relative rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC]"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-          {mockUnreadNotifications > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-medium text-white">
-              {mockUnreadNotifications}
-            </span>
-          )}
         </Link>
+
         <UserMenu
-          name={mockAttendee.name}
-          email={mockAttendee.email}
-          initials={mockAttendee.initials}
           profileRoute="/attendee/profile"
           settingsRoute="/attendee/settings"
           currentRole="attendee"

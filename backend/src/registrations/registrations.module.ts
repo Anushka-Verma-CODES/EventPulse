@@ -6,10 +6,11 @@ import { Registration } from "./entities/registration.entity";
 import { RegistrationsController } from "./registrations.controller";
 import { RegistrationsService } from "./registrations.service";
 import { ScannerEventAssignment } from '../volunteers/entities/scanner-event-assignment.entity';
+import { ScanAttempt } from "./entities/scan-attempt.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Registration, Event,ScannerEventAssignment,]),
+    TypeOrmModule.forFeature([Registration, Event, ScannerEventAssignment, ScanAttempt]),
     UsersModule,
   ],
   controllers: [RegistrationsController],

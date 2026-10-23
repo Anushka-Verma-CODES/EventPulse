@@ -41,6 +41,9 @@ export class VolunteerApplication {
   @Column({ type: 'text' })
   reason: string;
 
+  @Column({ type: 'varchar', length: 30, default: 'Any Role' })
+  preferredRole: string;
+
   @Column({ type: 'simple-array' })
   availability: string[];
 

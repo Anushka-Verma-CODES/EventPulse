@@ -9,18 +9,20 @@ import { VolunteersService } from './volunteers.service';
 import { UsersModule } from '../users/users.module';
 import { VolunteerApplication } from './entities/volunteer-application.entity';
 import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      VolunteerProfile,
-      VolunteerAssignment,
-      VolunteerApplication,
-      ScannerEventAssignment,
-      Event,
-    ]),
-    UsersModule,
-  ],
+  TypeOrmModule.forFeature([
+    VolunteerProfile,
+    VolunteerAssignment,
+    VolunteerApplication,
+    ScannerEventAssignment,
+    Event,
+  ]),
+  UsersModule,
+  NotificationsModule,
+],
   controllers: [VolunteersController],
   providers: [VolunteersService],
   exports: [VolunteersService],

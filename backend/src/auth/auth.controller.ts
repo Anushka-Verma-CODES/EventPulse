@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -16,6 +17,8 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 import { ActivateRoleDto } from './dto/activate-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -85,6 +88,55 @@ export class AuthController {
       roles: user.roleAssignments.map(
         (assignment) => assignment.role,
       ),
+    };
+  }
+
+  @Get('me/settings')
+  @UseGuards(JwtAuthGuard)
+  async getSettings(
+    @Request() req: { user: { userId: string } },
+  ) {
+    if (!req.user?.userId) {
+      throw new UnauthorizedException();
+    }
+
+    return this.usersService.getSettings(req.user.userId);
+  }
+
+  @Patch('me/settings')
+  @UseGuards(JwtAuthGuard)
+  async updateSettings(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: UpdateSettingsDto,
+  ) {
+    if (!req.user?.userId) {
+      throw new UnauthorizedException();
+    }
+
+    return this.usersService.updateSettings(
+      req.user.userId,
+      dto,
+    );
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: ChangePasswordDto,
+  ) {
+    if (!req.user?.userId) {
+      throw new UnauthorizedException();
+    }
+
+    await this.usersService.changePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+
+    return {
+      message: 'Password changed successfully',
     };
   }
 

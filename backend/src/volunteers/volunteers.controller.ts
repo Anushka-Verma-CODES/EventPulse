@@ -117,6 +117,7 @@ async getEligibleVolunteers(
       eventId: string;
       reason: string;
       availability: string[];
+      preferredRole?: string;
     },
   ) {
     await this.ensureVolunteerRole(request.user.userId);
@@ -209,16 +210,23 @@ async getEligibleVolunteers(
   
   @Post('organizer/events/:eventId/scanners')
   async grantScannerAccess(
-    @Req() request: AuthenticatedRequest,
-    @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Body() body: { scannerUserId: string },
-  ) {
-    return this.volunteersService.grantScannerAccess(
-      request.user.userId,
-      eventId,
-      body.scannerUserId,
-    );
-  }
+  @Req() request: AuthenticatedRequest,
+  @Param('eventId', ParseUUIDPipe) eventId: string,
+  @Body()
+  body: {
+    scannerUserId: string;
+    startsAt: string;
+    endsAt: string;
+  },
+    ) {
+  return this.volunteersService.grantScannerAccess(
+    request.user.userId,
+    eventId,
+    body.scannerUserId,
+    body.startsAt,
+    body.endsAt,
+  );
+}
 
   @Get('organizer/events/:eventId/scanners')
   async getEventScanners(

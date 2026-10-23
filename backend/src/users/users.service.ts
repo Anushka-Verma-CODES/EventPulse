@@ -2,10 +2,17 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
-import { User } from './entities/user.entity';
+import * as bcrypt from 'bcrypt';
+import {
+  User,
+  UserSettings,
+  DEFAULT_USER_SETTINGS,
+} from './entities/user.entity';
 import { UserRoleAssignment } from './entities/user-role-assignment.entity';
 import { UserRole } from './enums/user-role.enum';
 
@@ -102,7 +109,7 @@ export class UsersService {
     const user = await this.findById(userId);
 
     if (!user) {
-      throw new ConflictException('User not found');
+      throw new NotFoundException('User not found');
     }
 
     user.fullName = data.fullName.trim();
@@ -112,31 +119,120 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async findVolunteers(): Promise<
-  { id: string; fullName: string; email: string }[]
-> {
-  const volunteers = await this.usersRepository
-    .createQueryBuilder('user')
-    .innerJoin(
-      'user.roleAssignments',
-      'roleAssignment',
-      'roleAssignment.role = :role',
-      { role: UserRole.VOLUNTEER },
-    )
-    .select([
-      'user.id',
-      'user.fullName',
-      'user.email',
-    ])
-    .orderBy('user.fullName', 'ASC')
-    .getMany();
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :userId', { userId })
+      .getOne();
 
-  return volunteers.map((volunteer) => ({
-    id: volunteer.id,
-    fullName: volunteer.fullName,
-    email: volunteer.email,
-  }));
-}
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException(
+        'Current password is incorrect',
+      );
+    }
+
+    const samePassword = await bcrypt.compare(
+      newPassword,
+      user.passwordHash,
+    );
+
+    if (samePassword) {
+      throw new ConflictException(
+        'New password must be different from the current password',
+      );
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.usersRepository.save(user);
+  }
+
+  async findVolunteers(): Promise<
+    { id: string; fullName: string; email: string }[]
+  > {
+    const volunteers = await this.usersRepository
+      .createQueryBuilder('user')
+      .innerJoin(
+        'user.roleAssignments',
+        'roleAssignment',
+        'roleAssignment.role = :role',
+        { role: UserRole.VOLUNTEER },
+      )
+      .select([
+        'user.id',
+        'user.fullName',
+        'user.email',
+      ])
+      .orderBy('user.fullName', 'ASC')
+      .getMany();
+
+    return volunteers.map((volunteer) => ({
+      id: volunteer.id,
+      fullName: volunteer.fullName,
+      email: volunteer.email,
+    }));
+  }
+
+  async getSettings(userId: string): Promise<UserSettings> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      ...DEFAULT_USER_SETTINGS,
+      ...user.settings,
+      notificationPreferences: {
+        ...DEFAULT_USER_SETTINGS.notificationPreferences,
+        ...user.settings?.notificationPreferences,
+      },
+    };
+  }
+
+  async updateSettings(
+    userId: string,
+    settings: Partial<UserSettings>,
+  ): Promise<UserSettings> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.settings = {
+      ...DEFAULT_USER_SETTINGS,
+      ...user.settings,
+      ...settings,
+      notificationPreferences: {
+        ...DEFAULT_USER_SETTINGS.notificationPreferences,
+        ...user.settings?.notificationPreferences,
+        ...settings.notificationPreferences,
+      },
+    };
+
+    await this.usersRepository.save(user);
+
+    return this.getSettings(userId);
+  }
 
   async assignRole(userId: string, role: UserRole): Promise<void> {
     const existingAssignment = await this.rolesRepository.findOne({
