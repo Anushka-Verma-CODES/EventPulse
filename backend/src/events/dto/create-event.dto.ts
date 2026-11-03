@@ -6,7 +6,6 @@ import {
   Min,
   IsNumber,
   IsOptional,
-  IsUrl,
   MaxLength,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -19,14 +18,17 @@ export class CreateEventDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   description: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   category: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   location: string;
 
   @IsDateString()
@@ -46,6 +48,7 @@ export class CreateEventDto {
   price: number;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
+  @MaxLength(3000000)
   bannerImage?: string;
 }

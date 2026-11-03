@@ -1,12 +1,100 @@
 
 import { useEffect, useState } from "react";
 import {
+  createResalePaymentOrder,
   getTicketListings,
+  verifyResalePayment,
   type TicketListing,
 } from "../../features/tickets/api/ticketListingsApi";
 
 interface TicketMarketplaceProps {
   eventId: string;
+}
+
+interface RazorpaySuccessResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpaySuccessResponse) => void | Promise<void>;
+  modal: {
+    ondismiss: () => void;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayCheckoutInstance {
+  open: () => void;
+  on: (
+    event: "payment.failed",
+    handler: (response: {
+      error?: { description?: string };
+    }) => void
+  ) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (
+      options: RazorpayCheckoutOptions
+    ) => RazorpayCheckoutInstance;
+  }
+}
+
+async function loadRazorpayCheckout(): Promise<void> {
+  if (window.Razorpay) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const existingScript =
+      document.querySelector<HTMLScriptElement>(
+        "script[data-razorpay-checkout]"
+      );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), {
+        once: true,
+      });
+
+      existingScript.addEventListener(
+        "error",
+        () => reject(new Error("Unable to load Razorpay Checkout.")),
+        { once: true }
+      );
+
+      return;
+    }
+
+    const script = document.createElement("script");
+
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.dataset.razorpayCheckout = "true";
+
+    script.onload = () => resolve();
+
+    script.onerror = () =>
+      reject(new Error("Unable to load Razorpay Checkout."));
+
+    document.body.appendChild(script);
+  });
+
+  if (!window.Razorpay) {
+    throw new Error(
+      "Razorpay Checkout is unavailable. Please refresh and try again."
+    );
+  }
 }
 
 export default function TicketMarketplace({
@@ -15,49 +103,146 @@ export default function TicketMarketplace({
   const [listings, setListings] = useState<TicketListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [selectedListing, setSelectedListing] =
     useState<TicketListing | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState("");
+  const [paymentError, setPaymentError] = useState(false);
 
-    async function loadListings() {
-      setLoading(true);
+  async function loadListings() {
+    try {
       setError("");
-
-      try {
-        const result = await getTicketListings(eventId);
-
-        if (!cancelled) {
-          setListings(result);
-        }
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Unable to load resale tickets."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    if (eventId) {
-      loadListings();
-    } else {
-      setListings([]);
-      setError("Event ID is missing.");
+      const result = await getTicketListings(eventId);
+      setListings(result);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load resale tickets."
+      );
+    } finally {
       setLoading(false);
     }
+  }
 
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    if (!eventId) {
+      setError("Event ID is missing.");
+      setLoading(false);
+      return;
+    }
+
+    loadListings();
   }, [eventId]);
+
+  async function handlePurchase() {
+    if (!selectedListing || isPaying) {
+      return;
+    }
+
+    setIsPaying(true);
+    setPaymentNotice("");
+    setPaymentError(false);
+
+    try {
+      // Load Razorpay Checkout.
+      await loadRazorpayCheckout();
+
+      // Create an order using the listing's actual database price.
+      const order = await createResalePaymentOrder(
+        selectedListing.id
+      );
+
+      const RazorpayCheckout = window.Razorpay;
+
+      if (!RazorpayCheckout) {
+        throw new Error("Razorpay Checkout is unavailable.");
+      }
+
+      const checkout = new RazorpayCheckout({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "EventPulse",
+        description: `Resale ticket ${order.ticketCode}`,
+        order_id: order.orderId,
+
+        theme: {
+          color: "#2563EB",
+        },
+
+        modal: {
+          ondismiss: () => {
+            setIsPaying(false);
+            setPaymentNotice(
+              "Payment cancelled. No successful payment was verified."
+            );
+            setPaymentError(true);
+          },
+        },
+
+        // Razorpay calls this after successful checkout.
+        handler: async (response) => {
+          try {
+            setPaymentNotice(
+              "Payment received. Verifying payment and transferring your ticket..."
+            );
+
+            // Never transfer the ticket before backend verification.
+            const result = await verifyResalePayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+
+            setPaymentNotice(
+              result.message ||
+                "Payment successful. Your ticket has been transferred."
+            );
+
+            setPaymentError(false);
+            setSelectedListing(null);
+
+            // Refresh listings from PostgreSQL.
+            await loadListings();
+          } catch (err: unknown) {
+            setPaymentNotice(
+              err instanceof Error
+                ? `${err.message} If your payment was deducted, contact support before retrying.`
+                : "Payment verification failed. Contact support before retrying."
+            );
+
+            setPaymentError(true);
+          } finally {
+            setIsPaying(false);
+          }
+        },
+      });
+
+      checkout.on("payment.failed", (response) => {
+        setPaymentNotice(
+          response.error?.description ||
+            "Payment failed. Please try again."
+        );
+
+        setPaymentError(true);
+        setIsPaying(false);
+      });
+
+      checkout.open();
+    } catch (err: unknown) {
+      setPaymentNotice(
+        err instanceof Error
+          ? err.message
+          : "Unable to start Razorpay checkout."
+      );
+
+      setPaymentError(true);
+      setIsPaying(false);
+    }
+  }
 
   const availableCount = listings.filter(
     (listing) => listing.status === "AVAILABLE"
@@ -70,6 +255,7 @@ export default function TicketMarketplace({
           <h2 className="text-lg font-semibold text-[#1E293B]">
             Tickets available from attendees
           </h2>
+
           <p className="mt-1 text-sm text-[#64748B]">
             Resale listings from people who can no longer attend.
           </p>
@@ -87,6 +273,16 @@ export default function TicketMarketplace({
       ) : error ? (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              loadListings();
+            }}
+            className="ml-2 font-semibold underline"
+          >
+            Retry
+          </button>
         </div>
       ) : listings.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-5 text-center text-sm text-[#64748B]">
@@ -94,57 +290,66 @@ export default function TicketMarketplace({
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
-          {listings.map((listing) => (
-            <div
-              key={listing.id}
-              className="flex flex-col items-start justify-between gap-4 rounded-xl bg-[#F8FAFC] p-5 sm:flex-row sm:items-center"
-            >
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-[#1E293B]">
-                    {listing.ticketCode}
-                  </span>
+          {listings
+            .filter((listing) => listing.status === "AVAILABLE")
+            .map((listing) => (
+              <div
+                key={listing.id}
+                className="flex flex-col items-start justify-between gap-4 rounded-xl bg-[#F8FAFC] p-5 sm:flex-row sm:items-center"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-[#1E293B]">
+                      {listing.ticketCode}
+                    </span>
 
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      listing.status === "AVAILABLE"
-                        ? "bg-[#DCFCE7] text-[#16A34A]"
-                        : "bg-[#F1F5F9] text-[#64748B]"
-                    }`}
+                    <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-medium text-[#16A34A]">
+                      Available
+                    </span>
+                  </div>
+
+                  <div className="mt-1 text-sm text-[#64748B]">
+                    Listed by {listing.sellerName} &middot;{" "}
+                    {listing.reason}
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-left sm:text-right">
+                  <div className="text-xs text-[#94A3B8]">
+                    PRICE
+                  </div>
+
+                  <div className="text-lg font-bold text-[#2563EB]">
+                    ₹{listing.price}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isPaying}
+                    onClick={() => {
+                      setSelectedListing(listing);
+                      setPaymentNotice("");
+                      setPaymentError(false);
+                    }}
+                    className="mt-1 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50"
                   >
-                    {listing.status === "AVAILABLE"
-                      ? "Available"
-                      : "Sold"}
-                  </span>
-                </div>
-
-                <div className="mt-1 text-sm text-[#64748B]">
-                  Listed by {listing.sellerName} &middot; {listing.reason}
-                </div>
-
-                <div className="mt-1 text-xs text-[#94A3B8]">
-                  Payment preference: {listing.paymentMethod}
+                    Buy ticket
+                  </button>
                 </div>
               </div>
+            ))}
+        </div>
+      )}
 
-              <div className="shrink-0 text-left sm:text-right">
-                <div className="text-xs text-[#94A3B8]">PRICE</div>
-
-                <div className="text-lg font-bold text-[#2563EB]">
-                  &#8377;{listing.price}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={listing.status !== "AVAILABLE"}
-                  onClick={() => setSelectedListing(listing)}
-                  className="mt-1 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  View details
-                </button>
-              </div>
-            </div>
-          ))}
+      {paymentNotice && (
+        <div
+          className={`mt-4 rounded-xl border p-4 text-sm ${
+            paymentError
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-green-200 bg-green-50 text-green-700"
+          }`}
+        >
+          {paymentNotice}
         </div>
       )}
 
@@ -152,50 +357,65 @@ export default function TicketMarketplace({
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
           <button
             type="button"
-            aria-label="Close ticket details"
+            aria-label="Close purchase dialog"
+            disabled={isPaying}
             className="absolute inset-0 cursor-default bg-black/30"
             onClick={() => setSelectedListing(null)}
           />
 
-          <div className="relative z-10 w-full max-w-sm rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xl">
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-[#1E293B]">
-              Ticket details
+              Confirm ticket purchase
             </h3>
 
-            <p className="mt-1 text-sm text-[#64748B]">
-              Listing {selectedListing.ticketCode} from{" "}
-              {selectedListing.sellerName}
+            <p className="mt-2 text-sm text-[#64748B]">
+              You are purchasing ticket{" "}
+              <strong>{selectedListing.ticketCode}</strong>.
             </p>
 
-            <div className="mt-4 flex items-center justify-between rounded-lg bg-[#F8FAFC] p-3 text-sm">
-              <span className="text-[#64748B]">Price</span>
-              <span className="font-semibold text-[#1E293B]">
-                &#8377;{selectedListing.price}
+            <div className="mt-4 flex items-center justify-between rounded-lg bg-[#F8FAFC] p-4">
+              <span className="text-sm text-[#64748B]">
+                Total amount
+              </span>
+
+              <span className="text-xl font-bold text-[#2563EB]">
+                ₹{selectedListing.price}
               </span>
             </div>
 
-            <div className="mt-2 rounded-lg bg-[#F8FAFC] p-3 text-sm">
-              <p className="text-[#64748B]">Seller's payment preference</p>
-              <p className="mt-1 font-medium text-[#1E293B]">
-                {selectedListing.paymentMethod}
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              <strong>Razorpay Test Mode</strong>
+              <p className="mt-1 text-xs leading-5">
+                You will be redirected to Razorpay Checkout.
+                Your ticket will be transferred only after the
+                backend verifies successful payment.
               </p>
             </div>
 
             <p className="mt-3 text-xs leading-5 text-[#64748B]">
-              {selectedListing.reason}
-            </p>
-
-            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-              Ticket purchasing and payment processing are not connected yet.
-              No payment has been made and no ticket has been transferred.
+              Seller payouts are not automated yet. Test
+              payments are collected by the EventPulse
+              Razorpay account.
             </p>
 
             <button
               type="button"
-              onClick={() => setSelectedListing(null)}
-              className="mt-5 w-full rounded-lg bg-[#2563EB] py-2.5 text-sm font-medium text-white hover:bg-[#1D4ED8]"
+              onClick={handlePurchase}
+              disabled={isPaying}
+              className="mt-5 w-full rounded-lg bg-[#2563EB] py-3 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Close
+              {isPaying
+                ? "Processing..."
+                : `Continue to pay ₹${selectedListing.price}`}
+            </button>
+
+            <button
+              type="button"
+              disabled={isPaying}
+              onClick={() => setSelectedListing(null)}
+              className="mt-2 w-full rounded-lg border border-[#E2E8F0] py-2.5 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] disabled:opacity-50"
+            >
+              Cancel
             </button>
           </div>
         </div>

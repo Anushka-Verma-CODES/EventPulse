@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
@@ -11,7 +10,14 @@ interface ApplyModalProps {
   onClose: () => void;
 }
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
+
 const availabilityOptions = ["Morning", "Afternoon", "Evening"];
 
 export default function ApplyModal({
@@ -54,19 +60,22 @@ export default function ApplyModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/volunteers/applications`, {
-        method: "POST",
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${VITE_API_BASE_URL}/volunteers/applications`,
+        {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventId,
+            reason: reason.trim(),
+            availability,
+            preferredRole,
+          }),
         },
-        body: JSON.stringify({
-          eventId,
-          reason: reason.trim(),
-          availability,
-          preferredRole,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const responseData = await response.json().catch(() => null);

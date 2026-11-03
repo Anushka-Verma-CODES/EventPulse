@@ -1,7 +1,7 @@
 
 import { getAuthHeaders } from "../../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+import { API_BASE_URL } from "../../../lib/apiConfig";
 
 export interface Notification {
   id: string;

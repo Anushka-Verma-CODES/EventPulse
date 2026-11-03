@@ -128,36 +128,42 @@ export class RegistrationsService {
     });
   }
 
-  async getOrganizerAttendees(organizerId: string) {
-    const registrations = await this.registrationsRepository
-      .createQueryBuilder("registration")
-      .innerJoin("registration.event", "event")
-      .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
-      .select("registration.id", "registrationId")
-      .addSelect("registration.attendeeId", "attendeeId")
-      .addSelect("attendee.fullName", "name")
-      .addSelect("attendee.email", "email")
-      .addSelect("event.title", "eventName")
-      .addSelect("registration.registeredAt", "registeredAt")
-      .addSelect("registration.isCheckedIn", "isCheckedIn")
-      .addSelect("registration.checkedInAt", "checkedInAt")
-      .where("event.organizerId = :organizerId", { organizerId })
-      .orderBy("registration.registeredAt", "DESC")
-      .getRawMany();
+  
+async getOrganizerAttendees(organizerId: string) {
+  const registrations = await this.registrationsRepository
+    .createQueryBuilder("registration")
+    .innerJoin("registration.event", "event")
+    .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
+    .select("registration.id", "registrationId")
+    .addSelect("registration.attendeeId", "attendeeId")
+    .addSelect("registration.eventId", "eventId")
+    .addSelect("attendee.fullName", "name")
+    .addSelect("attendee.email", "email")
+    .addSelect("event.title", "eventName")
+    .addSelect("registration.registeredAt", "registeredAt")
+    .addSelect("registration.isCheckedIn", "isCheckedIn")
+    .addSelect("registration.checkedInAt", "checkedInAt")
+    .where("event.organizerId = :organizerId", { organizerId })
+    .orderBy("registration.registeredAt", "DESC")
+    .getRawMany();
 
-    return registrations.map((registration) => ({
-      id: registration.registrationId,
-      attendeeId: registration.attendeeId,
-      name: registration.name,
-      email: registration.email,
-      ticket: registration.registrationId.slice(0, 8).toUpperCase(),
-      eventName: registration.eventName,
-      registeredOn: registration.registeredAt,
-      status: registration.isCheckedIn ? "Checked In" : "Not Checked In",
-      checkedInAt: registration.checkedInAt,
-      gate: "—",
-    }));
-  }
+  return registrations.map((registration) => ({
+    id: registration.registrationId,
+    attendeeId: registration.attendeeId,
+    eventId: registration.eventId,
+    name: registration.name,
+    email: registration.email,
+    ticket: registration.registrationId.slice(0, 8).toUpperCase(),
+    eventName: registration.eventName,
+    registeredOn: registration.registeredAt,
+    status: registration.isCheckedIn
+      ? "Checked In"
+      : "Not Checked In",
+    checkedInAt: registration.checkedInAt,
+    gate: "—",
+  }));
+}
+
 
   async getOrganizerDashboardStats(organizerId: string) {
     const events = await this.eventsRepository.find({

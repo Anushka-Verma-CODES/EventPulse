@@ -1,53 +1,92 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, Ticket } from "lucide-react";
-import { mockAttendee } from "../../lib/mockUser";
+import { useAuth } from "../../context/AuthContext";
 import DashboardBackdrop from "../../components/ui/DashboardBackdrop";
 import { getMyRegistrations } from "../../features/events/api/eventsApi";
 import type { MyRegistration } from "../../features/events/api/eventsApi";
+import { getNotifications } from "../../features/notifications/api/notificationsApi";
 
 export default function Dashboard() {
+  const { profile } = useAuth();
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getMyRegistrations()
-      .then((result) => {
-        setRegistrations(result);
-        setError("");
-      })
-      .catch((err: unknown) => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      setLoading(true);
+      setError("");
+
+      const [registrationsResult, notificationsResult] = await Promise.allSettled([
+        getMyRegistrations(),
+        getNotifications(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (registrationsResult.status === "fulfilled") {
+        setRegistrations(registrationsResult.value);
+      } else {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Unable to load your registered events."
+          registrationsResult.reason instanceof Error
+            ? registrationsResult.reason.message
+            : "Unable to load your registered events.",
         );
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      }
+
+      if (notificationsResult.status === "fulfilled") {
+        setUnreadNotifications(
+          notificationsResult.value.filter((notification) => !notification.isRead).length,
+        );
+      } else {
+        // Do not show a fabricated count if notifications cannot be retrieved.
+        setUnreadNotifications(null);
+      }
+
+      setLoading(false);
+    }
+
+    void loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const upcomingRegistrations = registrations.filter(
-    (registration) =>
-      new Date(registration.event.startDate).getTime() >= Date.now() &&
-      registration.event.status === "published"
-  );
+  const now = Date.now();
+
+  const upcomingRegistrations = registrations
+    .filter(
+      (registration) =>
+        registration.event.status === "published" &&
+        new Date(registration.event.startDate).getTime() >= now,
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.event.startDate).getTime() -
+        new Date(second.event.startDate).getTime(),
+    );
+
+  const activeTickets = upcomingRegistrations.filter(
+    (registration) => !registration.isCheckedIn,
+  ).length;
+
+  const attendedEvents = registrations.filter(
+    (registration) => registration.isCheckedIn,
+  ).length;
 
   const stats = [
     { label: "Upcoming Events", value: upcomingRegistrations.length },
-    { label: "Active Tickets", value: upcomingRegistrations.length },
-    {
-      label: "Events Attended",
-      value: registrations.filter(
-        (registration) =>
-          new Date(registration.event.endDate).getTime() < Date.now()
-      ).length,
-    },
-    { label: "Pending Actions", value: 0 },
+    { label: "Active Tickets", value: activeTickets },
+    { label: "Events Attended", value: attendedEvents },
+    { label: "Pending Actions", value: unreadNotifications },
   ];
+
+  const firstName = profile?.fullName?.trim().split(/\s+/)[0] || "there";
 
   return (
     <div className="relative isolate -m-6 min-h-[calc(100vh-3rem)] overflow-hidden p-6 sm:-m-8 sm:p-8">
@@ -62,7 +101,7 @@ export default function Dashboard() {
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-[#1E293B] sm:text-3xl">
-                Welcome back, {mockAttendee.name.split(" ")[0]}!
+                Welcome back, {firstName}!
               </h2>
 
               <p className="mt-2 max-w-xl text-sm text-[#64748B]">
@@ -97,7 +136,9 @@ export default function Dashboard() {
               className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#BFDBFE] hover:shadow-md"
             >
               <div className="text-2xl font-semibold text-[#1E293B]">
-                {loading ? "—" : stat.value}
+                {loading || (stat.label === "Pending Actions" && stat.value === null)
+                  ? "—"
+                  : stat.value}
               </div>
               <div className="mt-1 text-xs text-[#64748B]">{stat.label}</div>
             </div>
@@ -141,7 +182,7 @@ export default function Dashboard() {
               </p>
             ) : (
               <ul className="flex flex-col divide-y divide-[#E2E8F0]">
-                {upcomingRegistrations.map((registration) => (
+                {upcomingRegistrations.slice(0, 5).map((registration) => (
                   <li key={registration.id} className="py-2.5">
                     <Link
                       to={`/events/${registration.eventId}`}
@@ -150,9 +191,7 @@ export default function Dashboard() {
                       {registration.event.title}
                     </Link>
                     <p className="mt-1 text-xs text-[#64748B]">
-                      {new Date(
-                        registration.event.startDate
-                      ).toLocaleString("en-IN", {
+                      {new Date(registration.event.startDate).toLocaleString("en-IN", {
                         dateStyle: "medium",
                         timeStyle: "short",
                         timeZone: "Asia/Kolkata",
@@ -187,25 +226,28 @@ export default function Dashboard() {
               <p className="py-2.5 text-sm text-[#64748B]">
                 Your tickets could not be loaded.
               </p>
-            ) : upcomingRegistrations.length === 0 ? (
+            ) : activeTickets === 0 ? (
               <p className="py-2.5 text-sm text-[#64748B]">
                 No upcoming tickets yet. Browse events to get started.
               </p>
             ) : (
               <ul className="flex flex-col divide-y divide-[#E2E8F0]">
-                {upcomingRegistrations.map((registration) => (
-                  <li key={registration.id} className="py-2.5">
-                    <Link
-                      to="/attendee/tickets"
-                      className="text-sm font-medium text-[#1E293B] hover:text-[#2563EB]"
-                    >
-                      {registration.event.title}
-                    </Link>
-                    <p className="mt-1 text-xs text-[#64748B]">
-                      {registration.event.location}
-                    </p>
-                  </li>
-                ))}
+                {upcomingRegistrations
+                  .filter((registration) => !registration.isCheckedIn)
+                  .slice(0, 5)
+                  .map((registration) => (
+                    <li key={registration.id} className="py-2.5">
+                      <Link
+                        to={`/attendee/tickets/${registration.id}`}
+                        className="text-sm font-medium text-[#1E293B] hover:text-[#2563EB]"
+                      >
+                        {registration.event.title}
+                      </Link>
+                      <p className="mt-1 text-xs text-[#64748B]">
+                        {registration.event.location}
+                      </p>
+                    </li>
+                  ))}
               </ul>
             )}
           </div>

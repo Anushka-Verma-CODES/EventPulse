@@ -42,7 +42,13 @@ interface PasswordForm {
   confirmPassword: string;
 }
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 const roleLabels: Record<SettingsRole, string> = {
   attendee: "Attendee",
@@ -72,7 +78,7 @@ async function requestSettings(
   method: "GET" | "PATCH",
   settings?: Partial<UserSettings>,
 ): Promise<UserSettings> {
-  const response = await fetch(`${API_BASE_URL}/auth/me/settings`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/auth/me/settings`, {
     method,
     headers: {
       ...getAuthHeaders(),
@@ -254,7 +260,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/auth/change-password`,
+        `${VITE_API_BASE_URL}/auth/change-password`,
         {
           method: "POST",
           headers: {

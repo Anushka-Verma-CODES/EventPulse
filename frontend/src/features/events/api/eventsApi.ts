@@ -1,4 +1,3 @@
-
 import type { EventItem, NewEventInput } from '../../../types/event';
 import { getAuthHeaders } from '../../../lib/authApi';
 
@@ -173,24 +172,32 @@ export async function getMyRegistrations(): Promise<MyRegistration[]> {
 export async function createEvent(
   input: NewEventInput,
 ): Promise<EventItem> {
-  if (!input.date || !input.startTime || !input.endTime) {
-    throw new Error(
-      'Please provide the event date, start time, and end time.',
-    );
+  if (
+    !input.startDate ||
+    !input.endDate ||
+    !input.startTime ||
+    !input.endTime
+  ) {
+    throw new Error('Please provide the event start and end dates and times.');
   }
 
-  const startDate = new Date(`${input.date}T${input.startTime}:00`);
-  const endDate = new Date(`${input.date}T${input.endTime}:00`);
+  const startDate = new Date(
+    `${input.startDate}T${input.startTime}:00`,
+  );
+
+  const endDate = new Date(
+    `${input.endDate}T${input.endTime}:00`,
+  );
 
   if (
     Number.isNaN(startDate.getTime()) ||
     Number.isNaN(endDate.getTime())
   ) {
-    throw new Error('Please provide a valid event date and time.');
+    throw new Error('Please provide valid event dates and times.');
   }
 
   if (endDate <= startDate) {
-    throw new Error('End time must be later than start time.');
+    throw new Error('Event end date and time must be after the start date and time.');
   }
 
   const created = await request<BackendEvent>('/events', {
@@ -204,7 +211,7 @@ export async function createEvent(
       endDate: endDate.toISOString(),
       capacity: input.capacityTotal,
       price: input.price,
-      bannerImage: null,
+      bannerImage: input.bannerImage,
     }),
   });
 
