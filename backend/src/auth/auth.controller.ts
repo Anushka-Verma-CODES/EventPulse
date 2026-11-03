@@ -1,4 +1,3 @@
-
 import {
   Body,
   Controller,
@@ -9,6 +8,7 @@ import {
   Request,
   UnauthorizedException,
   NotFoundException,
+  Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,6 +19,8 @@ import { ActivateRoleDto } from './dto/activate-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -36,6 +38,27 @@ export class AuthController {
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
+
+  
+  @Post('forgot-password')
+  forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Headers('origin') origin?: string,
+  ) {
+    return this.authService.forgotPassword(
+      dto.email,
+      origin,
+    );
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      dto.token,
+      dto.newPassword,
+    );
+  }
+
 
   @Get('me')
   @UseGuards(JwtAuthGuard)

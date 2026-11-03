@@ -48,6 +48,12 @@ export class User {
   @Column({ type: 'varchar', select: false })
   passwordHash: string;
 
+  @Column({ type: 'varchar', nullable: true, select: false })
+  passwordResetTokenHash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  passwordResetExpiresAt: Date | null;
+
   @Column({
     type: 'jsonb',
     default: () => "'{}'::jsonb",

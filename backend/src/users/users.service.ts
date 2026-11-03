@@ -44,6 +44,41 @@ export class UsersService {
       .getOne();
   }
 
+  async savePasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+    ): Promise<void> {
+    await this.usersRepository.update(userId, {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: expiresAt,
+    });
+  }
+
+  async findByPasswordResetToken(
+    tokenHash: string,
+  ): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordResetTokenHash')
+      .addSelect('user.passwordResetExpiresAt')
+      .where('user.passwordResetTokenHash = :tokenHash', {
+        tokenHash,
+      })
+      .getOne();
+  }
+
+  async resetUserPassword(
+    user: User,
+    passwordHash: string,
+  ): Promise<void> {
+    user.passwordHash = passwordHash;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+
+    await this.usersRepository.save(user);
+  }
+
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id },
