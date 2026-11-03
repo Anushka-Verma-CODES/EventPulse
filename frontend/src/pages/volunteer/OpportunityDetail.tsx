@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ApplyModal from "../../components/volunteer/ApplyModal";
+import { API_BASE_URL } from "../../lib/apiConfig";
 
 type EventItem = {
   id: string;
@@ -34,7 +35,7 @@ export default function OpportunityDetail() {
         setEvent(null);
 
         const response = await fetch(
-          `http://localhost:3000/events/${opportunityId}`
+          `${API_BASE_URL}/events/${opportunityId}`
         );
 
         if (response.status === 404) {

@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { API_BASE_URL } from "../../lib/apiConfig";
 
 type EventItem = {
   id: string;
@@ -27,7 +28,7 @@ export default function Opportunities() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("http://localhost:3000/events");
+        const response = await fetch(`${API_BASE_URL}/events`);
 
         if (!response.ok) {
           throw new Error("Unable to load events. Please try again.");
