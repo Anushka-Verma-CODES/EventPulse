@@ -15,7 +15,13 @@ import type {
 } from "../../features/volunteers/api/volunteersApi";
 import { getAuthHeaders } from "../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 type ApplicationStatus = "pending" | "accepted" | "rejected";
 
@@ -93,7 +99,7 @@ export default function VolunteerDashboard() {
             getMyProfile(),
             getMyVolunteerActivity(),
             getMyVolunteerAssignments(),
-            fetch(`${API_BASE_URL}/volunteers/me/applications`, {
+            fetch(`${VITE_API_BASE_URL}/volunteers/me/applications`, {
               headers: getAuthHeaders(),
             }),
           ]);

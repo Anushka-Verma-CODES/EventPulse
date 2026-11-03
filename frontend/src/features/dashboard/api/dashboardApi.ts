@@ -1,7 +1,13 @@
 
 import { getAuthHeaders } from "../../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = window.location.hostname === 'localhost' ||
+                     window.location.hostname === '127.0.0.1' ||
+                     window.location.hostname === '172.16.78.105'
+  ? 'http://localhost:3000'
+  : 'https://eventpulse-toa3.onrender.com';
+
+export default API_BASE_URL;
 
 export interface OrganizerDashboardStats {
   totalEvents: number;

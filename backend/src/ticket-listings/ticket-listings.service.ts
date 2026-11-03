@@ -6,10 +6,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { TicketListing } from './ticket-listing.entity';
 import { Registration } from '../registrations/entities/registration.entity';
+import { Event } from '../events/entities/event.entity';
 
 @Injectable()
 export class TicketListingsService {
@@ -19,15 +22,22 @@ export class TicketListingsService {
 
     @InjectRepository(Registration)
     private readonly registrationsRepository: Repository<Registration>,
+
+    @InjectRepository(Event)
+    private readonly eventsRepository: Repository<Event>,
   ) {}
 
   async findAvailable(eventId?: string): Promise<TicketListing[]> {
     const query = this.ticketListingRepository
       .createQueryBuilder('listing')
-      .where('listing.status = :status', { status: 'AVAILABLE' });
+      .where('listing.status = :status', {
+        status: 'AVAILABLE',
+      });
 
     if (eventId) {
-      query.andWhere('listing.eventId = :eventId', { eventId });
+      query.andWhere('listing.eventId = :eventId', {
+        eventId,
+      });
     }
 
     return query.orderBy('listing.createdAt', 'DESC').getMany();
@@ -50,6 +60,27 @@ export class TicketListingsService {
     ) {
       throw new BadRequestException(
         'Please provide all required listing details and a valid price.',
+      );
+    }
+
+    // Get original event details.
+    const event = await this.eventsRepository.findOne({
+      where: {
+        id: data.eventId,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found.');
+    }
+
+    // Resale price cannot exceed original ticket price.
+    const resalePrice = Number(data.price);
+    const originalPrice = Number(event.price);
+
+    if (resalePrice > originalPrice) {
+      throw new BadRequestException(
+        `Resale price cannot exceed the original ticket price of ₹${originalPrice}.`,
       );
     }
 
@@ -93,7 +124,7 @@ export class TicketListingsService {
       eventId: data.eventId,
       ticketCode: data.ticketCode,
       sellerName: data.sellerName.trim(),
-      price: Number(data.price),
+      price: resalePrice,
       paymentMethod: data.paymentMethod,
       paymentAccount: data.paymentAccount.trim(),
       reason: data.reason.trim(),

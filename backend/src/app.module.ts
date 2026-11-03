@@ -20,16 +20,23 @@ import { NotificationsModule } from './notifications/notifications.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+    
+  TypeOrmModule.forRootAsync({
+    imports: [ConfigModule],
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService) => ({
       type: 'postgres' as const,
       url: configService.getOrThrow<string>('DATABASE_URL'),
       autoLoadEntities: true,
       synchronize: configService.get('NODE_ENV') === 'development',
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      retryAttempts: 3,
+      retryDelay: 3000,
     }),
   }),
+
     UsersModule,
     AuthModule,
     EventsModule,

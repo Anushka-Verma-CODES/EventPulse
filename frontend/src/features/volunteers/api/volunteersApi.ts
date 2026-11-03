@@ -1,6 +1,12 @@
 import { getAuthHeaders } from "../../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 export interface VolunteerProfile {
   id: string;
@@ -37,7 +43,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getMyVolunteerProfile(): Promise<VolunteerProfile> {
-  const response = await fetch(`${API_BASE_URL}/volunteers/me`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/volunteers/me`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -48,7 +54,7 @@ export async function getMyVolunteerProfile(): Promise<VolunteerProfile> {
 export async function updateMyVolunteerProfile(
   input: UpdateVolunteerProfileInput,
 ): Promise<VolunteerProfile> {
-  const response = await fetch(`${API_BASE_URL}/volunteers/me`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/volunteers/me`, {
     method: "PATCH",
     headers: {
       ...getAuthHeaders(),
@@ -61,7 +67,7 @@ export async function updateMyVolunteerProfile(
 }
 
 export async function getMyVolunteerActivity(): Promise<VolunteerActivityStats> {
-  const response = await fetch(`${API_BASE_URL}/volunteers/me/activity`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/volunteers/me/activity`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -107,7 +113,7 @@ export interface UpdateVolunteerAssignmentInput {
 }
 
 export async function getMyVolunteerAssignments(): Promise<VolunteerAssignment[]> {
-  const response = await fetch(`${API_BASE_URL}/volunteers/me/assignments`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/volunteers/me/assignments`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -118,7 +124,7 @@ export async function getMyVolunteerAssignments(): Promise<VolunteerAssignment[]
 export async function createVolunteerAssignment(
   input: CreateVolunteerAssignmentInput,
 ): Promise<VolunteerAssignment> {
-  const response = await fetch(`${API_BASE_URL}/volunteers/assignments`, {
+  const response = await fetch(`${VITE_API_BASE_URL}/volunteers/assignments`, {
     method: "POST",
     headers: {
       ...getAuthHeaders(),
@@ -135,7 +141,7 @@ export async function updateMyVolunteerAssignment(
   input: UpdateVolunteerAssignmentInput,
 ): Promise<VolunteerAssignment> {
   const response = await fetch(
-    `${API_BASE_URL}/volunteers/me/assignments/${assignmentId}`,
+    `${VITE_API_BASE_URL}/volunteers/me/assignments/${assignmentId}`,
     {
       method: "PATCH",
       headers: {
@@ -157,7 +163,7 @@ export interface EligibleVolunteer {
 
 export async function getEligibleVolunteers(): Promise<EligibleVolunteer[]> {
   const response = await fetch(
-    `${API_BASE_URL}/volunteers/eligible-volunteers`,
+    `${VITE_API_BASE_URL}/volunteers/eligible-volunteers`,
     {
       method: "GET",
       headers: getAuthHeaders(),
@@ -169,7 +175,7 @@ export async function getEligibleVolunteers(): Promise<EligibleVolunteer[]> {
 
 export async function getOrganizerVolunteerAssignments(): Promise<VolunteerAssignment[]> {
   const response = await fetch(
-    `${API_BASE_URL}/volunteers/organizer/assignments`,
+    `${VITE_API_BASE_URL}/volunteers/organizer/assignments`,
     {
       method: "GET",
       headers: getAuthHeaders(),

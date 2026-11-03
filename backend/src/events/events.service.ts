@@ -96,6 +96,12 @@ export class EventsService {
       );
     }
 
+    if (event.status === EventStatus.CANCELLED) {
+    throw new BadRequestException(
+    "Cancelled events cannot be edited.",
+    );
+  }
+
   const startDate = updateEventDto.startDate
     ? new Date(updateEventDto.startDate)
     : event.startDate;

@@ -2,7 +2,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAuthHeaders } from "../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 type DashboardStats = {
   totalEvents: number;
@@ -63,11 +69,11 @@ export default function LiveMonitoring() {
       };
 
       const [statsResponse, attendeesResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/registrations/organizer/dashboard-stats`, {
+        fetch(`${VITE_API_BASE_URL}/registrations/organizer/dashboard-stats`, {
           headers,
           cache: "no-store",
         }),
-        fetch(`${API_BASE_URL}/registrations/organizer/attendees`, {
+        fetch(`${VITE_API_BASE_URL}/registrations/organizer/attendees`, {
           headers,
           cache: "no-store",
         }),

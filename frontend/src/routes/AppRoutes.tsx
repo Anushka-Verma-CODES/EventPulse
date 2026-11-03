@@ -30,6 +30,7 @@ import Resources from '../pages/organizer/Resources';
 import Incidents from '../pages/organizer/Incidents';
 import Predictions from '../pages/organizer/Predictions';
 import Reports from '../pages/organizer/Reports';
+import EditEvent from '../pages/organizer/EditEvent';
 
 import VolunteerLayout from '../components/layout/VolunteerLayout';
 import VolunteerDashboard from '../pages/volunteer/Dashboard';
@@ -92,6 +93,7 @@ export function AppRoutes() {
         <Route path="events" element={<EventsList />} />
         <Route path="events/create" element={<CreateEventPage />} />
         <Route path="events/:eventId" element={<EventDetail />} />
+        <Route path="events/:eventId/edit" element={<EditEvent />} />
         <Route path="attendees" element={<Attendees />} />
         <Route path="monitoring" element={<LiveMonitoring />} />
         <Route path="volunteers" element={<Volunteers />} />

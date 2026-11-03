@@ -23,7 +23,8 @@ export interface EventItem {
 
 export interface NewEventInput {
   name: string;
-  date: string;
+  startDate: string;
+  endDate: string;
   startTime: string;
   endTime: string;
   venue: string;
@@ -33,4 +34,5 @@ export interface NewEventInput {
   capacityTotal: number;
   gates: string[];
   price: number;
+  bannerImage: string | null;
 }

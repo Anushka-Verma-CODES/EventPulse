@@ -1,3 +1,4 @@
+
 import {
   Column,
   CreateDateColumn,
@@ -27,6 +28,9 @@ export class Payment {
 
   @Column({ type: "uuid" })
   eventId: string;
+
+  @Column({ type: "uuid", nullable: true })
+  resaleListingId: string | null;
 
   @Column({ type: "varchar", length: 100, unique: true })
   razorpayOrderId: string;

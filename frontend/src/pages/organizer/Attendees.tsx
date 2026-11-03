@@ -3,7 +3,13 @@ import { useEffect, useState } from "react";
 import { getAuthHeaders } from "../../lib/authApi";
 import StatusBadge from "../../components/organizer/StatusBadge";
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 const filters = ["All", "Checked In", "Not Checked In"];
 
@@ -47,7 +53,7 @@ export default function Attendees() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/registrations/organizer/attendees`,
+        `${VITE_API_BASE_URL}/registrations/organizer/attendees`,
         {
           headers: getAuthHeaders(),
         },

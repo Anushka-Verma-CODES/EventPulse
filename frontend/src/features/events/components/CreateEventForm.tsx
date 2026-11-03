@@ -3,24 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import type { NewEventInput } from '../../../types/event';
 import { createEvent } from '../api/eventsApi';
 
-const CATEGORIES = ['Tech Fest', 'Workshop', 'Cultural'];
+const CATEGORIES = ['Tech Fest', 'Workshop', 'Cultural', 'Other'];
 
 export function CreateEventForm() {
   const navigate = useNavigate();
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const [name, setName] = useState('');
-  const [date, setDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('12:00');
   const [venue, setVenue] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
+  const [customCategory, setCustomCategory] = useState('');
   const [shortDescription, setShortDescription] = useState('');
   const [fullDescription, setFullDescription] = useState('');
   const [capacityTotal, setCapacityTotal] = useState<number>(100);
   const [price, setPrice] = useState<number>(0);
   const [gates, setGates] = useState<string[]>(['']);
+
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [bannerFileName, setBannerFileName] = useState('');
 
   function updateGate(index: number, value: string) {
     setGates((previous) =>
@@ -36,17 +42,64 @@ export function CreateEventForm() {
     setGates((previous) => previous.filter((_, i) => i !== index));
   }
 
+  function handleBannerUpload(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Banner image must be smaller than 2 MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setBannerImage(reader.result);
+        setBannerFileName(file.name);
+        setError('');
+      }
+    };
+
+    reader.onerror = () => {
+      setError('Unable to read the selected image.');
+    };
+
+    reader.readAsDataURL(file);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
 
-    if (!date) {
-      setError('Please select an event date.');
+    if (!startDate || !endDate) {
+      setError('Please select both start date and end date.');
       return;
     }
 
-    if (endTime <= startTime) {
-      setError('End time must be later than start time.');
+    const startDateTime = new Date(`${startDate}T${startTime}:00`);
+    const endDateTime = new Date(`${endDate}T${endTime}:00`);
+
+    if (
+      Number.isNaN(startDateTime.getTime()) ||
+      Number.isNaN(endDateTime.getTime())
+    ) {
+      setError('Please select valid event dates and times.');
+      return;
+    }
+
+    if (endDateTime <= startDateTime) {
+      setError('Event end date and time must be after the start date and time.');
       return;
     }
 
@@ -65,20 +118,28 @@ export function CreateEventForm() {
       return;
     }
 
+    if (category === 'Other' && !customCategory.trim()) {
+      setError('Please enter your custom event category.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const input: NewEventInput = {
         name: name.trim(),
-        date,
+        startDate,
+        endDate,
         startTime,
         endTime,
         venue: venue.trim(),
-        category,
+        category:
+          category === 'Other' ? customCategory.trim() : category,
         shortDescription: shortDescription.trim(),
         fullDescription: fullDescription.trim(),
         capacityTotal,
         price,
+        bannerImage,
         gates: gates
           .map((gate) => gate.trim())
           .filter((gate) => gate.length > 0),
@@ -102,6 +163,8 @@ export function CreateEventForm() {
 
   const labelClass = 'mb-2 block text-sm font-medium text-[#334155]';
 
+  const today = new Date().toLocaleDateString('en-CA');
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
@@ -119,30 +182,33 @@ export function CreateEventForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>Date</label>
+          <label className={labelClass}>Start date</label>
           <input
             type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            min={new Date().toLocaleDateString('en-CA')}
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+
+              if (endDate && e.target.value > endDate) {
+                setEndDate(e.target.value);
+              }
+            }}
+            min={today}
             required
             className={inputClass}
           />
         </div>
 
         <div>
-          <label className={labelClass}>Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+          <label className={labelClass}>End date</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            min={startDate || today}
+            required
             className={inputClass}
-          >
-            {CATEGORIES.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 
@@ -169,6 +235,36 @@ export function CreateEventForm() {
           />
         </div>
       </div>
+
+      <div>
+        <label className={labelClass}>Category</label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className={inputClass}
+        >
+          {CATEGORIES.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {category === 'Other' && (
+        <div>
+          <label className={labelClass}>Enter custom category</label>
+          <input
+            type="text"
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            required
+            maxLength={100}
+            placeholder="e.g. Sports, Gaming, Business"
+            className={inputClass}
+          />
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Venue</label>
@@ -207,6 +303,48 @@ export function CreateEventForm() {
           placeholder="Detailed description shown on the event page"
           className={inputClass}
         />
+      </div>
+
+      <div>
+        <label className={labelClass}>Event banner image</label>
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleBannerUpload}
+          className={inputClass}
+        />
+
+        <p className="mt-1 text-xs text-[#64748B]">
+          Select an image for your event banner. Maximum size: 2 MB.
+        </p>
+
+        {bannerImage && (
+          <div className="mt-3">
+            <img
+              src={bannerImage}
+              alt="Event banner preview"
+              className="h-48 w-full rounded-xl border border-[#E2E8F0] object-cover"
+            />
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="truncate text-xs text-[#64748B]">
+                {bannerFileName}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBannerImage(null);
+                  setBannerFileName('');
+                }}
+                className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700"
+              >
+                Remove image
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

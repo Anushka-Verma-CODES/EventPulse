@@ -3,7 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAuthHeaders } from "../../lib/authApi";
 
-const API_BASE_URL = "http://localhost:3000";
+const VITE_API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : window.location.hostname === "172.16.78.105"
+      ? "http://172.16.78.105:3000"
+      : "https://eventpulse-toa3.onrender.com";
 
 const tabs = [
   "Overview",
@@ -25,13 +31,82 @@ type BackendEvent = {
   startDate: string;
   endDate: string;
   capacity: number;
-  price: string;
+  price: string | number;
   bannerImage: string | null;
   status: "draft" | "published" | "cancelled";
   organizerId: string;
   createdAt: string;
   updatedAt: string;
 };
+
+type EventAttendee = {
+  id: string;
+  attendeeId: string;
+  eventId: string;
+  name: string;
+  email: string;
+  ticket: string;
+  eventName: string;
+  registeredOn: string;
+  status: string;
+  checkedInAt: string | null;
+};
+
+type VolunteerApplication = {
+  id: string;
+  eventId: string;
+  status: string;
+  reason: string;
+  preferredRole: string;
+  availability: string[];
+  createdAt: string;
+  volunteer?: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+};
+
+type VolunteerAssignment = {
+  id: string;
+  eventId: string;
+  assignedRole: string;
+  status: string;
+  hoursWorked: string;
+  volunteer?: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+};
+
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await fetch(`${VITE_API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+
+    const message = Array.isArray(body?.message)
+      ? body.message.join(", ")
+      : body?.message;
+
+    throw new Error(
+      message || `Request failed (${response.status}).`,
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
 
 function formatDateTime(date: string) {
   const parsedDate = new Date(date);
@@ -51,16 +126,120 @@ function formatDateTime(date: string) {
   });
 }
 
+function formatDate(date: string) {
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Date unavailable";
+  }
+
+  return parsedDate.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function StatusLabel({ status }: { status: string }) {
+  const normalizedStatus = status.toLowerCase();
+
+  const styles =
+    normalizedStatus === "accepted" ||
+    normalizedStatus === "assigned" ||
+    normalizedStatus === "completed" ||
+    normalizedStatus === "checked in"
+      ? "bg-green-50 text-green-700"
+      : normalizedStatus === "rejected" ||
+          normalizedStatus === "cancelled"
+        ? "bg-red-50 text-red-700"
+        : "bg-amber-50 text-amber-700";
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${styles}`}
+    >
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
 
   const [event, setEvent] = useState<BackendEvent | null>(null);
   const [activeTab, setActiveTab] = useState("Overview");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [publishing, setPublishing] = useState(false);
+  const [dataError, setDataError] = useState("");
 
+  const [publishing, setPublishing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const [attendees, setAttendees] = useState<EventAttendee[]>([]);
+  const [volunteerApplications, setVolunteerApplications] =
+    useState<VolunteerApplication[]>([]);
+  const [volunteerAssignments, setVolunteerAssignments] =
+    useState<VolunteerAssignment[]>([]);
+
+  // LOAD ATTENDEES AND VOLUNTEER DATA
+  const loadEventData = useCallback(async () => {
+    if (!eventId) return;
+
+    setDataError("");
+
+    const results = await Promise.allSettled([
+      apiRequest<EventAttendee[]>(
+        "/registrations/organizer/attendees",
+      ),
+      apiRequest<VolunteerApplication[]>(
+        "/volunteers/organizer/applications",
+      ),
+      apiRequest<VolunteerAssignment[]>(
+        "/volunteers/organizer/assignments",
+      ),
+    ]);
+
+    const errors: string[] = [];
+
+    if (results[0].status === "fulfilled") {
+      setAttendees(
+        results[0].value.filter(
+          (attendee) => attendee.eventId === eventId,
+        ),
+      );
+    } else {
+      setAttendees([]);
+      errors.push("Unable to load attendee information.");
+    }
+
+    if (results[1].status === "fulfilled") {
+      setVolunteerApplications(
+        results[1].value.filter(
+          (application) => application.eventId === eventId,
+        ),
+      );
+    } else {
+      setVolunteerApplications([]);
+      errors.push("Unable to load volunteer applications.");
+    }
+
+    if (results[2].status === "fulfilled") {
+      setVolunteerAssignments(
+        results[2].value.filter(
+          (assignment) => assignment.eventId === eventId,
+        ),
+      );
+    } else {
+      setVolunteerAssignments([]);
+      errors.push("Unable to load volunteer assignments.");
+    }
+
+    setDataError(errors.join(" "));
+  }, [eventId]);
+
+  // LOAD EVENT DETAILS
   const loadEvent = useCallback(async () => {
     if (!eventId) {
       setError("Event ID is missing.");
@@ -72,70 +251,107 @@ export default function EventDetail() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        const message = Array.isArray(body?.message)
-          ? body.message.join(", ")
-          : body?.message;
-
-        throw new Error(
-          message || `Failed to load event (${response.status}).`
-        );
-      }
-
-      const data: BackendEvent = await response.json();
-
-      console.log("Event API response:", data);
-      console.log("Event start date:", data.startDate);
-      console.log("Event end date:", data.endDate);
+      const data = await apiRequest<BackendEvent>(
+        `/events/${eventId}`,
+      );
 
       setEvent(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load event.");
+
+      await loadEventData();
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load event.",
+      );
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, loadEventData]);
 
   useEffect(() => {
     void loadEvent();
   }, [loadEvent]);
 
+  // PUBLISH DRAFT EVENT
   async function publishEvent() {
-    if (!eventId) return;
+    if (
+      !eventId ||
+      !event ||
+      event.status !== "draft" ||
+      publishing ||
+      cancelling
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to publish this draft event?",
+    );
+
+    if (!confirmed) return;
 
     setPublishing(true);
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/events/${eventId}/publish`,
+      await apiRequest<BackendEvent>(
+        `/events/${eventId}/publish`,
         {
           method: "PATCH",
-          headers: getAuthHeaders(),
-        }
+        },
       );
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        const message = Array.isArray(body?.message)
-          ? body.message.join(", ")
-          : body?.message;
-
-        throw new Error(
-          message || `Failed to publish event (${response.status}).`
-        );
-      }
-
       await loadEvent();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish event.");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to publish event.",
+      );
     } finally {
       setPublishing(false);
+    }
+  }
+
+  // CANCEL DRAFT OR PUBLISHED EVENT
+  async function cancelEvent() {
+    if (
+      !eventId ||
+      !event ||
+      event.status === "cancelled" ||
+      cancelling ||
+      publishing
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel "${event.title}"? The event will remain in your event history, but it will no longer be available to attendees.`,
+    );
+
+    if (!confirmed) return;
+
+    setCancelling(true);
+    setError("");
+
+    try {
+      await apiRequest<BackendEvent>(
+        `/events/${eventId}/cancel`,
+        {
+          method: "PATCH",
+        },
+      );
+
+      await loadEvent();
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to cancel event.",
+      );
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -171,12 +387,33 @@ export default function EventDetail() {
     );
   }
 
+  const isDraft = event.status === "draft";
+  const isPublished = event.status === "published";
+  const isCancelled = event.status === "cancelled";
+
   const statusLabel =
-    event.status.charAt(0).toUpperCase() + event.status.slice(1);
+    event.status.charAt(0).toUpperCase() +
+    event.status.slice(1);
+
+  const checkedInCount = attendees.filter(
+    (attendee) =>
+      attendee.status.toLowerCase() === "checked in",
+  ).length;
+
+  const remainingCapacity = Math.max(
+    0,
+    event.capacity - attendees.length,
+  );
+
+  const assignedVolunteerCount = volunteerAssignments.filter(
+    (assignment) =>
+      assignment.status.toLowerCase() !== "cancelled",
+  ).length;
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* EVENT HEADER */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#1E293B]">
             {event.title}
@@ -213,35 +450,60 @@ export default function EventDetail() {
           </p>
         </div>
 
+        {/* EVENT ACTIONS */}
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(`/organizer/events/${event.id}/edit`)}
-            className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
-          >
-            Edit Event
-          </button>
-
-          {event.status === "draft" && (
+          {!isCancelled && (
             <button
               type="button"
-              disabled={publishing}
+              onClick={() =>
+                navigate(`/organizer/events/${event.id}/edit`)
+              }
+              disabled={publishing || cancelling}
+              className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Edit Event
+            </button>
+          )}
+
+          {isDraft && (
+            <button
+              type="button"
+              disabled={publishing || cancelling}
               onClick={() => void publishEvent()}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {publishing ? "Publishing..." : "Publish Event"}
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => navigate(`/events/${event.id}`)}
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8]"
-          >
-            View Public Page
-          </button>
+          {(isDraft || isPublished) && (
+            <button
+              type="button"
+              disabled={cancelling || publishing}
+              onClick={() => void cancelEvent()}
+              className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {cancelling ? "Cancelling..." : "Cancel Event"}
+            </button>
+          )}
+
+          {isPublished && (
+            <button
+              type="button"
+              onClick={() => navigate(`/events/${event.id}`)}
+              className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8]"
+            >
+              View Public Page
+            </button>
+          )}
         </div>
       </div>
+
+      {isCancelled && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          This event has been cancelled. Editing and publishing are disabled.
+        </div>
+      )}
 
       {error && (
         <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
@@ -249,11 +511,27 @@ export default function EventDetail() {
         </p>
       )}
 
+      {dataError && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <span>{dataError}</span>
+
+          <button
+            type="button"
+            onClick={() => void loadEventData()}
+            className="font-semibold underline"
+          >
+            Retry loading data
+          </button>
+        </div>
+      )}
+
+      {/* EVENT STATISTICS */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="text-2xl font-semibold text-[#1E293B]">
-            0
+            {attendees.length}
           </div>
+
           <div className="mt-1 text-xs text-[#64748B]">
             Registrations
           </div>
@@ -261,8 +539,9 @@ export default function EventDetail() {
 
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="text-2xl font-semibold text-[#1E293B]">
-            0
+            {checkedInCount}
           </div>
+
           <div className="mt-1 text-xs text-[#64748B]">
             Checked In
           </div>
@@ -270,23 +549,26 @@ export default function EventDetail() {
 
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="text-2xl font-semibold text-[#1E293B]">
-            {event.capacity.toLocaleString("en-IN")}
+            {remainingCapacity.toLocaleString("en-IN")}
           </div>
+
           <div className="mt-1 text-xs text-[#64748B]">
-            Remaining capacity
+            Remaining Capacity
           </div>
         </div>
 
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="text-2xl font-semibold text-[#1E293B]">
-            {event.capacity.toLocaleString("en-IN")}
+            {assignedVolunteerCount}
           </div>
+
           <div className="mt-1 text-xs text-[#64748B]">
-            Total Capacity
+            Assigned Volunteers
           </div>
         </div>
       </div>
 
+      {/* EVENT TABS */}
       <div className="mt-6 flex gap-1 overflow-x-auto border-b border-[#E2E8F0]">
         {tabs.map((tab) => (
           <button
@@ -300,12 +582,25 @@ export default function EventDetail() {
             }`}
           >
             {tab}
+
+            {tab === "Attendees" && (
+              <span className="ml-2 rounded-full bg-[#EFF6FF] px-2 py-0.5 text-xs">
+                {attendees.length}
+              </span>
+            )}
+
+            {tab === "Volunteers" && (
+              <span className="ml-2 rounded-full bg-[#EFF6FF] px-2 py-0.5 text-xs">
+                {assignedVolunteerCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       <div className="mt-4 rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        {activeTab === "Overview" ? (
+        {/* OVERVIEW */}
+        {activeTab === "Overview" && (
           <div className="space-y-5 text-sm text-[#64748B]">
             <div>
               <h3 className="font-semibold text-[#1E293B]">
@@ -348,11 +643,242 @@ export default function EventDetail() {
               </p>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-[#64748B]">
-            {activeTab} for this event isn't connected to real data yet.
-          </p>
         )}
+
+        {/* ATTENDEES */}
+        {activeTab === "Attendees" && (
+          <div>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-[#1E293B]">
+                  Event attendees
+                </h3>
+
+                <p className="mt-1 text-sm text-[#64748B]">
+                  People registered for {event.title}.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void loadEventData()}
+                className="rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-medium text-[#475569] hover:bg-[#F8FAFC]"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {attendees.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-8 text-center">
+                <p className="font-medium text-[#334155]">
+                  No attendees registered yet.
+                </p>
+
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Registered attendees will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[650px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E2E8F0] text-xs text-[#64748B]">
+                      <th className="px-3 py-3 font-medium">Attendee</th>
+                      <th className="px-3 py-3 font-medium">Ticket</th>
+                      <th className="px-3 py-3 font-medium">Registered</th>
+                      <th className="px-3 py-3 font-medium">
+                        Check-in status
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {attendees.map((attendee) => (
+                      <tr
+                        key={attendee.id}
+                        className="border-b border-[#F1F5F9] last:border-0"
+                      >
+                        <td className="px-3 py-4">
+                          <p className="font-medium text-[#1E293B]">
+                            {attendee.name || "Unknown attendee"}
+                          </p>
+
+                          <p className="mt-1 text-xs text-[#64748B]">
+                            {attendee.email}
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-4 font-medium text-[#334155]">
+                          {attendee.ticket}
+                        </td>
+
+                        <td className="px-3 py-4 text-[#64748B]">
+                          {formatDate(attendee.registeredOn)}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          <StatusLabel status={attendee.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VOLUNTEERS */}
+        {activeTab === "Volunteers" && (
+          <div className="space-y-8">
+            {/* ASSIGNED VOLUNTEERS */}
+            <div>
+              <div className="mb-4">
+                <h3 className="font-semibold text-[#1E293B]">
+                  Assigned volunteers
+                </h3>
+
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Volunteers assigned to work at this event.
+                </p>
+              </div>
+
+              {volunteerAssignments.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]">
+                  No volunteers have been assigned to this event yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[#E2E8F0] text-xs text-[#64748B]">
+                        <th className="px-3 py-3 font-medium">
+                          Volunteer
+                        </th>
+                        <th className="px-3 py-3 font-medium">
+                          Assigned role
+                        </th>
+                        <th className="px-3 py-3 font-medium">Hours</th>
+                        <th className="px-3 py-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {volunteerAssignments.map((assignment) => (
+                        <tr
+                          key={assignment.id}
+                          className="border-b border-[#F1F5F9] last:border-0"
+                        >
+                          <td className="px-3 py-4">
+                            <p className="font-medium text-[#1E293B]">
+                              {assignment.volunteer?.fullName ||
+                                "Volunteer"}
+                            </p>
+
+                            <p className="mt-1 text-xs text-[#64748B]">
+                              {assignment.volunteer?.email || "—"}
+                            </p>
+                          </td>
+
+                          <td className="px-3 py-4 text-[#475569]">
+                            {assignment.assignedRole}
+                          </td>
+
+                          <td className="px-3 py-4 text-[#475569]">
+                            {Number(
+                              assignment.hoursWorked || 0,
+                            ).toFixed(1)}
+                          </td>
+
+                          <td className="px-3 py-4">
+                            <StatusLabel status={assignment.status} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* VOLUNTEER APPLICATIONS */}
+            <div>
+              <div className="mb-4">
+                <h3 className="font-semibold text-[#1E293B]">
+                  Volunteer applications
+                </h3>
+
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Applications received for this event.
+                </p>
+              </div>
+
+              {volunteerApplications.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]">
+                  No volunteer applications received yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {volunteerApplications.map((application) => (
+                    <div
+                      key={application.id}
+                      className="rounded-xl border border-[#E2E8F0] p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#1E293B]">
+                            {application.volunteer?.fullName ||
+                              "Volunteer"}
+                          </p>
+
+                          <p className="mt-1 text-xs text-[#64748B]">
+                            {application.volunteer?.email || "—"}
+                          </p>
+                        </div>
+
+                        <StatusLabel status={application.status} />
+                      </div>
+
+                      <p className="mt-3 text-sm text-[#475569]">
+                        {application.reason}
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#64748B]">
+                        <span className="rounded-full bg-[#F1F5F9] px-3 py-1">
+                          Preferred role: {application.preferredRole}
+                        </span>
+
+                        {(application.availability || []).map(
+                          (availability) => (
+                            <span
+                              key={availability}
+                              className="rounded-full bg-[#F1F5F9] px-3 py-1"
+                            >
+                              {availability}
+                            </span>
+                          ),
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xs text-[#94A3B8]">
+                        Applied on {formatDate(application.createdAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* OTHER TABS */}
+        {activeTab !== "Overview" &&
+          activeTab !== "Attendees" &&
+          activeTab !== "Volunteers" && (
+            <p className="text-sm text-[#64748B]">
+              {activeTab} for this event isn't connected to real data yet.
+            </p>
+          )}
       </div>
     </div>
   );
