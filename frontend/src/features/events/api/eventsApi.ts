@@ -137,9 +137,9 @@ export async function getEventById(
 
 export async function registerForEvent(
   eventId: string,
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; registrationId?: string }> {
   try {
-    await request<BackendRegistration>('/registrations', {
+    const registration = await request<BackendRegistration>('/registrations', {
       method: 'POST',
       body: JSON.stringify({ eventId }),
     });
@@ -147,6 +147,7 @@ export async function registerForEvent(
     return {
       success: true,
       message: 'Successfully registered for this event.',
+      registrationId: registration.id,
     };
   } catch (error) {
     return {

@@ -289,14 +289,38 @@ async getOrganizerAttendees(organizerId: string) {
     };
   }
 
-  async checkIn(qrToken: string, eventId: string, scannerUserId: string) {
-    if (!qrToken || typeof qrToken !== "string") {
-      throw new BadRequestException("QR token is required");
+  
+  async checkIn(
+    ticketIdentifier: string,
+    eventId: string,
+    scannerUserId: string,
+  ) {
+    if (
+      !ticketIdentifier ||
+      typeof ticketIdentifier !== "string"
+    ) {
+      throw new BadRequestException(
+        "Ticket ID or QR token is required",
+      );
     }
 
     if (!eventId || !scannerUserId) {
       throw new BadRequestException(
         "Event ID and scanner user ID are required",
+      );
+    }
+
+    const isTicketId = /^EP-[A-F0-9]{8}$/i.test(
+      ticketIdentifier.trim(),
+    );
+
+    const isQrToken = /^[A-F0-9]{64}$/i.test(
+      ticketIdentifier.trim(),
+    );
+
+    if (!isTicketId && !isQrToken) {
+      throw new BadRequestException(
+        "Invalid Ticket ID or QR token format",
       );
     }
 
@@ -328,20 +352,45 @@ async getOrganizerAttendees(organizerId: string) {
       );
     }
 
-    const registration = await this.registrationsRepository.findOne({
-      where: { qrToken },
-      relations: { event: true },
-    });
+    const registrationQuery =
+      this.registrationsRepository
+        .createQueryBuilder("registration")
+        .leftJoinAndSelect("registration.event", "event");
+
+    if (isTicketId) {
+      const registrationPrefix = ticketIdentifier
+        .trim()
+        .substring(3)
+        .toLowerCase();
+
+      registrationQuery.where(
+        "LOWER(CAST(registration.id AS text)) LIKE :ticketPrefix",
+        {
+          ticketPrefix: `${registrationPrefix}%`,
+        },
+      );
+    } else {
+      registrationQuery.where(
+        "registration.qrToken = :qrToken",
+        {
+          qrToken: ticketIdentifier.trim(),
+        },
+      );
+    }
+
+    const registration = await registrationQuery.getOne();
 
     if (!registration) {
       await this.recordScanAttempt(
         scannerUserId,
         eventId,
         "invalid",
-        "Invalid ticket QR code",
+        "Invalid Ticket ID or QR code",
       );
 
-      throw new NotFoundException("Invalid ticket QR code");
+      throw new NotFoundException(
+        "Invalid Ticket ID or QR code",
+      );
     }
 
     if (registration.eventId !== eventId) {
@@ -363,7 +412,10 @@ async getOrganizerAttendees(organizerId: string) {
     const result = await this.registrationsRepository
       .createQueryBuilder()
       .update(Registration)
-      .set({ isCheckedIn: true, checkedInAt })
+      .set({
+        isCheckedIn: true,
+        checkedInAt,
+      })
       .where('"id" = :id AND "isCheckedIn" = false', {
         id: registration.id,
       })
@@ -378,7 +430,9 @@ async getOrganizerAttendees(organizerId: string) {
         registration.id,
       );
 
-      throw new ConflictException("This ticket has already been used");
+      throw new ConflictException(
+        "This ticket has already been used",
+      );
     }
 
     await this.recordScanAttempt(
@@ -392,11 +446,15 @@ async getOrganizerAttendees(organizerId: string) {
     return {
       message: "Check-in successful",
       registrationId: registration.id,
+      ticketId: `EP-${registration.id
+        .slice(0, 8)
+        .toUpperCase()}`,
       eventId: registration.eventId,
       eventName: registration.event.title,
       checkedInAt,
     };
   }
+
 
   async getScannerScanHistory(scannerUserId: string) {
     const assignments = await this.scannerEventAssignmentRepository.find({

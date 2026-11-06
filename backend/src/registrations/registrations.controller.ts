@@ -1,4 +1,3 @@
-
 import {
   Body,
   Controller,
@@ -7,6 +6,7 @@ import {
   Req,
   UseGuards,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
@@ -40,16 +40,24 @@ export class RegistrationsController {
   }
 
   @Post("check-in")
-  async checkIn(
-    @Body() body: CheckInDto,
-    @Req() request: { user: { userId: string } },
-  ) {
-    return this.registrationsService.checkIn(
-      body.qrToken,
-      body.eventId,
-      request.user.userId,
+async checkIn(
+  @Body() body: CheckInDto,
+  @Req() request: { user: { userId: string } },
+) {
+  const ticketIdentifier = body.ticketId ?? body.qrToken;
+
+  if (!ticketIdentifier) {
+    throw new BadRequestException(
+      "Ticket ID or QR token is required",
     );
   }
+
+  return this.registrationsService.checkIn(
+    ticketIdentifier,
+    body.eventId,
+    request.user.userId,
+  );
+}
 
   @Get("scanner/scan-history")
   getScannerScanHistory(

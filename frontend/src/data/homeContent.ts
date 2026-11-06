@@ -19,14 +19,14 @@ export const howItWorksSteps = [
 ];
 
 export const coreFeatures = [
-  { title: "QR Tickets", description: "Generate unique QR tickets and validate them at event entry." },
-  { title: "Event Management", description: "Manage schedules, venues, capacities, gates and ticket categories." },
-  { title: "Volunteer Management", description: "Handle volunteer registration, applications, shifts and attendance." },
-  { title: "Gate Monitoring", description: "Monitor attendance and entry activity across different gates." },
-  { title: "Incident Reporting", description: "Report congestion, medical issues, technical failures and shortages." },
-  { title: "Resource Tracking", description: "Keep track of resources such as food, water, badges, chairs and equipment." },
-  { title: "Notifications", description: "Send reminders, updates, feedback forms and certificates." },
-  { title: "Event Reports", description: "Review attendance, no-shows, gates, volunteers, incidents and resources." },
+  { title: "QR Tickets", description: "Generate unique QR tickets and validate them during event check-in." },
+  { title: "Event Management", description: "Create, edit, publish and manage event details." },
+  { title: "Volunteer Management", description: "Manage volunteer applications, assignments and shifts." },
+  { title: "Gate Monitoring", description: "Track ticket scans and entry activity at event gates." },
+  { title: "Incident Reporting", description: "Report and track event-related incidents." },
+  { title: "Resource Tracking", description: "Manage resources assigned to an event." },
+  { title: "Notifications", description: "Receive important event and account updates." },
+  { title: "Event Reports", description: "Review attendance and event operational information." },
 ];
 
 export const lifecycleColumns = [
@@ -35,14 +35,30 @@ export const lifecycleColumns = [
   { label: "After", items: ["Attendance Report", "Event Insights", "Volunteer Performance", "Incident Summary", "Feedback"] },
 ];
 
-export const ticketTransferSteps = [
-  { number: "01", title: "Select Ticket", description: "Choose the ticket you want to transfer." },
-  { number: "02", title: "Enter Recipient", description: "Enter the recipient's email or phone number." },
-  { number: "03", title: "New Ticket Issued", description: "The original ticket is invalidated and a new QR ticket is issued to the recipient." },
+
+export const ticketResaleSteps = [
+  {
+    number: "01",
+    title: "List Your Ticket",
+    description:
+      "Eligible ticket holders can create a resale listing using their ticket details.",
+  },
+  {
+    number: "02",
+    title: "Set Your Price",
+    description:
+      "Choose a resale price that does not exceed the event's original ticket price.",
+  },
+  {
+    number: "03",
+    title: "Secure Checkout",
+    description:
+      "Other attendees can browse available listings and complete payment through Razorpay checkout.",
+  },
 ];
 
 export const roles = [
-  { title: "Attendees", tagline: "Discover and attend events", items: ["Explore events", "Register", "Manage tickets", "Access QR tickets", "Transfer tickets"] },
+  { title: "Attendees", tagline: "Discover and attend events", items: ["Explore events", "Register", "Manage tickets", "Access QR tickets",  "Browse ticket resale listings",] },
   { title: "Organizers", tagline: "Plan and manage events", items: ["Create events", "Manage attendees", "Monitor gates", "Manage volunteers", "Track incidents", "View reports"] },
   { title: "Volunteers", tagline: "Find opportunities and manage responsibilities", items: ["Discover opportunities", "Apply for roles", "View shifts", "Track responsibilities"] },
   { title: "Event Staff", tagline: "Keep entry running smoothly", items: ["Select gates", "Scan QR tickets", "Validate tickets", "View scan results"] },
@@ -69,4 +85,5 @@ export const faqs = [
   { question: "How does EventPulse help organizers?", answer: "Organizers can manage events, attendees, volunteers, gates, incidents, resources and post-event reports from one platform." },
   { question: "What is gate monitoring?", answer: "Gate monitoring allows organizers to track entries, scan activity and gate-level risk during an event." },
   { question: "Does EventPulse provide predictions?", answer: "The planned prediction module can estimate attendance, peak arrival time, gate congestion, volunteer demand and resource requirements." },
+  {question: "Can I resell my ticket?",answer: "Eligible ticket holders can list their tickets for resale. The resale price cannot exceed the original event ticket price, and buyers can purchase available listings through the resale checkout."},
 ];

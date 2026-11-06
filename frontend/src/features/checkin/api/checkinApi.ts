@@ -1,4 +1,3 @@
-
 import { getAuthHeaders } from "../../../lib/authApi";
 
 const API_BASE_URL = window.location.hostname === 'localhost' ||
@@ -12,6 +11,7 @@ export default API_BASE_URL;
 export type CheckInResponse = {
   message: string;
   registrationId: string;
+  ticketId: string;
   eventId: string;
   eventName: string;
   checkedInAt: string;
@@ -39,7 +39,7 @@ async function getErrorMessage(response: Response): Promise<string> {
 }
 
 export async function checkInTicket(
-  qrToken: string,
+  ticketCode: string,
   eventId: string,
 ): Promise<CheckInResponse> {
   const response = await fetch(`${API_BASE_URL}/registrations/check-in`, {
@@ -48,7 +48,11 @@ export async function checkInTicket(
       ...getAuthHeaders(),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ qrToken, eventId }),
+    body: JSON.stringify(
+      /^EP-[A-F0-9]{8}$/i.test(ticketCode.trim())
+        ? { ticketId: ticketCode.trim().toUpperCase(), eventId }
+        : { qrToken: ticketCode.trim(), eventId },
+    ),
   });
 
   if (!response.ok) {

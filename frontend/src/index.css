@@ -1,52 +1,346 @@
+
 @import "tailwindcss";
+
 @plugin "daisyui" {
-  themes: corporate --default;
+  themes: corporate --default, night;
 }
 
 @plugin "daisyui/theme" {
   name: "corporate";
-  default: false;
+  default: true;
   prefersdark: false;
   color-scheme: "light";
+
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(93% 0 0);
   --color-base-300: oklch(86% 0 0);
   --color-base-content: oklch(22.389% 0.031 278.072);
-  --color-primary: oklch(78% 0.154 211.53);
-  --color-primary-content: oklch(100% 0 0);
+
+ --color-primary: #2563EB;
+--color-primary-content: #FFFFFF;
+
   --color-secondary: oklch(55% 0.046 257.417);
   --color-secondary-content: oklch(100% 0 0);
-  --color-accent: oklch(60% 0.118 184.704);
-  --color-accent-content: oklch(100% 0 0);
+
+  --color-accent: #3B82F6;
+--color-accent-content: #FFFFFF;
+
   --color-neutral: oklch(0% 0 0);
   --color-neutral-content: oklch(100% 0 0);
-  --color-info: oklch(91% 0.096 180.426);
-  --color-info-content: oklch(12% 0.042 264.695);
+
+  --color-info: #3B82F6;
+--color-info-content: #FFFFFF;
+
   --color-success: oklch(92% 0.144 146.700);
   --color-success-content: oklch(0% 0 0);
+
   --color-warning: oklch(85% 0.199 91.936);
   --color-warning-content: oklch(0% 0 0);
+
   --color-error: oklch(70% 0.191 22.216);
   --color-error-content: oklch(100% 0 0);
-    --radius-selector: 1.5rem;
---radius-field: 2rem;
---radius-box: 2.5rem;
+
+  --radius-selector: 1.5rem;
+  --radius-field: 2rem;
+  --radius-box: 2.5rem;
+
   --size-selector: 0.21875rem;
   --size-field: 0.25rem;
+
   --border: 1px;
   --depth: 0;
   --noise: 1;
 }
 
-html, body, #root {
+@plugin "daisyui/theme" {
+  name: "night";
+  default: false;
+  prefersdark: false;
+  color-scheme: "dark";
+
+  --color-base-100: oklch(20% 0.025 260);
+  --color-base-200: oklch(17% 0.025 260);
+  --color-base-300: oklch(27% 0.025 260);
+  --color-base-content: oklch(93% 0.01 260);
+
+  --color-primary: oklch(70% 0.15 230);
+  --color-primary-content: oklch(15% 0.03 260);
+
+  --color-secondary: oklch(65% 0.06 255);
+  --color-secondary-content: oklch(15% 0.03 260);
+
+  --color-accent: oklch(72% 0.12 185);
+  --color-accent-content: oklch(15% 0.03 260);
+
+  --color-neutral: oklch(30% 0.025 260);
+  --color-neutral-content: oklch(93% 0.01 260);
+
+  --color-info: oklch(75% 0.12 220);
+  --color-info-content: oklch(15% 0.03 260);
+
+  --color-success: oklch(75% 0.13 155);
+  --color-success-content: oklch(15% 0.03 260);
+
+  --color-warning: oklch(80% 0.14 85);
+  --color-warning-content: oklch(15% 0.03 260);
+
+  --color-error: oklch(70% 0.17 25);
+  --color-error-content: oklch(15% 0.03 260);
+
+  --radius-selector: 1.5rem;
+  --radius-field: 2rem;
+  --radius-box: 2.5rem;
+
+  --size-selector: 0.21875rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+html,
+body,
+#root {
   min-height: 100%;
   height: 100%;
   margin: 0;
+}
+
+html {
   background: #F8FAFC;
   color: #1E293B;
 }
 
+html[data-theme="night"] {
+  background: #111827;
+  color: #E5E7EB;
+}
+
 body {
   min-height: 100vh;
-  background: #F8FAFC;
+  background: inherit;
+  color: inherit;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+
+/* =========================================
+   EVENTPULSE GLOBAL DARK MODE
+========================================= */
+
+html[data-theme="night"] body {
+  background-color: #111827;
+  color: #E5E7EB;
+}
+
+/* Main surfaces and cards */
+html[data-theme="night"] [class~="bg-white"],
+html[data-theme="night"] [class~="bg-[#FCFCFD]"] {
+  background-color: #1E293B !important;
+}
+
+html[data-theme="night"] [class~="bg-[#F8FAFC]"],
+html[data-theme="night"] [class~="bg-[#F1F5F9]"],
+html[data-theme="night"] [class~="bg-[#F1F6FF]"],
+html[data-theme="night"] [class~="bg-gray-50"],
+html[data-theme="night"] [class~="bg-gray-100"],
+html[data-theme="night"] [class~="bg-slate-50"],
+html[data-theme="night"] [class~="bg-slate-100"] {
+  background-color: #172033 !important;
+}
+
+/* Blue-tinted surfaces */
+html[data-theme="night"] [class~="bg-[#EFF6FF]"],
+html[data-theme="night"] [class~="bg-[#DBEAFE]"],
+html[data-theme="night"] [class~="bg-blue-50"],
+html[data-theme="night"] [class~="bg-blue-100"] {
+  background-color: #1E3A5F !important;
+}
+
+/* Neutral surfaces */
+html[data-theme="night"] [class~="bg-[#E2E8F0]"] {
+  background-color: #334155 !important;
+}
+
+/* Green status surfaces */
+html[data-theme="night"] [class~="bg-[#F0FDF4]"],
+html[data-theme="night"] [class~="bg-[#ECFDF5]"],
+html[data-theme="night"] [class~="bg-[#DCFCE7]"],
+html[data-theme="night"] [class~="bg-green-50"],
+html[data-theme="night"] [class~="bg-emerald-50"] {
+  background-color: #123B32 !important;
+}
+
+/* Red status surfaces */
+html[data-theme="night"] [class~="bg-[#FEF2F2]"],
+html[data-theme="night"] [class~="bg-[#FEE2E2]"],
+html[data-theme="night"] [class~="bg-red-50"],
+html[data-theme="night"] [class~="bg-red-100"] {
+  background-color: #45232B !important;
+}
+
+/* Yellow / warning surfaces */
+html[data-theme="night"] [class~="bg-[#FFFBEB]"],
+html[data-theme="night"] [class~="bg-[#FEF3C7]"],
+html[data-theme="night"] [class~="bg-amber-50"],
+html[data-theme="night"] [class~="bg-amber-100"] {
+  background-color: #45371D !important;
+}
+
+/* Primary text */
+html[data-theme="night"] [class~="text-[#1E293B]"],
+html[data-theme="night"] [class~="text-[#0F172A]"],
+html[data-theme="night"] [class~="text-slate-900"],
+html[data-theme="night"] [class~="text-gray-900"] {
+  color: #F1F5F9 !important;
+}
+
+/* Secondary text */
+html[data-theme="night"] [class~="text-[#334155]"],
+html[data-theme="night"] [class~="text-[#475569]"],
+html[data-theme="night"] [class~="text-[#64748B]"],
+html[data-theme="night"] [class~="text-slate-500"],
+html[data-theme="night"] [class~="text-slate-600"],
+html[data-theme="night"] [class~="text-slate-700"],
+html[data-theme="night"] [class~="text-gray-500"],
+html[data-theme="night"] [class~="text-gray-600"] {
+  color: #CBD5E1 !important;
+}
+
+/* Muted text */
+html[data-theme="night"] [class~="text-[#94A3B8]"],
+html[data-theme="night"] [class~="text-slate-400"],
+html[data-theme="night"] [class~="text-gray-400"] {
+  color: #94A3B8 !important;
+}
+
+/* Blue accent text */
+html[data-theme="night"] [class~="text-[#2563EB]"],
+html[data-theme="night"] [class~="text-[#1D4ED8]"],
+html[data-theme="night"] [class~="text-blue-600"],
+html[data-theme="night"] [class~="text-blue-700"],
+html[data-theme="night"] [class~="text-blue-800"] {
+  color: #93C5FD !important;
+}
+
+/* Green accent text */
+html[data-theme="night"] [class~="text-[#16A34A]"],
+html[data-theme="night"] [class~="text-[#166534]"],
+html[data-theme="night"] [class~="text-green-700"],
+html[data-theme="night"] [class~="text-emerald-700"],
+html[data-theme="night"] [class~="text-emerald-800"] {
+  color: #86EFAC !important;
+}
+
+/* Red accent text */
+html[data-theme="night"] [class~="text-[#DC2626]"],
+html[data-theme="night"] [class~="text-[#B91C1C]"],
+html[data-theme="night"] [class~="text-red-600"],
+html[data-theme="night"] [class~="text-red-700"],
+html[data-theme="night"] [class~="text-red-800"] {
+  color: #FCA5A5 !important;
+}
+
+/* Warning text */
+html[data-theme="night"] [class~="text-[#D97706]"],
+html[data-theme="night"] [class~="text-amber-700"],
+html[data-theme="night"] [class~="text-amber-800"] {
+  color: #FCD34D !important;
+}
+
+/* Borders and dividers */
+html[data-theme="night"] [class~="border-[#E2E8F0]"],
+html[data-theme="night"] [class~="border-[#CBD5E1]"],
+html[data-theme="night"] [class~="border-[#F1F5F9]"],
+html[data-theme="night"] [class~="border-[#DBEAFE]"],
+html[data-theme="night"] [class~="border-slate-100"],
+html[data-theme="night"] [class~="border-slate-200"],
+html[data-theme="night"] [class~="border-gray-200"],
+html[data-theme="night"] [class~="divide-[#E2E8F0]"] {
+  border-color: #334155 !important;
+}
+
+/* Form controls */
+html[data-theme="night"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="night"] select,
+html[data-theme="night"] textarea {
+  background-color: #1E293B;
+  color: #F1F5F9;
+  border-color: #475569;
+}
+
+html[data-theme="night"] input::placeholder,
+html[data-theme="night"] textarea::placeholder {
+  color: #94A3B8;
+}
+
+html[data-theme="night"] option {
+  background-color: #1E293B;
+  color: #F1F5F9;
+}
+
+/* Keep disabled controls readable */
+html[data-theme="night"] :disabled {
+  opacity: 0.65;
+}
+
+
+/* Fix translucent surfaces in dark mode */
+html[data-theme="night"] [class*="bg-white/90"] {
+  background-color: rgb(30 41 59 / 95%) !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme="night"] [class*="bg-[#F8FAFC]/95"] {
+  background-color: rgb(17 24 39 / 96%) !important;
+  border-color: #334155 !important;
+}
+
+/* Make the attendee dashboard grid subtler */
+html[data-theme="night"] .dashboard-backdrop-grid {
+  opacity: 0.25 !important;
+}
+
+
+/* =========================================
+   ROLE NAVBAR THEME
+========================================= */
+
+.app-navbar {
+  background: rgb(255 255 255 / 75%);
+  border-bottom: 1px solid rgb(226 232 240 / 80%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html[data-theme="night"] .app-navbar {
+  background: rgb(30 41 59 / 92%);
+  border-bottom-color: #334155;
+}
+
+html[data-theme="night"] .app-navbar a:not([aria-label="Events"]),
+html[data-theme="night"] .app-navbar button {
+  color: #CBD5E1;
+}
+
+html[data-theme="night"] .app-navbar a[aria-label="Events"] {
+  color: #CBD5E1;
+}
+
+html[data-theme="night"] .app-navbar a:hover,
+html[data-theme="night"] .app-navbar button:hover {
+  background-color: #334155;
+  color: #93C5FD;
+}
+
+html[data-theme="night"] .app-navbar input {
+  background-color: #111827 !important;
+  border-color: #475569 !important;
+  color: #F1F5F9 !important;
+}
+
+html[data-theme="night"] .app-navbar input:focus {
+  background-color: #111827 !important;
+  border-color: #3B82F6 !important;
 }

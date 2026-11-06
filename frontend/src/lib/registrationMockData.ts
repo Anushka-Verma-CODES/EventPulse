@@ -1,10 +1,3 @@
-export interface TicketCategory {
-  id: string;
-  name: string;
-  price: number;
-  requiresStudentId?: boolean;
-}
-
 export interface EventDetail {
   id: string;
   name: string;
@@ -26,7 +19,7 @@ export const mockEventDetail: EventDetail = {
   name: "Tech Fest 2026",
   tags: ["Technology", "Competition", "Workshop"],
   date: "15 October 2026",
-  time: "10:00 AM \u2013 5:00 PM",
+  time: "10:00 AM – 5:00 PM",
   venue: "Thapar Institute, Patiala",
   venueAddress: "Thapar Institute of Engineering and Technology, Patiala, Punjab",
   description:
@@ -60,12 +53,6 @@ export const mockEventDetail: EventDetail = {
   ],
 };
 
-export const ticketCategories: TicketCategory[] = [
-  { id: "student", name: "Student", price: 299, requiresStudentId: true },
-  { id: "general", name: "General", price: 499 },
-  { id: "vip", name: "VIP", price: 999 },
-];
-
 export const volunteerRoleOptions = [
   "Registration Desk",
   "Gate Management",
@@ -77,43 +64,18 @@ export const volunteerRoleOptions = [
 ];
 
 export const volunteerShiftOptions = [
-  { id: "shift-1", label: "9:00 AM \u2013 12:00 PM", role: "Registration Desk" },
-  { id: "shift-2", label: "12:00 PM \u2013 3:00 PM", role: "Gate Management" },
-  { id: "shift-3", label: "3:00 PM \u2013 6:00 PM", role: "Technical Support" },
+  { id: "shift-1", label: "9:00 AM – 12:00 PM", role: "Registration Desk" },
+  { id: "shift-2", label: "12:00 PM – 3:00 PM", role: "Gate Management" },
+  { id: "shift-3", label: "3:00 PM – 6:00 PM", role: "Technical Support" },
 ];
 
-// ---- Simple in-memory mock registration state ----
-// Mirrors what a real app would keep in a backend/session; here it's
-// just enough to demo the "already registered" / "application pending"
-// UI states without a real API.
-
-interface AttendeeRegistration {
-  ticketId: string;
-  categoryName: string;
-  amountPaid: number;
-}
-
+// Volunteer application demo state is separate from attendee ticket registration.
 interface VolunteerApplication {
   applicationId: string;
   status: "Pending" | "Approved" | "Rejected";
 }
 
-const attendeeRegistrations: Record<string, AttendeeRegistration> = {};
 const volunteerApplications: Record<string, VolunteerApplication> = {};
-
-export function getAttendeeRegistration(eventId: string) {
-  return attendeeRegistrations[eventId] ?? null;
-}
-
-export function registerAttendee(eventId: string, category: TicketCategory) {
-  const registration: AttendeeRegistration = {
-    ticketId: `TKT-${Math.floor(10000 + Math.random() * 89999)}`,
-    categoryName: category.name,
-    amountPaid: category.price,
-  };
-  attendeeRegistrations[eventId] = registration;
-  return registration;
-}
 
 export function getVolunteerApplication(eventId: string) {
   return volunteerApplications[eventId] ?? null;

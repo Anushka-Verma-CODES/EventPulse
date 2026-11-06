@@ -5,7 +5,7 @@ export type AuthUser = {
   id: string;
   fullName: string;
   email: string;
-  phone?: string | null;
+  phone: string | null;
   roles: ("attendee" | "organizer" | "volunteer" | "scanner")[];
 };
 
@@ -68,7 +68,7 @@ function mapUser(user: BackendUser): AuthUser {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
+    phone: user.phone ?? null,
     roles,
   };
 }
