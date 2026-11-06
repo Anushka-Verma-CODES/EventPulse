@@ -1,4 +1,3 @@
-
 import { QueryFailedError } from 'typeorm';
 import {
   Injectable,
@@ -10,7 +9,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import * as nodemailer from 'nodemailer';
 import { createHash, randomBytes } from 'crypto';
 
 import { UsersService } from '../users/users.service';
@@ -205,59 +203,78 @@ export class AuthService {
     const resetLink =
       `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    const smtpPass = this.configService.get<string>('SMTP_PASS');
-    const smtpHost = this.configService.get<string>('SMTP_HOST');
-    const smtpPort = Number(
-      this.configService.get<string>('SMTP_PORT') || 465,
+    const brevoApiKey = this.configService.get<string>(
+      'BREVO_API_KEY',
     );
-    const smtpSecure =
-      this.configService.get<string>('SMTP_SECURE') === 'true';
 
-    if (!smtpUser || !smtpPass || !smtpHost) {
+    const senderEmail = this.configService.get<string>(
+      'BREVO_SENDER_EMAIL',
+    );
+
+    const senderName =
+      this.configService.get<string>('BREVO_SENDER_NAME') ||
+      'EventPulse';
+
+    if (!brevoApiKey || !senderEmail) {
       throw new InternalServerErrorException(
-        'Email service is not configured',
+        'Brevo email service is not configured',
       );
     }
 
     try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-
-      await transporter.sendMail({
-        from: `EventPulse <${smtpUser}>`,
-        to: user.email,
-        subject: 'Reset your EventPulse password',
-        text: `You requested a password reset for your EventPulse account.
+      const response = await fetch(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: senderName,
+              email: senderEmail,
+            },
+            to: [
+              {
+                email: user.email,
+              },
+            ],
+            subject: 'Reset your EventPulse password',
+            textContent: `You requested a password reset for your EventPulse account.
 
 Open this link to reset your password:
 ${resetLink}
 
 This link expires in 15 minutes. If you did not request this, you can ignore this email.`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 550px; margin: auto;">
-            <h2>Reset your EventPulse password</h2>
-            <p>We received a request to reset your EventPulse account password.</p>
-            <p>
-              <a href="${resetLink}"
-                 style="display: inline-block; padding: 12px 22px;
-                 background-color: #2563eb; color: white;
-                 text-decoration: none; border-radius: 6px;">
-                Reset Password
-              </a>
-            </p>
-            <p>This link expires in 15 minutes.</p>
-            <p>If you did not request this, you can ignore this email.</p>
-          </div>
-        `,
-      });
+            htmlContent: `
+              <div style="font-family: Arial, sans-serif; max-width: 550px; margin: auto;">
+                <h2>Reset your EventPulse password</h2>
+                <p>We received a request to reset your EventPulse account password.</p>
+                <p>
+                  <a href="${resetLink}"
+                     style="display: inline-block; padding: 12px 22px;
+                     background-color: #2563eb; color: white;
+                     text-decoration: none; border-radius: 6px;">
+                    Reset Password
+                  </a>
+                </p>
+                <p>This link expires in 15 minutes.</p>
+                <p>If you did not request this, you can ignore this email.</p>
+              </div>
+            `,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+
+        console.error('Brevo email API failed:', errorDetails);
+
+        throw new Error('Brevo rejected the email request');
+      }
     } catch (error) {
       console.error('Password reset email failed:', error);
 
