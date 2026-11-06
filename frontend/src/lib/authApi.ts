@@ -352,3 +352,67 @@ export const getMyProfile = getCurrentUserRequest;
 export const updateMyProfile = updateProfileRequest;
 
 
+export async function forgotPasswordRequest(email: string): Promise<string> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new AuthError(
+      "network_error",
+      "Unable to connect to EventPulse. Please check your connection."
+    );
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new AuthError(
+      "server_error",
+      data?.message ?? "Unable to send the password reset email."
+    );
+  }
+
+  return data?.message ?? "If an account with that email exists, a password reset link has been sent.";
+}
+
+export async function resetPasswordRequest(
+  token: string,
+  newPassword: string
+): Promise<string> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token, newPassword }),
+    });
+  } catch {
+    throw new AuthError(
+      "network_error",
+      "Unable to connect to EventPulse. Please check your connection."
+    );
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new AuthError(
+      "server_error",
+      data?.message ?? "Unable to reset your password."
+    );
+  }
+
+  return data?.message ?? "Password has been reset successfully.";
+}
+
+

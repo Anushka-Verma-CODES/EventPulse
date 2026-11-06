@@ -56,6 +56,9 @@ import VolunteerDetails from '../pages/registration/VolunteerDetails';
 import VolunteerReview from '../pages/registration/VolunteerReview';
 import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
 
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
+
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -71,6 +74,9 @@ export function AppRoutes() {
       {/* No Navbar on the login/signup pages */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Signup />} />
+
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Attendee routes with their own layout */}
     <Route element={<ProtectedRoute allowedRoles={["attendee"]} />}>
