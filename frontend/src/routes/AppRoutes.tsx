@@ -62,6 +62,9 @@ import VolunteerDetails from "../pages/registration/VolunteerDetails";
 import VolunteerReview from "../pages/registration/VolunteerReview";
 import VolunteerApplicationSuccess from "../pages/registration/VolunteerApplicationSuccess";
 
+import TermsAndConditions from "../pages/TermsAndConditions";
+import PrivacyPolicy from "../pages/PrivacyPolicy";
+
 function LegacyAttendeeRegistrationRedirect() {
   const { eventId } = useParams<{ eventId: string }>();
 
@@ -219,6 +222,22 @@ export function AppRoutes() {
 
       {/* Public pages */}
       <Route path="/" element={<HomePage />} />
+
+      {/* Terms and Conditions */}
+      <Route
+        path="/terms"
+        element={
+            <TermsAndConditions />
+        }
+      />
+
+      {/* Privacy Policy */}
+      <Route
+        path="/privacy"
+        element={
+            <PrivacyPolicy />
+        }
+      />
 
       <Route
         path="/ticket"
