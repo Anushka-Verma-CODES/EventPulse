@@ -1,8 +1,7 @@
-
 import {
   IsEmail,
   IsNotEmpty,
-  IsOptional,
+  IsPhoneNumber,
   IsString,
   MaxLength,
   MinLength,
@@ -23,8 +22,8 @@ export class RegisterDto {
   @MaxLength(72)
   password: string;
 
-  @IsOptional()
   @IsString()
-  @MaxLength(20)
-  phone?: string;
+  @IsNotEmpty()
+  @IsPhoneNumber('IN')
+  phone: string;
 }
