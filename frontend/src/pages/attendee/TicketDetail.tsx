@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -239,7 +240,8 @@ export default function TicketDetail() {
 
       setIncidentNotice({
         type: "success",
-        message: "Incident reported successfully. The event organizer can now review it.",
+        message:
+          "Incident reported successfully. The event organizer can now review it.",
       });
 
       setIncidentTitle("");
@@ -390,9 +392,9 @@ export default function TicketDetail() {
 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#94A3B8]">
-                  Registration reference
+                  Ticket ID
                 </p>
-                <p className="mt-1.5 break-all font-mono text-sm font-bold tracking-wide text-[#1E293B]">
+                <p className="mt-1.5 break-all font-mono text-base font-bold tracking-wide text-[#1D4ED8]">
                   {ticket.ticketCode}
                 </p>
               </div>
@@ -458,14 +460,18 @@ export default function TicketDetail() {
             )}
           </div>
 
-          <p className="mt-4 text-sm font-semibold text-[#1E3A8A]">
-            Your registration reference
-          </p>
+          <div className="mt-4 rounded-xl border border-[#BFDBFE] bg-white px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+              Ticket ID
+            </p>
+            <p className="mt-1 font-mono text-lg font-bold tracking-wider text-[#1D4ED8]">
+              {ticket.ticketCode}
+            </p>
+          </div>
 
-          <p className="mt-1 text-xs leading-5 text-[#64748B]">
-            This QR represents your registration. Gate scanning and entry
-            validation must be implemented separately before using it as
-            an actual entry pass.
+          <p className="mt-3 text-xs leading-5 text-[#64748B]">
+            Present this QR code at the event gate, or provide your Ticket ID
+            to scanner staff for manual verification.
           </p>
         </aside>
       </div>

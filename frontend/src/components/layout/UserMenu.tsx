@@ -1,8 +1,8 @@
+
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { activateRoleRequest } from "../../lib/authApi";
-import type { UserRole } from "../../types/auth";
 import {
   User,
   Settings,
@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 
-type ActivatableRole = "organizer" | "volunteer" | "scanner";
+type UserRole = "attendee" | "organizer" | "volunteer" | "scanner";
 
 interface RoleOption {
   id: UserRole;
@@ -22,18 +22,18 @@ interface RoleOption {
   route: string;
 }
 
-const roleOptions: RoleOption[] = [
-  { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
-  { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
-  { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
-  { id: "scanner", label: "Scanner", route: "/scanner/dashboard" },
-];
-
 interface UserMenuProps {
   profileRoute: string;
   settingsRoute: string;
   currentRole: UserRole;
 }
+
+const roleOptions: RoleOption[] = [
+  { id: "attendee", label: "Attendee", route: "/attendee/dashboard" },
+  { id: "organizer", label: "Organizer", route: "/organizer/dashboard" },
+  { id: "volunteer", label: "Volunteer", route: "/volunteer/dashboard" },
+  { id: "scanner", label: "Scanner", route: "/scanner" },
+];
 
 export default function UserMenu({
   profileRoute,
@@ -43,25 +43,29 @@ export default function UserMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
-  const [pendingRole, setPendingRole] = useState<ActivatableRole | null>(
-    null,
-  );
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] =
+    useState(false);
+
+  const [pendingRole, setPendingRole] = useState<
+    "organizer" | "volunteer" | "scanner" | null
+  >(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
   const { logout, refreshProfile, profile } = useAuth();
 
-  const displayName = profile?.fullName?.trim() || "Account";
-  const displayEmail = profile?.email || "";
-
+  // Get user information directly from the authenticated profile.
+  const name = profile?.fullName?.trim() || "User";
+  const email = profile?.email || "";
   const initials =
-    displayName === "Account"
-      ? "EP"
-      : displayName
-          .split(/\s+/)
+    name === "User"
+      ? "U"
+      : name
+          .split(" ")
           .filter(Boolean)
           .slice(0, 2)
-          .map((part) => part[0].toUpperCase())
+          .map((part) => part.charAt(0).toUpperCase())
           .join("");
 
   useEffect(() => {
@@ -77,29 +81,33 @@ export default function UserMenu({
 
     document.addEventListener("mousedown", handleClickOutside);
 
-    return () =>
+    return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   function handleLogout() {
     setIsOpen(false);
     setIsRoleMenuOpen(false);
     setPendingRole(null);
+    setIsLogoutConfirmationOpen(true);
+  }
+
+  function confirmLogout() {
+    setIsLogoutConfirmationOpen(false);
     logout();
     navigate("/login", { replace: true });
   }
 
   function handleRoleSelection(role: UserRole) {
-    if (isSwitchingRole) {
-      return;
-    }
+    if (isSwitchingRole) return;
 
     if (
       role === "organizer" ||
       role === "volunteer" ||
       role === "scanner"
     ) {
-      if (profile?.roles.includes(role)) {
+      if (profile?.roles?.includes(role)) {
         void switchRole(role);
       } else {
         setPendingRole(role);
@@ -112,14 +120,17 @@ export default function UserMenu({
   }
 
   async function switchRole(role: UserRole) {
-    if (isSwitchingRole) {
-      return;
-    }
+    if (isSwitchingRole) return;
 
     setIsSwitchingRole(true);
 
     try {
-      if (role !== "attendee" && !profile?.roles.includes(role)) {
+      if (
+        (role === "organizer" ||
+          role === "volunteer" ||
+          role === "scanner") &&
+        !profile?.roles?.includes(role)
+      ) {
         await activateRoleRequest(role);
         await refreshProfile();
       }
@@ -129,7 +140,7 @@ export default function UserMenu({
       setIsRoleMenuOpen(false);
 
       const selectedRole = roleOptions.find(
-        (option) => option.id === role,
+        (option) => option.id === role
       );
 
       if (selectedRole) {
@@ -141,7 +152,7 @@ export default function UserMenu({
       alert(
         error instanceof Error
           ? error.message
-          : "Unable to switch role. Please try again.",
+          : "Unable to switch role. Please try again."
       );
     } finally {
       setIsSwitchingRole(false);
@@ -149,21 +160,11 @@ export default function UserMenu({
   }
 
   function cancelRoleActivation() {
-    if (isSwitchingRole) {
-      return;
-    }
-
+    if (isSwitchingRole) return;
     setPendingRole(null);
   }
 
-  const confirmationDetails: Record<
-    ActivatableRole,
-    {
-      title: string;
-      description: string;
-      confirmLabel: string;
-    }
-  > = {
+  const confirmationDetails = {
     organizer: {
       title: "Become an Organizer?",
       description:
@@ -194,17 +195,14 @@ export default function UserMenu({
         <button
           type="button"
           onClick={() => setIsOpen((value) => !value)}
-          aria-expanded={isOpen}
-          aria-haspopup="true"
-          aria-label="Open account menu"
           className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-[#F8FAFC]"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">
-            {initials}
+            {initials || "U"}
           </span>
 
           <span className="hidden font-medium text-[#1E293B] sm:inline">
-            {displayName.split(/\s+/)[0]}
+            {name.split(" ")[0]}
           </span>
 
           <ChevronDown className="h-4 w-4 text-[#64748B]" />
@@ -214,10 +212,11 @@ export default function UserMenu({
           <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-lg border border-[#E2E8F0] bg-white py-1.5 shadow-lg">
             <div className="border-b border-[#E2E8F0] px-4 py-2.5">
               <div className="text-sm font-semibold text-[#1E293B]">
-                {displayName}
+                {name}
               </div>
+
               <div className="break-all text-xs text-[#64748B]">
-                {displayEmail}
+                {email}
               </div>
             </div>
 
@@ -304,6 +303,52 @@ export default function UserMenu({
         )}
       </div>
 
+      {/* Logout confirmation */}
+      {isLogoutConfirmationOpen && (
+        <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirmation-title"
+            className="w-full max-w-md translate-y-45 rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
+              <LogOut className="h-6 w-6 text-red-600" />
+            </div>
+
+            <h2
+              id="logout-confirmation-title"
+              className="text-xl font-semibold text-[#0F172A]"
+            >
+              Confirm Logout
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-[#64748B]">
+              Are you sure you want to log out of your EventPulse account?
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmationOpen(false)}
+                className="rounded-lg border border-[#CBD5E1] px-4 py-2.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role activation confirmation */}
       {pendingRole && confirmation && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4 pt-32 sm:pt-40"

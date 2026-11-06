@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Menu, Bell, CalendarDays } from "lucide-react";
 import UserMenu from "./UserMenu";
@@ -11,7 +12,7 @@ export default function VolunteerNavbar({
   onOpenMobileSidebar,
 }: VolunteerNavbarProps) {
   return (
-    <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[#E2E8F0]/80 bg-white/75 px-3 backdrop-blur-md sm:px-5">
+    <header className="app-navbar sticky top-0 z-20 flex h-12 items-center justify-between px-3 sm:px-5">
       <div className="flex items-center gap-3">
         <span
           title="Volunteer"

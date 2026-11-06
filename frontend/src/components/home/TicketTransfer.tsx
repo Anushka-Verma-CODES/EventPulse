@@ -1,38 +1,49 @@
-import { ticketTransferSteps } from "../../data/homeContent";
+
+import { ticketResaleSteps } from "../../data/homeContent";
 
 export default function TicketTransfer() {
   return (
     <section className="bg-[#EFF6FF] py-16">
       <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-2xl font-bold text-[#1E293B]">
-          Tickets that can be transferred safely.
+        <span className="text-xs font-semibold tracking-wide text-[#2563EB]">
+          TICKET RESALE
+        </span>
+
+        <h2 className="mt-2 text-2xl font-bold text-[#1E293B]">
+          Have a ticket you can't use?
         </h2>
+
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#64748B]">
-          No need to share screenshots or PDF copies of your QR ticket. Transfer your
-          ticket officially through EventPulse.
+          List your eligible event ticket on the EventPulse marketplace.
+          Other attendees can discover available listings and purchase
+          tickets through the resale checkout.
         </p>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
-          {ticketTransferSteps.map((step) => (
+          {ticketResaleSteps.map((step) => (
             <div
               key={step.number}
-              className="rounded-xl border border-[#DBEAFE] bg-white p-6 transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-xl border border-[#DBEAFE] bg-white p-6"
             >
-              <div className="mb-3 text-xs font-semibold text-[#2563EB]">{step.number}</div>
-              <div className="mb-1 text-sm font-semibold text-[#1E293B]">{step.title}</div>
-              <p className="text-sm leading-relaxed text-[#64748B]">{step.description}</p>
+              <div className="mb-3 text-xs font-semibold text-[#2563EB]">
+                {step.number}
+              </div>
+
+              <h3 className="mb-1 text-sm font-semibold text-[#1E293B]">
+                {step.title}
+              </h3>
+
+              <p className="text-sm leading-relaxed text-[#64748B]">
+                {step.description}
+              </p>
             </div>
           ))}
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3 text-xs">
-          <span className="rounded-full bg-[#FEE2E2] px-3 py-1 font-medium text-[#DC2626]">
-            Original ticket &rarr; TRANSFERRED
-          </span>
-          <span className="rounded-full bg-[#DCFCE7] px-3 py-1 font-medium text-[#16A34A]">
-            New ticket &rarr; ACTIVE
-          </span>
-        </div>
+        <p className="mt-6 text-xs text-[#64748B]">
+          Resale listings cannot exceed the event's original ticket price.
+          Payments are processed through the resale checkout.
+        </p>
       </div>
     </section>
   );

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import QRScanner from "../../components/scanner/QRScanner";
@@ -23,6 +22,7 @@ export default function QRScannerPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const checkingRef = useRef(false);
 
   useEffect(() => {
@@ -82,13 +82,16 @@ export default function QRScannerPage() {
   }
 
   async function handleCode(code: string) {
-    if (checkingRef.current || result || !event) return;
+    if (checkingRef.current || result || !event) {
+      return;
+    }
 
     checkingRef.current = true;
     setIsChecking(true);
     setErrorMessage(null);
 
     try {
+      // The backend verifies either the QR token or the manual Ticket ID.
       const response = await checkInTicket(code.trim(), event.id);
 
       if (response.eventId !== event.id) {
@@ -97,13 +100,14 @@ export default function QRScannerPage() {
           ticketId: code.trim(),
           expectedEventName: event.name,
         });
+
         setErrorMessage("This ticket belongs to a different event.");
         return;
       }
 
       setResult({
         type: "valid",
-        ticketId: response.registrationId,
+        ticketId: response.ticketId,
         eventName: response.eventName,
         gate: "General Entry",
         checkedInAt: new Date(response.checkedInAt).toLocaleTimeString(
@@ -125,7 +129,7 @@ export default function QRScannerPage() {
 
       const normalizedMessage = message.toLowerCase();
 
-      if (normalizedMessage.includes("different event")) {
+      if (normalizedMessage.includes("does not belong to the selected event")) {
         setResult({
           type: "wrong_event",
           ticketId: code.trim(),
@@ -154,6 +158,7 @@ export default function QRScannerPage() {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         <p>{eventError}</p>
+
         <Link
           to="/scanner"
           className="mt-3 inline-block font-semibold underline"
@@ -168,7 +173,7 @@ export default function QRScannerPage() {
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between">
         <Link
-         to={`/scanner/event/${eventId}`}
+          to={`/scanner/event/${eventId}`}
           className="text-sm font-medium text-[#2563EB] hover:underline"
         >
           &larr; Back
@@ -184,6 +189,7 @@ export default function QRScannerPage() {
         <h2 className="text-xl font-bold text-[#1E293B]">
           {event?.name ?? "Selected event"}
         </h2>
+
         <p className="text-sm text-[#64748B]">General Entry</p>
       </div>
 
@@ -221,7 +227,7 @@ export default function QRScannerPage() {
               onClick={() => setMode("manual")}
               className="mt-5 w-full max-w-sm rounded-lg border border-[#E2E8F0] bg-white py-3.5 text-base font-medium text-[#1E293B] hover:bg-[#F8FAFC] disabled:opacity-50"
             >
-              Enter Ticket Code
+              Enter Ticket ID
             </button>
           </>
         ) : (

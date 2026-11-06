@@ -54,7 +54,7 @@ export default function MyTickets() {
         if (!isMounted) return;
 
         const mappedTickets = registrations.map(
-          (registration, index) => {
+          (registration) => {
             const event = registration.event;
 
             return {
@@ -75,7 +75,7 @@ export default function MyTickets() {
               ),
               venue: event.location,
               gate: "Main Entry",
-              ticketNumber: `EP-${String(index + 1).padStart(4, "0")}`,
+              ticketNumber: `EP-${registration.id.slice(0, 8).toUpperCase()}`,
               section: event.category,
               status: "Registration Confirmed",
               imageUrl: event.bannerImage || "/event-hero.png",

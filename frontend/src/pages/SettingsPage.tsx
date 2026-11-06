@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,6 +18,7 @@ import {
   getMyProfile,
   type AuthUser,
 } from "../lib/authApi";
+import ThemeSelector from "../components/settings/ThemeSelector";
 
 type SettingsRole = "attendee" | "organizer" | "volunteer" | "scanner";
 type Language = "English" | "Hindi";
@@ -129,6 +131,9 @@ export default function SettingsPage({ role }: SettingsPageProps) {
     new: false,
     confirm: false,
   });
+
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] =
+    useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -313,6 +318,11 @@ export default function SettingsPage({ role }: SettingsPageProps) {
   }
 
   function handleLogout() {
+    setIsLogoutConfirmationOpen(true);
+  }
+
+  function confirmLogout() {
+    setIsLogoutConfirmationOpen(false);
     logout();
     navigate("/login", { replace: true });
   }
@@ -442,7 +452,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                   </p>
                 </div>
               </div>
-
+              <ThemeSelector />
               <div className="mt-5">
                 <label
                   htmlFor="settings-language"
@@ -651,6 +661,46 @@ export default function SettingsPage({ role }: SettingsPageProps) {
             </button>
           </div>
         </>
+      )}
+
+      {isLogoutConfirmationOpen && (
+        <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirmation-title"
+            className="w-full max-w-md translate-y-6 rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-2xl"
+          >
+            <h2
+              id="logout-confirmation-title"
+              className="text-lg font-bold text-[#1E293B]"
+            >
+              Confirm Logout
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-[#64748B]">
+              Are you sure you want to log out of your EventPulse account?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmationOpen(false)}
+                className="rounded-lg border border-[#CBD5E1] bg-white px-4 py-2 text-sm font-semibold text-[#334155] transition hover:bg-[#F8FAFC]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="rounded-lg bg-[#DC2626] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#B91C1C]"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

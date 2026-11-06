@@ -1,3 +1,4 @@
+
 import { Link } from 'react-router-dom';
 import type { EventItem } from '../../../types/event';
 
@@ -20,35 +21,54 @@ export function EventCard({ event }: EventCardProps) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="card group h-full overflow-hidden border border-base-300 bg-base-100 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="card group h-full overflow-hidden rounded-none border border-base-300 bg-base-100 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
-      <figure className="h-40">
-        <img src={event.imageUrl} alt={event.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+      <figure className="h-40 rounded-none">
+        <img
+          src={event.imageUrl}
+          alt={event.name}
+          className="h-full w-full rounded-none object-cover transition duration-500 group-hover:scale-105"
+        />
       </figure>
 
       <div className="card-body gap-3">
-        <div className="flex justify-between items-start">
+        <div className="flex items-start justify-between">
           <h3 className="card-title text-base">{event.name}</h3>
-          <span className={`badge ${badgeClass} badge-sm`}>{event.category}</span>
+          <span className={`badge ${badgeClass} badge-sm`}>
+            {event.category}
+          </span>
         </div>
 
         <p className="text-sm text-base-content/60">
           {event.date} · {event.venue}
         </p>
 
-        <p className="text-sm text-base-content/80 line-clamp-2">{event.shortDescription}</p>
+        <p className="line-clamp-2 text-sm text-base-content/80">
+          {event.shortDescription}
+        </p>
 
-        <progress className="progress progress-primary w-full" value={percentFull} max={100} />
+        <progress
+          className="progress progress-primary w-full"
+          value={percentFull}
+          max={100}
+        />
 
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           {event.isRegistered ? (
             <span className="badge badge-success badge-sm">Registered</span>
           ) : isFillingUp ? (
-            <span className="text-xs text-warning font-medium">{seatsLeft} seats left</span>
+            <span className="text-xs font-medium text-warning">
+              {seatsLeft} seats left
+            </span>
           ) : (
-            <span className="text-xs text-base-content/50">{seatsLeft} seats left</span>
+            <span className="text-xs text-base-content/50">
+              {seatsLeft} seats left
+            </span>
           )}
-          <span className="text-sm font-medium text-primary transition-transform group-hover:translate-x-1">View details →</span>
+
+          <span className="text-sm font-medium text-primary transition-transform group-hover:translate-x-1">
+            View details →
+          </span>
         </div>
       </div>
     </Link>

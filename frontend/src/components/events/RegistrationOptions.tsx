@@ -1,12 +1,16 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getVolunteerApplication } from "../../lib/registrationMockData";
-import { registerForEvent } from "../../features/events/api/eventsApi";
+import {
+  getMyRegistrations,
+  registerForEvent,
+} from "../../features/events/api/eventsApi";
 import {
   createPaymentOrder,
   verifyPayment,
 } from "../../features/payments/api/paymentsApi";
+import { loadRazorpayCheckout } from "../../features/payments/razorpay";
 
 interface RegistrationOptionsProps {
   eventId: string;
@@ -16,46 +20,6 @@ interface RegistrationOptionsProps {
   registrationError?: string;
 }
 
-interface RazorpaySuccessResponse {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-}
-
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  handler: (response: RazorpaySuccessResponse) => void | Promise<void>;
-  modal: {
-    ondismiss: () => void;
-  };
-  theme: {
-    color: string;
-  };
-}
-
-interface RazorpayInstance {
-  open: () => void;
-  on: (
-    event: "payment.failed",
-    handler: (response: {
-      error?: { description?: string };
-    }) => void,
-  ) => void;
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (
-      options: RazorpayOptions,
-    ) => RazorpayInstance;
-  }
-}
-
 export default function RegistrationOptions({
   eventId,
   price,
@@ -63,6 +27,7 @@ export default function RegistrationOptions({
   registrationLoading,
   registrationError,
 }: RegistrationOptionsProps) {
+  const navigate = useNavigate();
   const volunteerApp = getVolunteerApplication(eventId);
 
   const [registered, setRegistered] = useState(isRegistered);
@@ -73,6 +38,23 @@ export default function RegistrationOptions({
   useEffect(() => {
     setRegistered(isRegistered);
   }, [isRegistered]);
+
+  async function openRegisteredTicket(registrationId?: string) {
+    let ticketId = registrationId;
+
+    if (!ticketId) {
+      const registrations = await getMyRegistrations();
+      ticketId = registrations.find(
+        (registration) => registration.eventId === eventId,
+      )?.id;
+    }
+
+    if (ticketId) {
+      navigate(`/attendee/tickets/${ticketId}`);
+    } else {
+      navigate("/attendee/tickets");
+    }
+  }
 
   async function handleAttendeeRegistration() {
     if (
@@ -90,15 +72,17 @@ export default function RegistrationOptions({
 
     try {
       if (price > 0) {
-        if (!window.Razorpay) {
-          throw new Error(
-            "Razorpay Checkout could not be loaded. Please refresh the page and try again.",
-          );
-        }
+        await loadRazorpayCheckout();
 
         const order = await createPaymentOrder(eventId);
 
-        const checkout = new window.Razorpay({
+        const RazorpayCheckout = window.Razorpay;
+
+        if (!RazorpayCheckout) {
+          throw new Error("Razorpay Checkout is unavailable. Please try again.");
+        }
+
+        const checkout = new RazorpayCheckout({
           key: order.keyId,
           amount: order.amount,
           currency: order.currency,
@@ -132,6 +116,7 @@ export default function RegistrationOptions({
                   "Payment successful! You are registered for this event.",
               );
               setMessageIsError(false);
+              await openRegisteredTicket(result.registrationId);
             } catch (error) {
               setMessage(
                 error instanceof Error
@@ -165,6 +150,7 @@ export default function RegistrationOptions({
         setMessage(
           result.message || "Successfully registered for this event.",
         );
+        await openRegisteredTicket(result.registrationId);
       } else {
         setMessage(result.message || "Registration failed.");
         setMessageIsError(true);

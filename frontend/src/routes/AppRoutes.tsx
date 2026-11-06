@@ -1,63 +1,72 @@
+
 import ProtectedRoute from "./ProtectedRoute";
 
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Navbar } from '../components/layout/Navbar';
-import TicketPage from '../pages/TicketPage';
-import EventsListPage from '../pages/EventsListPage';
-import EventDetails from '../pages/EventDetails';
-import CreateEventPage from '../pages/CreateEventPage';
-import ProfilePage from '../pages/ProfilePage';
-import SettingsPage from '../pages/SettingsPage';
-import Login from '../pages/auth/Login';
-import Signup from '../pages/auth/Signup';
-import HomePage from '../pages/HomePage';
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import { Navbar } from "../components/layout/Navbar";
+import { useAuth } from "../context/AuthContext";
 
-import AttendeeLayout from '../components/layout/AttendeeLayout';
-import EventAttendeeLayout from '../components/layout/EventAttendeeLayout';
-import Dashboard from '../pages/attendee/Dashboard';
-import MyTickets from '../pages/attendee/MyTickets';
-import TicketDetail from '../pages/attendee/TicketDetail';
-import Notifications from '../pages/attendee/Notifications';
+import TicketPage from "../pages/TicketPage";
+import EventsListPage from "../pages/EventsListPage";
+import EventDetails from "../pages/EventDetails";
+import CreateEventPage from "../pages/CreateEventPage";
+import ProfilePage from "../pages/ProfilePage";
+import SettingsPage from "../pages/SettingsPage";
 
-import OrganizerLayout from '../components/layout/OrganizerLayout';
-import OrganizerDashboard from '../pages/organizer/Dashboard';
-import EventsList from '../pages/organizer/EventsList';
-import EventDetail from '../pages/organizer/EventDetail';
-import Attendees from '../pages/organizer/Attendees';
-import LiveMonitoring from '../pages/organizer/LiveMonitoring';
-import Volunteers from '../pages/organizer/Volunteers';
-import Resources from '../pages/organizer/Resources';
-import Incidents from '../pages/organizer/Incidents';
-import Predictions from '../pages/organizer/Predictions';
-import Reports from '../pages/organizer/Reports';
-import EditEvent from '../pages/organizer/EditEvent';
-
-import VolunteerLayout from '../components/layout/VolunteerLayout';
-import VolunteerDashboard from '../pages/volunteer/Dashboard';
-import Opportunities from '../pages/volunteer/Opportunities';
-import OpportunityDetail from '../pages/volunteer/OpportunityDetail';
-import MyApplications from '../pages/volunteer/MyApplications';
-import MyShifts from '../pages/volunteer/MyShifts';
-import ShiftDetail from '../pages/volunteer/ShiftDetail';
-import MyTasks from '../pages/volunteer/MyTasks';
-import VolunteerNotifications from '../pages/volunteer/Notifications';
-
-import ScannerLayout from '../components/layout/ScannerLayout';
-import  ScannerHome from '../pages/scanner/ScannerHome';
-import  SelectGate  from '../pages/scanner/SelectGate';
-import QRScannerPage from '../pages/scanner/QRScannerPage';
-import  ScanHistory from '../pages/scanner/ScanHistory';
-import ScannerDashboard from '../pages/scanner/ScannerDashboard';
-
-import AttendeeDetails from '../pages/registration/AttendeeDetails';
-import AttendeePayment from '../pages/registration/AttendeePayment';
-import RegistrationSuccess from '../pages/registration/RegistrationSuccess';
-import VolunteerDetails from '../pages/registration/VolunteerDetails';
-import VolunteerReview from '../pages/registration/VolunteerReview';
-import VolunteerApplicationSuccess from '../pages/registration/VolunteerApplicationSuccess';
-
+import Login from "../pages/auth/Login";
+import Signup from "../pages/auth/Signup";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+
+import HomePage from "../pages/HomePage";
+
+import PublicEventLayout from "../components/layout/PublicEventLayout";
+import EventAttendeeLayout from "../components/layout/EventAttendeeLayout";
+
+import AttendeeLayout from "../components/layout/AttendeeLayout";
+import Dashboard from "../pages/attendee/Dashboard";
+import MyTickets from "../pages/attendee/MyTickets";
+import TicketDetail from "../pages/attendee/TicketDetail";
+import Notifications from "../pages/attendee/Notifications";
+
+import OrganizerLayout from "../components/layout/OrganizerLayout";
+import OrganizerDashboard from "../pages/organizer/Dashboard";
+import EventsList from "../pages/organizer/EventsList";
+import EventDetail from "../pages/organizer/EventDetail";
+import Attendees from "../pages/organizer/Attendees";
+import LiveMonitoring from "../pages/organizer/LiveMonitoring";
+import Volunteers from "../pages/organizer/Volunteers";
+import Resources from "../pages/organizer/Resources";
+import Incidents from "../pages/organizer/Incidents";
+import Predictions from "../pages/organizer/Predictions";
+import Reports from "../pages/organizer/Reports";
+import EditEvent from "../pages/organizer/EditEvent";
+
+import VolunteerLayout from "../components/layout/VolunteerLayout";
+import VolunteerDashboard from "../pages/volunteer/Dashboard";
+import Opportunities from "../pages/volunteer/Opportunities";
+import OpportunityDetail from "../pages/volunteer/OpportunityDetail";
+import MyApplications from "../pages/volunteer/MyApplications";
+import MyShifts from "../pages/volunteer/MyShifts";
+import ShiftDetail from "../pages/volunteer/ShiftDetail";
+import MyTasks from "../pages/volunteer/MyTasks";
+import VolunteerNotifications from "../pages/volunteer/Notifications";
+
+import ScannerLayout from "../components/layout/ScannerLayout";
+import ScannerHome from "../pages/scanner/ScannerHome";
+import SelectGate from "../pages/scanner/SelectGate";
+import QRScannerPage from "../pages/scanner/QRScannerPage";
+import ScanHistory from "../pages/scanner/ScanHistory";
+import ScannerDashboard from "../pages/scanner/ScannerDashboard";
+
+import VolunteerDetails from "../pages/registration/VolunteerDetails";
+import VolunteerReview from "../pages/registration/VolunteerReview";
+import VolunteerApplicationSuccess from "../pages/registration/VolunteerApplicationSuccess";
+
+function LegacyAttendeeRegistrationRedirect() {
+  const { eventId } = useParams<{ eventId: string }>();
+
+  return <Navigate to={eventId ? `/events/${eventId}` : "/events"} replace />;
+}
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -68,118 +77,215 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Select the correct event browsing layout based on attendee login status.
+function EventBrowsingLayout({ children }: { children: React.ReactNode }) {
+  const { profile, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated && profile?.roles.includes("attendee")) {
+    return (
+      <EventAttendeeLayout pageTitle="Explore Events">
+        {children}
+      </EventAttendeeLayout>
+    );
+  }
+
+  return <PublicEventLayout>{children}</PublicEventLayout>;
+}
+
 export function AppRoutes() {
   return (
     <Routes>
-      {/* No Navbar on the login/signup pages */}
+      {/* Authentication routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Signup />} />
-
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Attendee routes with their own layout */}
-    <Route element={<ProtectedRoute allowedRoles={["attendee"]} />}>
-      <Route path="/attendee" element={<AttendeeLayout />}>
-        <Route index element={<Navigate to="/attendee/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="tickets" element={<MyTickets />} />
-        <Route path="tickets/:ticketId" element={<TicketDetail />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="profile" element={<ProfilePage role="attendee" />} />
-        <Route path="settings" element={<SettingsPage role="attendee" />} />
+      {/* Attendee routes */}
+      <Route element={<ProtectedRoute allowedRoles={["attendee"]} />}>
+        <Route path="/attendee" element={<AttendeeLayout />}>
+          <Route
+            index
+            element={<Navigate to="/attendee/dashboard" replace />}
+          />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tickets" element={<MyTickets />} />
+          <Route path="tickets/:ticketId" element={<TicketDetail />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route
+            path="profile"
+            element={<ProfilePage role="attendee" />}
+          />
+          <Route
+            path="settings"
+            element={<SettingsPage role="attendee" />}
+          />
+        </Route>
       </Route>
-    </Route>
 
-      {/* Organizer routes with their own layout */}
-    <Route element={<ProtectedRoute allowedRoles={["organizer"]} />}>
-      <Route path="/organizer" element={<OrganizerLayout />}>
-        <Route index element={<Navigate to="/organizer/dashboard" replace />} />
-        <Route path="dashboard" element={<OrganizerDashboard />} />
-        <Route path="events" element={<EventsList />} />
-        <Route path="events/create" element={<CreateEventPage />} />
-        <Route path="events/:eventId" element={<EventDetail />} />
-        <Route path="events/:eventId/edit" element={<EditEvent />} />
-        <Route path="attendees" element={<Attendees />} />
-        <Route path="monitoring" element={<LiveMonitoring />} />
-        <Route path="volunteers" element={<Volunteers />} />
-        <Route path="resources" element={<Resources />} />
-        <Route path="incidents" element={<Incidents />} />
-        <Route path="predictions" element={<Predictions />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="profile" element={<ProfilePage role="organizer" />} />
-        <Route path="settings" element={<SettingsPage role="organizer" />} />
+      {/* Organizer routes */}
+      <Route element={<ProtectedRoute allowedRoles={["organizer"]} />}>
+        <Route path="/organizer" element={<OrganizerLayout />}>
+          <Route
+            index
+            element={<Navigate to="/organizer/dashboard" replace />}
+          />
+          <Route path="dashboard" element={<OrganizerDashboard />} />
+          <Route path="events" element={<EventsList />} />
+          <Route path="events/create" element={<CreateEventPage />} />
+          <Route path="events/:eventId" element={<EventDetail />} />
+          <Route path="events/:eventId/edit" element={<EditEvent />} />
+          <Route path="attendees" element={<Attendees />} />
+          <Route path="monitoring" element={<LiveMonitoring />} />
+          <Route path="volunteers" element={<Volunteers />} />
+          <Route path="resources" element={<Resources />} />
+          <Route path="incidents" element={<Incidents />} />
+          <Route path="predictions" element={<Predictions />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route
+            path="profile"
+            element={<ProfilePage role="organizer" />}
+          />
+          <Route
+            path="settings"
+            element={<SettingsPage role="organizer" />}
+          />
+        </Route>
       </Route>
-    </Route>
 
-      {/* Volunteer routes with their own layout */}
-    <Route element={<ProtectedRoute allowedRoles={["volunteer"]} />}>
-      <Route path="/volunteer" element={<VolunteerLayout />}>
-        <Route index element={<Navigate to="/volunteer/dashboard" replace />} />
-        <Route path="dashboard" element={<VolunteerDashboard />} />
-        <Route path="opportunities" element={<Opportunities />} />
-        <Route path="opportunities/:opportunityId" element={<OpportunityDetail />} />
-        <Route path="applications" element={<MyApplications />} />
-        <Route path="shifts" element={<MyShifts />} />
-        <Route path="shifts/:shiftId" element={<ShiftDetail />} />
-        <Route path="tasks" element={<MyTasks />} />
-        <Route path="notifications" element={<VolunteerNotifications />} />
-        <Route path="profile" element={<ProfilePage role="volunteer" />} />
-        <Route path="settings" element={<SettingsPage role="volunteer" />} />
+      {/* Volunteer routes */}
+      <Route element={<ProtectedRoute allowedRoles={["volunteer"]} />}>
+        <Route path="/volunteer" element={<VolunteerLayout />}>
+          <Route
+            index
+            element={<Navigate to="/volunteer/dashboard" replace />}
+          />
+          <Route path="dashboard" element={<VolunteerDashboard />} />
+          <Route path="opportunities" element={<Opportunities />} />
+          <Route
+            path="opportunities/:opportunityId"
+            element={<OpportunityDetail />}
+          />
+          <Route path="applications" element={<MyApplications />} />
+          <Route path="shifts" element={<MyShifts />} />
+          <Route path="shifts/:shiftId" element={<ShiftDetail />} />
+          <Route path="tasks" element={<MyTasks />} />
+          <Route
+            path="notifications"
+            element={<VolunteerNotifications />}
+          />
+          <Route
+            path="profile"
+            element={<ProfilePage role="volunteer" />}
+          />
+          <Route
+            path="settings"
+            element={<SettingsPage role="volunteer" />}
+          />
+        </Route>
       </Route>
-    </Route>
 
-      {/* Scanner routes with their own workspace */}
-    <Route element={<ProtectedRoute allowedRoles={["scanner"]} />}>
-      <Route path="/scanner" element={<ScannerLayout />}>
-      <Route index element={<Navigate to="/scanner/dashboard" replace />} />
-      <Route path="dashboard" element={<ScannerDashboard />} />
-      <Route path="events" element={<ScannerHome />} />
-      <Route path="event/:eventId" element={<SelectGate />} />
-      <Route path="event/:eventId/gate/:gateId"element={<QRScannerPage />}/>
-      <Route path="history" element={<ScanHistory />} />
-      <Route path="notifications" element={<ScanHistory />} />
-      <Route path="profile" element={<ProfilePage role="scanner" />} />
-      <Route path="settings" element={<SettingsPage role="scanner" />} />
+      {/* Scanner routes */}
+      <Route element={<ProtectedRoute allowedRoles={["scanner"]} />}>
+        <Route path="/scanner" element={<ScannerLayout />}>
+          <Route
+            index
+            element={<Navigate to="/scanner/dashboard" replace />}
+          />
+          <Route path="dashboard" element={<ScannerDashboard />} />
+          <Route path="events" element={<ScannerHome />} />
+          <Route path="event/:eventId" element={<SelectGate />} />
+          <Route
+            path="event/:eventId/gate/:gateId"
+            element={<QRScannerPage />}
+          />
+          <Route path="history" element={<ScanHistory />} />
+          <Route path="notifications" element={<ScanHistory />} />
+          <Route
+            path="profile"
+            element={<ProfilePage role="scanner" />}
+          />
+          <Route
+            path="settings"
+            element={<SettingsPage role="scanner" />}
+          />
+        </Route>
       </Route>
-    </Route>
-    
-      {/* Existing pages keep the Navbar via MainLayout */}
+
+      {/* Public pages */}
       <Route path="/" element={<HomePage />} />
-      <Route path="/ticket" element={<MainLayout><TicketPage /></MainLayout>} />
+
+      <Route
+        path="/ticket"
+        element={
+          <MainLayout>
+            <TicketPage />
+          </MainLayout>
+        }
+      />
+
+      {/* Event browsing - public or attendee layout */}
       <Route
         path="/events"
         element={
-          <EventAttendeeLayout pageTitle="Events">
+          <EventBrowsingLayout>
             <EventsListPage />
-          </EventAttendeeLayout>
+          </EventBrowsingLayout>
         }
       />
+
       <Route
         path="/events/:id"
         element={
-          <EventAttendeeLayout pageTitle="Event Details">
+          <EventBrowsingLayout>
             <EventDetails />
-          </EventAttendeeLayout>
+          </EventBrowsingLayout>
         }
       />
 
-      {/* Attendee registration flow — deliberately no site chrome, same as /events/new */}
-      <Route path="/events/:eventId/register/attendee" element={<AttendeeDetails />} />
-      <Route path="/events/:eventId/register/attendee/payment" element={<AttendeePayment />} />
-      <Route path="/events/:eventId/registration-success" element={<RegistrationSuccess />} />
+      {/* Legacy attendee registration redirects */}
+      <Route
+        path="/events/:eventId/register/attendee"
+        element={<LegacyAttendeeRegistrationRedirect />}
+      />
+
+      <Route
+        path="/events/:eventId/register/attendee/payment"
+        element={<LegacyAttendeeRegistrationRedirect />}
+      />
+
+      <Route
+        path="/events/:eventId/registration-success"
+        element={<LegacyAttendeeRegistrationRedirect />}
+      />
 
       {/* Volunteer registration flow */}
-      <Route path="/events/:eventId/register/volunteer" element={<VolunteerDetails />} />
-      <Route path="/events/:eventId/register/volunteer/review" element={<VolunteerReview />} />
+      <Route
+        path="/events/:eventId/register/volunteer"
+        element={<VolunteerDetails />}
+      />
+
+      <Route
+        path="/events/:eventId/register/volunteer/review"
+        element={<VolunteerReview />}
+      />
+
       <Route
         path="/events/:eventId/volunteer/application-success"
         element={<VolunteerApplicationSuccess />}
       />
 
-      {/* /profile now lives at role-specific routes (e.g. /attendee/profile) — redirect stragglers */}
-      <Route path="/profile" element={<Navigate to="/login" replace />} />
+      {/* Legacy profile redirect */}
+      <Route
+        path="/profile"
+        element={<Navigate to="/login" replace />}
+      />
+
       <Route path="/events/new" element={<CreateEventPage />} />
     </Routes>
   );
