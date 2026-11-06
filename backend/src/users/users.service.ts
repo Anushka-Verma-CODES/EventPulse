@@ -1,5 +1,6 @@
 
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -44,11 +45,17 @@ export class UsersService {
       .getOne();
   }
 
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { phone: phone.trim() },
+    });
+  }
+
   async savePasswordResetToken(
     userId: string,
     tokenHash: string,
     expiresAt: Date,
-    ): Promise<void> {
+  ): Promise<void> {
     await this.usersRepository.update(userId, {
       passwordResetTokenHash: tokenHash,
       passwordResetExpiresAt: expiresAt,
@@ -105,13 +112,29 @@ export class UsersService {
   async createUser(data: {
     fullName: string;
     email: string;
-    phone?: string;
+    phone: string;
     passwordHash: string;
   }): Promise<User> {
+    const normalizedPhone = data.phone?.trim();
+
+    if (!normalizedPhone) {
+      throw new BadRequestException(
+        'Mobile number is required',
+      );
+    }
+
+    const existingPhone = await this.findByPhone(normalizedPhone);
+
+    if (existingPhone) {
+      throw new ConflictException(
+        'This mobile number is already registered. Please use another number.',
+      );
+    }
+
     const user = this.usersRepository.create({
-      fullName: data.fullName,
+      fullName: data.fullName.trim(),
       email: data.email.trim().toLowerCase(),
-      phone: data.phone ?? null,
+      phone: normalizedPhone,
       passwordHash: data.passwordHash,
     });
 
@@ -127,6 +150,13 @@ export class UsersService {
     },
   ): Promise<User> {
     const email = data.email.trim().toLowerCase();
+    const normalizedPhone = data.phone?.trim();
+
+    if (!normalizedPhone) {
+      throw new BadRequestException(
+        'Mobile number is required',
+      );
+    }
 
     const existingUser = await this.usersRepository.findOne({
       where: {
@@ -141,6 +171,19 @@ export class UsersService {
       );
     }
 
+    const existingPhone = await this.usersRepository.findOne({
+      where: {
+        phone: normalizedPhone,
+        id: Not(userId),
+      },
+    });
+
+    if (existingPhone) {
+      throw new ConflictException(
+        'This mobile number is already registered with another account.',
+      );
+    }
+
     const user = await this.findById(userId);
 
     if (!user) {
@@ -149,7 +192,7 @@ export class UsersService {
 
     user.fullName = data.fullName.trim();
     user.email = email;
-    user.phone = data.phone?.trim() || null;
+    user.phone = normalizedPhone;
 
     return this.usersRepository.save(user);
   }

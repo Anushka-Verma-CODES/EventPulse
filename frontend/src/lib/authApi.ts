@@ -164,14 +164,19 @@ export async function loginRequest(payload: {
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
+  const errorData = await response.json().catch(() => null);
 
-    throw new AuthError(
-      "server_error",
-      errorData?.message ??
-        "Login failed. Please check your email and password."
-    );
+  let errorMessage =
+    "Login failed. Please check your details and try again.";
+
+  if (typeof errorData?.message === "string") {
+    errorMessage = errorData.message;
+  } else if (Array.isArray(errorData?.message)) {
+    errorMessage = errorData.message.join(", ");
   }
+
+  throw new AuthError("server_error", errorMessage);
+}
 
   try {
     const data: LoginResponse = await response.json();
