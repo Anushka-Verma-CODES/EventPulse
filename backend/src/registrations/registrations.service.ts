@@ -100,6 +100,7 @@ export class RegistrationsService {
             qrToken: randomBytes(32).toString("hex"),
             isCheckedIn: false,
             checkedInAt: null,
+            checkedInGateId: null,
           });
 
           return await manager.save(Registration, registration);
@@ -123,47 +124,52 @@ export class RegistrationsService {
   async getMyRegistrations(attendeeId: string) {
     return this.registrationsRepository.find({
       where: { attendeeId },
-      relations: { event: true },
+      relations: {
+        event: true,
+        checkedInGate: true,
+      },
       order: { registeredAt: "DESC" },
     });
   }
 
-  
-async getOrganizerAttendees(organizerId: string) {
-  const registrations = await this.registrationsRepository
-    .createQueryBuilder("registration")
-    .innerJoin("registration.event", "event")
-    .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
-    .select("registration.id", "registrationId")
-    .addSelect("registration.attendeeId", "attendeeId")
-    .addSelect("registration.eventId", "eventId")
-    .addSelect("attendee.fullName", "name")
-    .addSelect("attendee.email", "email")
-    .addSelect("event.title", "eventName")
-    .addSelect("registration.registeredAt", "registeredAt")
-    .addSelect("registration.isCheckedIn", "isCheckedIn")
-    .addSelect("registration.checkedInAt", "checkedInAt")
-    .where("event.organizerId = :organizerId", { organizerId })
-    .orderBy("registration.registeredAt", "DESC")
-    .getRawMany();
+  async getOrganizerAttendees(organizerId: string) {
+    const registrations = await this.registrationsRepository
+      .createQueryBuilder("registration")
+      .innerJoin("registration.event", "event")
+      .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
+      .leftJoin("registration.checkedInGate", "gate")
+      .select("registration.id", "registrationId")
+      .addSelect("registration.attendeeId", "attendeeId")
+      .addSelect("registration.eventId", "eventId")
+      .addSelect("attendee.fullName", "name")
+      .addSelect("attendee.email", "email")
+      .addSelect("event.title", "eventName")
+      .addSelect("registration.registeredAt", "registeredAt")
+      .addSelect("registration.isCheckedIn", "isCheckedIn")
+      .addSelect("registration.checkedInAt", "checkedInAt")
+      .addSelect("registration.checkedInGateId", "checkedInGateId")
+      .addSelect("gate.name", "gateName")
+      .where("event.organizerId = :organizerId", { organizerId })
+      .orderBy("registration.registeredAt", "DESC")
+      .getRawMany();
 
-  return registrations.map((registration) => ({
-    id: registration.registrationId,
-    attendeeId: registration.attendeeId,
-    eventId: registration.eventId,
-    name: registration.name,
-    email: registration.email,
-    ticket: registration.registrationId.slice(0, 8).toUpperCase(),
-    eventName: registration.eventName,
-    registeredOn: registration.registeredAt,
-    status: registration.isCheckedIn
-      ? "Checked In"
-      : "Not Checked In",
-    checkedInAt: registration.checkedInAt,
-    gate: "—",
-  }));
-}
-
+    return registrations.map((registration) => ({
+      id: registration.registrationId,
+      attendeeId: registration.attendeeId,
+      eventId: registration.eventId,
+      name: registration.name,
+      email: registration.email,
+      ticket: registration.registrationId.slice(0, 8).toUpperCase(),
+      eventName: registration.eventName,
+      registeredOn: registration.registeredAt,
+      status: registration.isCheckedIn
+        ? "Checked In"
+        : "Not Checked In",
+      checkedInAt: registration.checkedInAt,
+      checkedInGateId: registration.checkedInGateId,
+      gate: registration.gateName ?? "—",
+    }));
+  }
 
   async getOrganizerDashboardStats(organizerId: string) {
     const events = await this.eventsRepository.find({
@@ -289,7 +295,6 @@ async getOrganizerAttendees(organizerId: string) {
     };
   }
 
-  
   async checkIn(
     ticketIdentifier: string,
     eventId: string,
@@ -331,6 +336,9 @@ async getOrganizerAttendees(organizerId: string) {
           scannerUserId,
           isActive: true,
         },
+        relations: {
+          gate: true,
+        },
       });
 
     if (!scannerAssignment) {
@@ -349,6 +357,14 @@ async getOrganizerAttendees(organizerId: string) {
     ) {
       throw new ForbiddenException(
         "Scanner access is not active at the current date and time.",
+      );
+    }
+
+    const assignedGate = scannerAssignment.gate;
+
+    if (!assignedGate || !assignedGate.isActive) {
+      throw new ForbiddenException(
+        "Your assigned gate is no longer active.",
       );
     }
 
@@ -415,6 +431,7 @@ async getOrganizerAttendees(organizerId: string) {
       .set({
         isCheckedIn: true,
         checkedInAt,
+        checkedInGateId: assignedGate.id,
       })
       .where('"id" = :id AND "isCheckedIn" = false', {
         id: registration.id,
@@ -452,9 +469,10 @@ async getOrganizerAttendees(organizerId: string) {
       eventId: registration.eventId,
       eventName: registration.event.title,
       checkedInAt,
+      gateId: assignedGate.id,
+      gateName: assignedGate.name,
     };
   }
-
 
   async getScannerScanHistory(scannerUserId: string) {
     const assignments = await this.scannerEventAssignmentRepository.find({
@@ -477,12 +495,15 @@ async getOrganizerAttendees(organizerId: string) {
       .createQueryBuilder("registration")
       .innerJoin("registration.event", "event")
       .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
+      .leftJoin("registration.checkedInGate", "gate")
       .select("registration.id", "registrationId")
       .addSelect("registration.eventId", "eventId")
       .addSelect("registration.attendeeId", "attendeeId")
       .addSelect("attendee.fullName", "attendeeName")
       .addSelect("event.title", "eventName")
       .addSelect("registration.checkedInAt", "checkedInAt")
+      .addSelect("registration.checkedInGateId", "gateId")
+      .addSelect("gate.name", "gateName")
       .where("registration.eventId IN (:...eventIds)", { eventIds })
       .andWhere("registration.isCheckedIn = :isCheckedIn", {
         isCheckedIn: true,
@@ -500,6 +521,8 @@ async getOrganizerAttendees(organizerId: string) {
       ticketId: registration.registrationId.slice(0, 8).toUpperCase(),
       checkedInAt: registration.checkedInAt,
       scannedAt: registration.checkedInAt,
+      gateId: registration.gateId,
+      gateName: registration.gateName ?? "Unknown gate",
       result: "valid",
       message: "Check-in successful",
     }));
@@ -547,6 +570,8 @@ async getOrganizerAttendees(organizerId: string) {
         : "Unknown ticket",
       checkedInAt: null,
       scannedAt: scan.scannedAt,
+      gateId: null,
+      gateName: null,
       result: scan.result,
       message: scan.message,
     }));

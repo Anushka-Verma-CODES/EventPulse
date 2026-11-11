@@ -33,6 +33,15 @@ type Volunteer = {
   email?: string;
 };
 
+type EventGate = {
+  id: string;
+  eventId: string;
+  name: string;
+  code: string;
+  capacity?: number | null;
+  isActive: boolean;
+};
+
 type VolunteerApplication = {
   id: string;
   volunteerId: string;
@@ -71,6 +80,8 @@ type ScannerAssignment = {
   scannerUserId?: string;
   userId?: string;
   volunteerId?: string;
+  gateId?: string | null;
+  gate?: EventGate | null;
   startsAt?: string | null;
   endsAt?: string | null;
   isActive?: boolean;
@@ -158,19 +169,6 @@ function formatDateTime(date?: string | null): string {
   });
 }
 
-function toLocalDateTimeInput(date?: string): string {
-  if (!date) return "";
-
-  const parsedDate = new Date(date);
-  if (Number.isNaN(parsedDate.getTime())) return "";
-
-  const localDate = new Date(
-    parsedDate.getTime() - parsedDate.getTimezoneOffset() * 60_000,
-  );
-
-  return localDate.toISOString().slice(0, 16);
-}
-
 function displayStatus(status: string): string {
   if (!status) return "Unknown";
 
@@ -224,11 +222,14 @@ export default function Volunteers() {
     ScannerAssignment[]
   >([]);
   const [scannerVolunteerId, setScannerVolunteerId] = useState("");
+  const [selectedGateId, setSelectedGateId] = useState("");
+  const [eventGates, setEventGates] = useState<EventGate[]>([]);
   const [scannerStartsAt, setScannerStartsAt] = useState("");
   const [scannerEndsAt, setScannerEndsAt] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [loadingScanners, setLoadingScanners] = useState(false);
+  const [loadingGates, setLoadingGates] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [grantingScanner, setGrantingScanner] = useState(false);
   const [revokingScannerId, setRevokingScannerId] = useState("");
@@ -345,11 +346,60 @@ export default function Volunteers() {
     (application) => getVolunteerId(application) === selectedVolunteerId,
   );
 
+  const selectedScannerGate = eventGates.find(
+    (gate) => gate.id === selectedGateId && gate.isActive,
+  );
+
   useEffect(() => {
     setSelectedVolunteerId("");
     setScannerVolunteerId("");
+    setSelectedGateId("");
+    setEventGates([]);
     setScannerAssignments([]);
   }, [selectedEventId]);
+
+  const loadEventGates = useCallback(async () => {
+    if (!selectedEventId) {
+      setEventGates([]);
+      setSelectedGateId("");
+      return;
+    }
+
+    setLoadingGates(true);
+
+    try {
+      const data = await fetchJson<EventGate[]>(
+        `/events/${selectedEventId}/gates`,
+      );
+
+      const activeGates = Array.isArray(data)
+        ? data.filter((gate) => gate.isActive)
+        : [];
+
+      setEventGates(activeGates);
+
+      setSelectedGateId((currentId) =>
+        activeGates.some((gate) => gate.id === currentId)
+          ? currentId
+          : "",
+      );
+    } catch (err) {
+      setEventGates([]);
+      setSelectedGateId("");
+
+      setError(
+        err instanceof Error
+          ? `Unable to load event gates: ${err.message}`
+          : "Unable to load event gates.",
+      );
+    } finally {
+      setLoadingGates(false);
+    }
+  }, [selectedEventId]);
+
+  useEffect(() => {
+    void loadEventGates();
+  }, [loadEventGates]);
 
   const loadScannerAssignments = useCallback(async () => {
     if (!selectedEventId) {
@@ -464,6 +514,11 @@ export default function Volunteers() {
       return;
     }
 
+    if (!selectedGateId || !selectedScannerGate) {
+      setError("Select an active gate for this scanner.");
+      return;
+    }
+
     if (!scannerStartsAt || !scannerEndsAt) {
       setError("Set both the scanner access start and end date/time.");
       return;
@@ -503,6 +558,7 @@ export default function Volunteers() {
           method: "POST",
           body: JSON.stringify({
             scannerUserId: scannerVolunteerId,
+            gateId: selectedGateId,
             startsAt: start.toISOString(),
             endsAt: end.toISOString(),
           }),
@@ -510,8 +566,9 @@ export default function Volunteers() {
       );
 
       setSuccess(
-        `Scanner access granted to ${getVolunteerName(applicant.volunteer)}.`,
+        `Scanner access granted to ${getVolunteerName(applicant.volunteer)} for ${selectedScannerGate.name}.`,
       );
+
       setScannerVolunteerId("");
       await loadScannerAssignments();
     } catch (err) {
@@ -770,7 +827,7 @@ export default function Volunteers() {
 
         {activeTab === "applications" && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-900px text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Applicant</th>
@@ -905,7 +962,7 @@ export default function Volunteers() {
 
         {activeTab === "assignments" && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-650px text-left text-sm">
+            <table className="w-full min-w-[650px] text-left text-sm">
               <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Volunteer</th>
@@ -963,8 +1020,8 @@ export default function Volunteers() {
                 Grant event scanner access
               </h4>
               <p className="mt-1 text-sm text-[#64748B]">
-                Select an accepted applicant and define exactly when they can
-                scan tickets for the selected event.
+                Assign an accepted volunteer to one active gate and define
+                exactly when they can scan tickets for the selected event.
               </p>
             </div>
 
@@ -1033,6 +1090,44 @@ export default function Volunteers() {
                 </p>
               </div>
 
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="scanner-gate"
+                  className="mb-2 block text-sm font-medium text-[#334155]"
+                >
+                  Assign gate
+                </label>
+                <select
+                  id="scanner-gate"
+                  value={selectedGateId}
+                  onChange={(event) => setSelectedGateId(event.target.value)}
+                  disabled={!selectedEventId || loadingGates || eventGates.length === 0}
+                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
+                >
+                  <option value="">
+                    {!selectedEventId
+                      ? "Select an event first"
+                      : loadingGates
+                        ? "Loading gates..."
+                        : eventGates.length === 0
+                          ? "No active gates available"
+                          : "Select a gate"}
+                  </option>
+                  {eventGates.map((gate) => (
+                    <option key={gate.id} value={gate.id}>
+                      {gate.name} ({gate.code})
+                    </option>
+                  ))}
+                </select>
+
+                {!loadingGates && selectedEventId && eventGates.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Create an active gate for this event before granting
+                    scanner access.
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label
                   htmlFor="scanner-start"
@@ -1077,9 +1172,16 @@ export default function Volunteers() {
                     {formatDateTime(selectedEvent.startDate)} –{" "}
                     {formatDateTime(selectedEvent.endDate)}
                   </p>
+                  {selectedScannerGate && (
+                    <p className="mt-1">
+                      <strong>Assigned gate:</strong>{" "}
+                      {selectedScannerGate.name} ({selectedScannerGate.code})
+                    </p>
+                  )}
                   <p className="mt-2 text-xs">
-                    Choose the authorized scanning period. The backend must
-                    enforce this time window for every scan request.
+                    Each scanner is assigned to one gate for this event.
+                    The backend must enforce the access time window for every
+                    scan request.
                   </p>
                 </div>
               )}
@@ -1092,8 +1194,10 @@ export default function Volunteers() {
                     grantingScanner ||
                     !selectedEventId ||
                     !scannerVolunteerId ||
+                    !selectedGateId ||
                     !scannerStartsAt ||
-                    !scannerEndsAt
+                    !scannerEndsAt ||
+                    loadingGates
                   }
                   className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1109,12 +1213,16 @@ export default function Volunteers() {
                     Scanner assignments
                   </h4>
                   <p className="mt-1 text-sm text-[#64748B]">
-                    Access assignments for the selected event only.
+                    Access assignments and assigned gates for the selected
+                    event only.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => void loadScannerAssignments()}
+                  onClick={() => {
+                    void loadScannerAssignments();
+                    void loadEventGates();
+                  }}
                   disabled={loadingScanners || !selectedEventId}
                   className="rounded-lg border border-[#CBD5E1] px-3 py-2 text-sm font-medium text-[#334155] hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -1136,10 +1244,11 @@ export default function Volunteers() {
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-750px text-left text-sm">
+                  <table className="w-full min-w-[850px] text-left text-sm">
                     <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
                       <tr>
                         <th className="px-4 py-3 font-medium">Scanner</th>
+                        <th className="px-4 py-3 font-medium">Assigned Gate</th>
                         <th className="px-4 py-3 font-medium">Access starts</th>
                         <th className="px-4 py-3 font-medium">Access ends</th>
                         <th className="px-4 py-3 font-medium">Status</th>
@@ -1155,9 +1264,7 @@ export default function Volunteers() {
                           assignment.status?.toLowerCase() !== "inactive";
 
                         return (
-                          <tr
-                            key={assignment.id || `${userId}-${index}`}
-                          >
+                          <tr key={assignment.id || `${userId}-${index}`}>
                             <td className="px-4 py-3">
                               <div className="font-medium text-[#1E293B]">
                                 {scannerAssignmentName(assignment)}
@@ -1171,6 +1278,11 @@ export default function Volunteers() {
                                     assignment.user?.email}
                                 </div>
                               )}
+                            </td>
+                            <td className="px-4 py-3 text-[#64748B]">
+                              {assignment.gate
+                                ? `${assignment.gate.name} (${assignment.gate.code})`
+                                : "Not assigned"}
                             </td>
                             <td className="px-4 py-3 text-[#64748B]">
                               {formatDateTime(assignment.startsAt)}
@@ -1194,7 +1306,9 @@ export default function Volunteers() {
                                 <button
                                   type="button"
                                   disabled={revokingScannerId === userId}
-                                  onClick={() => void revokeScannerAccess(userId)}
+                                  onClick={() =>
+                                    void revokeScannerAccess(userId)
+                                  }
                                   className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
                                 >
                                   {revokingScannerId === userId

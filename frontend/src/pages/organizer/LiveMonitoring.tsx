@@ -1,14 +1,15 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getMyEvents } from "../../features/events/api/eventsApi";
+import { API_BASE_URL } from "../../lib/apiConfig";
 import { getAuthHeaders } from "../../lib/authApi";
+import ScannerAssignmentsPanel from "../../components/organizer/ScannerAssignmentsPanel";
 
-const VITE_API_BASE_URL =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
-    ? "http://localhost:3000"
-    : window.location.hostname === "172.16.78.105"
-      ? "http://172.16.78.105:3000"
-      : "https://eventpulse-toa3.onrender.com";
+type OrganizerEvent = {
+  id: string;
+  title: string;
+  status: "draft" | "published" | "cancelled";
+};
 
 type DashboardStats = {
   totalEvents: number;
@@ -19,13 +20,15 @@ type DashboardStats = {
 
 type BackendAttendee = {
   id: string;
+  attendeeId: string;
+  eventId: string;
   name: string;
   email: string;
   eventName: string;
   registeredOn: string;
   status: string;
   checkedInAt: string | null;
-  gate: string;
+  gate: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -35,17 +38,34 @@ function formatDate(value: string | null) {
 
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleString();
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function isCheckedIn(attendee: BackendAttendee) {
   return (
-    attendee.status.toLowerCase() === "checked in" ||
+    attendee.status?.toLowerCase() === "checked in" ||
     Boolean(attendee.checkedInAt)
   );
 }
 
+function isValidGate(gate: string | null) {
+  return Boolean(
+    gate &&
+      gate.trim() &&
+      gate.trim() !== "—" &&
+      gate.trim().toLowerCase() !== "unknown"
+  );
+}
+
 export default function LiveMonitoring() {
+  const [events, setEvents] = useState<OrganizerEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [attendees, setAttendees] = useState<BackendAttendee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,16 +88,18 @@ export default function LiveMonitoring() {
         "Cache-Control": "no-cache",
       };
 
-      const [statsResponse, attendeesResponse] = await Promise.all([
-        fetch(`${VITE_API_BASE_URL}/registrations/organizer/dashboard-stats`, {
-          headers,
-          cache: "no-store",
-        }),
-        fetch(`${VITE_API_BASE_URL}/registrations/organizer/attendees`, {
-          headers,
-          cache: "no-store",
-        }),
-      ]);
+      const [statsResponse, attendeesResponse, eventData] =
+        await Promise.all([
+          fetch(`${API_BASE_URL}/registrations/organizer/dashboard-stats`, {
+            headers,
+            cache: "no-store",
+          }),
+          fetch(`${API_BASE_URL}/registrations/organizer/attendees`, {
+            headers,
+            cache: "no-store",
+          }),
+          getMyEvents(),
+        ]);
 
       if (!statsResponse.ok || !attendeesResponse.ok) {
         if (
@@ -100,8 +122,25 @@ export default function LiveMonitoring() {
       const attendeeData: BackendAttendee[] =
         await attendeesResponse.json();
 
+      const availableEvents = eventData.filter(
+        (event) => event.status !== "cancelled"
+      );
+
       setStats(statsData);
       setAttendees(Array.isArray(attendeeData) ? attendeeData : []);
+      setEvents(availableEvents);
+
+      setSelectedEventId((currentId) => {
+        if (
+          currentId &&
+          availableEvents.some((event) => event.id === currentId)
+        ) {
+          return currentId;
+        }
+
+        return availableEvents[0]?.id ?? "";
+      });
+
       setLastUpdated(new Date());
     } catch (err) {
       setError(
@@ -125,38 +164,93 @@ export default function LiveMonitoring() {
     return () => window.clearInterval(intervalId);
   }, [loadMonitoringData]);
 
-  const checkedInAttendees = attendees.filter(isCheckedIn);
+  const selectedEvent = events.find(
+    (event) => event.id === selectedEventId
+  );
 
-  const recentScans = checkedInAttendees
-    .filter((attendee) => attendee.checkedInAt)
-    .sort(
-      (first, second) =>
-        new Date(second.checkedInAt!).getTime() -
-        new Date(first.checkedInAt!).getTime()
-    )
-    .slice(0, 10);
+  const eventAttendees = useMemo(
+    () => attendees.filter(
+      (attendee) => attendee.eventId === selectedEventId
+    ),
+    [attendees, selectedEventId]
+  );
 
+  const checkedInAttendees = useMemo(
+    () => eventAttendees.filter(isCheckedIn),
+    [eventAttendees]
+  );
+
+  const recentScans = useMemo(
+    () =>
+      checkedInAttendees
+        .filter((attendee) => attendee.checkedInAt)
+        .sort(
+          (first, second) =>
+            new Date(second.checkedInAt!).getTime() -
+            new Date(first.checkedInAt!).getTime()
+        )
+        .slice(0, 10),
+    [checkedInAttendees]
+  );
+
+  const entriesInLastFiveMinutes = checkedInAttendees.filter(
+    (attendee) => {
+      if (!attendee.checkedInAt) return false;
+
+      const checkedInTime = new Date(attendee.checkedInAt).getTime();
+      const difference = Date.now() - checkedInTime;
+
+      return difference >= 0 && difference <= 5 * 60 * 1000;
+    }
+  ).length;
+
+  const gateActivity = useMemo(() => {
+    const gateCounts = new Map<string, number>();
+
+    checkedInAttendees.forEach((attendee) => {
+      if (!isValidGate(attendee.gate)) return;
+
+      const gateName = attendee.gate!.trim();
+
+      gateCounts.set(
+        gateName,
+        (gateCounts.get(gateName) ?? 0) + 1
+      );
+    });
+
+    return Array.from(gateCounts.entries())
+      .map(([gateName, entries]) => ({ gateName, entries }))
+      .sort((first, second) => second.entries - first.entries);
+  }, [checkedInAttendees]);
+
+  const totalRegistrations = eventAttendees.length;
+  const totalCheckIns = checkedInAttendees.length;
   const remainingRegistrations = Math.max(
     0,
-    (stats?.totalRegistrations ?? 0) - (stats?.totalCheckIns ?? 0)
+    totalRegistrations - totalCheckIns
   );
+
+  const checkInRate =
+    totalRegistrations > 0
+      ? Math.round((totalCheckIns / totalRegistrations) * 100)
+      : 0;
 
   const statCards = [
     {
       label: "Total Registrations",
-      value: stats?.totalRegistrations ?? 0,
+      value: totalRegistrations,
     },
     {
       label: "Checked In",
-      value: stats?.totalCheckIns ?? 0,
+      value: totalCheckIns,
     },
     {
       label: "Not Checked In",
       value: remainingRegistrations,
     },
     {
-      label: "Total Events",
-      value: stats?.totalEvents ?? 0,
+      label: "Entries · Last 5 Minutes",
+      value: entriesInLastFiveMinutes,
     },
   ];
 
@@ -181,11 +275,11 @@ export default function LiveMonitoring() {
             Live Event Monitoring
           </h2>
           <p className="mt-1 text-sm text-[#64748B]">
-            Attendance and ticket check-in overview for your events
+            Monitor attendance and gate activity for your events.
           </p>
           {lastUpdated && (
             <p className="mt-1 text-xs text-[#64748B]">
-              Last updated: {lastUpdated.toLocaleTimeString()}
+              Last updated: {lastUpdated.toLocaleTimeString("en-IN")}
             </p>
           )}
         </div>
@@ -216,7 +310,41 @@ export default function LiveMonitoring() {
         </div>
       )}
 
-      {stats && (
+      <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <label
+          htmlFor="monitoring-event"
+          className="mb-2 block text-sm font-semibold text-[#1E293B]"
+        >
+          Select event
+        </label>
+
+        {events.length > 0 ? (
+          <select
+            id="monitoring-event"
+            value={selectedEventId}
+            onChange={(event) => setSelectedEventId(event.target.value)}
+            className="w-full max-w-lg rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm text-[#1E293B] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title} ({event.status})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-sm text-[#64748B]">
+            You have no events available for monitoring yet.
+          </p>
+        )}
+
+        {selectedEvent && (
+          <p className="mt-2 text-xs text-[#64748B]">
+            Monitoring data for {selectedEvent.title}
+          </p>
+        )}
+      </div>
+
+      {events.length > 0 && selectedEventId && (
         <>
           <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {statCards.map((stat) => (
@@ -240,37 +368,72 @@ export default function LiveMonitoring() {
             </h3>
 
             <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-              <span className="text-[#64748B]">Registration check-in rate</span>
+              <span className="text-[#64748B]">
+                Registration check-in rate
+              </span>
               <span className="font-semibold text-[#1E293B]">
-                {stats.totalRegistrations > 0
-                  ? `${Math.round(
-                      (stats.totalCheckIns / stats.totalRegistrations) * 100
-                    )}%`
-                  : "0%"}
+                {checkInRate}%
               </span>
             </div>
 
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E2E8F0]">
               <div
                 className="h-full rounded-full bg-[#2563EB] transition-all"
-                style={{
-                  width: `${
-                    stats.totalRegistrations > 0
-                      ? Math.min(
-                          100,
-                          (stats.totalCheckIns / stats.totalRegistrations) *
-                            100
-                        )
-                      : 0
-                  }%`,
-                }}
+                style={{ width: `${checkInRate}%` }}
               />
             </div>
 
             <p className="mt-3 text-xs text-[#64748B]">
-              This percentage is based on registrations, not venue capacity.
+              This percentage is based on registrations for the selected
+              event, not venue capacity.
             </p>
           </div>
+
+          <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-[#1E293B]">
+                  Gate Activity
+                </h3>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  Successful check-ins grouped by recorded gate.
+                </p>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                {gateActivity.length} active gate records
+              </span>
+            </div>
+
+            {gateActivity.length > 0 ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {gateActivity.map((gate) => (
+                  <div
+                    key={gate.gateName}
+                    className="rounded-lg border border-[#E2E8F0] p-4"
+                  >
+                    <div className="text-sm font-semibold text-[#1E293B]">
+                      {gate.gateName}
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-[#2563EB]">
+                      {gate.entries}
+                    </div>
+                    <div className="text-xs text-[#64748B]">
+                      Successful entries
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg bg-[#F8FAFC] p-4 text-sm text-[#64748B]">
+                No gate-wise check-in records are available for this event
+                yet.
+              </p>
+            )}
+          </div>
+
+          {selectedEventId && (
+  <ScannerAssignmentsPanel eventId={selectedEventId} />
+)}
 
           <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -284,11 +447,11 @@ export default function LiveMonitoring() {
 
             {recentScans.length > 0 ? (
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[600px] text-left text-sm">
+                <table className="w-full min-w-[700px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] text-xs text-[#64748B]">
                       <th className="py-3 pr-4 font-medium">Attendee</th>
-                      <th className="py-3 pr-4 font-medium">Event</th>
+                      <th className="py-3 pr-4 font-medium">Gate</th>
                       <th className="py-3 pr-4 font-medium">Check-in time</th>
                       <th className="py-3 font-medium">Status</th>
                     </tr>
@@ -305,7 +468,9 @@ export default function LiveMonitoring() {
                           </div>
                         </td>
                         <td className="py-3 pr-4 text-[#64748B]">
-                          {attendee.eventName}
+                          {isValidGate(attendee.gate)
+                            ? attendee.gate
+                            : "Not recorded"}
                         </td>
                         <td className="py-3 pr-4 text-[#64748B]">
                           {formatDate(attendee.checkedInAt)}
@@ -322,20 +487,9 @@ export default function LiveMonitoring() {
               </div>
             ) : (
               <p className="py-6 text-sm text-[#64748B]">
-                No check-ins have been recorded for your events yet.
+                No check-ins have been recorded for this event yet.
               </p>
             )}
-          </div>
-
-          <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-            <h3 className="text-sm font-semibold text-[#1E293B]">
-              Gate monitoring
-            </h3>
-            <p className="mt-1 text-sm text-[#64748B]">
-              Gate-wise entries and scans per minute are not available from the
-              current backend APIs. This section will require gate identifiers
-              and scan-history data before it can display reliable figures.
-            </p>
           </div>
         </>
       )}
