@@ -28,11 +28,25 @@ export class IncidentsService {
     private readonly registrationsRepository: Repository<Registration>,
   ) {}
 
+  async findMyReports(reporterId: string) {
+  return this.incidentsRepository
+    .createQueryBuilder("incident")
+    .leftJoinAndSelect("incident.event", "event")
+    .where("incident.reportedById = :reporterId", { reporterId })
+    .orderBy("incident.createdAt", "DESC")
+    .getMany();
+}
+
   async findAll(organizerId: string, eventId?: string) {
     const query = this.incidentsRepository
       .createQueryBuilder("incident")
       .leftJoinAndSelect("incident.event", "event")
-      .leftJoinAndSelect("incident.reportedBy", "reporter")
+      .leftJoin("incident.reportedBy", "reporter")
+      .addSelect([
+        "reporter.id",
+        "reporter.fullName",
+        "reporter.email",
+      ])
       .where("incident.organizerId = :organizerId", {
         organizerId,
       });
@@ -46,7 +60,7 @@ export class IncidentsService {
       .getMany();
   }
 
-  async create(attendeeId: string, dto: CreateIncidentDto) {
+  async create(reporterId: string, dto: CreateIncidentDto) {
     const event = await this.eventsRepository.findOne({
       where: { id: dto.eventId },
     });
@@ -55,23 +69,27 @@ export class IncidentsService {
       throw new NotFoundException("Event not found");
     }
 
-    const registration = await this.registrationsRepository.findOne({
-      where: {
-        attendeeId,
-        eventId: event.id,
-      },
-    });
+    // Event organizers can report incidents for their own events.
+    // Other users must be registered attendees.
+    if (event.organizerId !== reporterId) {
+      const registration = await this.registrationsRepository.findOne({
+        where: {
+          attendeeId: reporterId,
+          eventId: event.id,
+        },
+      });
 
-    if (!registration) {
-      throw new ForbiddenException(
-        "You must be registered for this event to report an incident",
-      );
+      if (!registration) {
+        throw new ForbiddenException(
+          "You must be registered for this event to report an incident",
+        );
+      }
     }
 
     const incident = this.incidentsRepository.create({
       eventId: event.id,
       organizerId: event.organizerId,
-      reportedById: attendeeId,
+      reportedById: reporterId,
       title: dto.title.trim(),
       description: dto.description.trim(),
       severity: dto.severity,

@@ -42,7 +42,7 @@ export class User {
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ type: 'varchar', length: 20, unique: true, nullable: false })
+  @Column({ type: 'varchar', length: 20, unique: true })
   phone: string;
 
   @Column({ type: 'varchar', select: false })
@@ -54,6 +54,28 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, select: false })
   passwordResetExpiresAt: Date | null;
 
+  // Common profile information
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  organization: string | null;
+
+  // Academic profile information
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  studentId: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  department: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  academicYear: string | null;
+
+  // Attendee interests
+  @Column({
+    type: 'jsonb',
+    default: () => "'[]'::jsonb",
+  })
+  interests: string[];
+
+  // User preferences and application settings
   @Column({
     type: 'jsonb',
     default: () => "'{}'::jsonb",

@@ -1,5 +1,5 @@
-
 import {
+  IsArray,
   IsEmail,
   IsOptional,
   IsString,
@@ -21,4 +21,29 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(20)
   phone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  organization?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  studentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  department?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  academicYear?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  interests?: string[];
 }

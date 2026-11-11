@@ -20,10 +20,17 @@ export interface IncidentEvent {
   title: string;
 }
 
+export interface IncidentReporter {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export interface Incident {
   id: string;
   eventId: string;
   organizerId: string;
+  reportedById: string;
   title: string;
   description: string;
   severity: IncidentSeverity;
@@ -33,6 +40,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   event?: IncidentEvent;
+  reportedBy?: IncidentReporter;
 }
 
 export interface CreateIncidentInput {
@@ -86,6 +94,10 @@ export function getIncidents(eventId?: string): Promise<Incident[]> {
     : "";
 
   return request<Incident[]>(`/incidents${query}`);
+}
+
+export function getMyIncidentReports(): Promise<Incident[]> {
+  return request<Incident[]>("/incidents/my-reports");
 }
 
 export function createIncident(

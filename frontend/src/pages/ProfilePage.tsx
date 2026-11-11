@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import ProfileHeader from "../components/profile/ProfileHeader";
@@ -8,6 +9,12 @@ import OrganizerSection from "../components/profile/OrganizerSection";
 import ScannerSection from "../components/profile/ScannerSection";
 import type { PersonalInfo, ProfileRole } from "../lib/profileMockData";
 
+type ProfileFormInfo = PersonalInfo & {
+  studentId: string;
+  department: string;
+  academicYear: string;
+};
+
 interface ProfilePageProps {
   role: ProfileRole;
 }
@@ -15,21 +22,35 @@ interface ProfilePageProps {
 export default function ProfilePage({ role }: ProfilePageProps) {
   const { profile } = useAuth();
 
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
+  const [personalInfo, setPersonalInfo] = useState<ProfileFormInfo>({
     fullName: profile?.fullName ?? "",
     email: profile?.email ?? "",
     phone: profile?.phone ?? "",
-    organization: "",
+    organization: profile?.organization ?? "",
+    studentId: profile?.studentId ?? "",
+    department: profile?.department ?? "",
+    academicYear: profile?.academicYear ?? "",
   });
 
   useEffect(() => {
-    setPersonalInfo((current) => ({
-      ...current,
+    setPersonalInfo({
       fullName: profile?.fullName ?? "",
       email: profile?.email ?? "",
       phone: profile?.phone ?? "",
-    }));
-  }, [profile?.fullName, profile?.email, profile?.phone]);
+      organization: profile?.organization ?? "",
+      studentId: profile?.studentId ?? "",
+      department: profile?.department ?? "",
+      academicYear: profile?.academicYear ?? "",
+    });
+  }, [
+    profile?.fullName,
+    profile?.email,
+    profile?.phone,
+    profile?.organization,
+    profile?.studentId,
+    profile?.department,
+    profile?.academicYear,
+  ]);
 
   const RoleSection = {
     attendee: AttendeeSection,
@@ -68,6 +89,7 @@ export default function ProfilePage({ role }: ProfilePageProps) {
         <PersonalInformation
           info={personalInfo}
           onSave={setPersonalInfo}
+          showAttendeeFields={role === "attendee"}
         />
       </div>
 

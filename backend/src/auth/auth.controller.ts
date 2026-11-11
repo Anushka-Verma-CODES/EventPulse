@@ -78,14 +78,19 @@ export class AuthController {
     }
 
     return {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      roles: user.roleAssignments.map(
-        (assignment) => assignment.role,
-      ),
-    };
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  organization: user.organization,
+  studentId: user.studentId,
+  department: user.department,
+  academicYear: user.academicYear,
+  interests: user.interests,
+  roles: user.roleAssignments.map(
+    (assignment) => assignment.role,
+    ),
+  };
   }
 
   @Patch('me')
@@ -104,14 +109,19 @@ export class AuthController {
     );
 
     return {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      roles: user.roleAssignments.map(
-        (assignment) => assignment.role,
-      ),
-    };
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  organization: user.organization,
+  studentId: user.studentId,
+  department: user.department,
+  academicYear: user.academicYear,
+  interests: user.interests,
+  roles: user.roleAssignments.map(
+    (assignment) => assignment.role,
+  ),
+};
   }
 
   @Get('me/settings')
