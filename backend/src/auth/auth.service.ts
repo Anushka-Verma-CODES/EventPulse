@@ -1,3 +1,4 @@
+
 import { QueryFailedError } from 'typeorm';
 import {
   Injectable,
@@ -33,6 +34,22 @@ export class AuthService {
       throw new ConflictException('Email is already registered');
     }
 
+    const normalizedPhone = registerDto.phone?.trim();
+
+    if (!normalizedPhone) {
+      throw new BadRequestException('Mobile number is required');
+    }
+
+    const existingPhone = await this.usersService.findByPhone(
+      normalizedPhone,
+    );
+
+    if (existingPhone) {
+      throw new ConflictException(
+        'This mobile number is already registered. Please use another number.',
+      );
+    }
+
     const passwordHash = await bcrypt.hash(registerDto.password, 12);
 
     let user;
@@ -41,19 +58,31 @@ export class AuthService {
       user = await this.usersService.createUser({
         fullName: registerDto.fullName,
         email: registerDto.email,
-        phone: registerDto.phone,
+        phone: normalizedPhone,
         passwordHash,
       });
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (
+      if (error instanceof QueryFailedError) {
+        const driverError = (
           error as QueryFailedError & {
-            driverError?: { code?: string };
+            driverError?: {
+              code?: string;
+              constraint?: string;
+            };
           }
-        ).driverError?.code === '23505'
-      ) {
-        throw new ConflictException('Email is already registered');
+        ).driverError;
+
+        if (driverError?.code === '23505') {
+          if (driverError.constraint === 'UQ_users_phone') {
+            throw new ConflictException(
+              'This mobile number is already registered. Please use another number.',
+            );
+          }
+
+          throw new ConflictException(
+            'Email is already registered',
+          );
+        }
       }
 
       throw error;
@@ -96,7 +125,9 @@ export class AuthService {
     );
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(
+        'No account found with this email. Please check your email.',
+      );
     }
 
     const passwordMatches = await bcrypt.compare(
@@ -105,7 +136,9 @@ export class AuthService {
     );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(
+        'Wrong password entered. Try again.',
+      );
     }
 
     const roles = user.roleAssignments.map(

@@ -4,7 +4,7 @@ import AuthInput from "./AuthInput";
 import PasswordInput from "./PasswordInput";
 import Button from "../ui/Button";
 import Alert from "../ui/Alert";
-import { AuthError } from "../../types/auth";
+import { AuthError } from "../../lib/authApi";
 import type { AuthUser, LoginCredentials } from "../../types/auth";
 
 interface LoginFormProps {
