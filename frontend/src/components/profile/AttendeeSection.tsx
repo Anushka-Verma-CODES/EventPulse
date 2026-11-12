@@ -93,34 +93,6 @@ export default function AttendeeSection() {
 
   return (
     <>
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-[#1E293B]">
-          Attendee Information
-        </h2>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <div className="text-xs text-[#64748B]">Student ID</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.studentId}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs text-[#64748B]">Department</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.department}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs text-[#64748B]">Year</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.year}
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-[#1E293B]">

@@ -6,6 +6,11 @@ export type AuthUser = {
   fullName: string;
   email: string;
   phone: string | null;
+  organization?: string | null;
+  studentId?: string | null;
+  department?: string | null;
+  academicYear?: string | null;
+  interests?: string[];
   roles: ("attendee" | "organizer" | "volunteer" | "scanner")[];
 };
 
@@ -14,6 +19,11 @@ type BackendUser = {
   fullName: string;
   email: string;
   phone?: string | null;
+  organization?: string | null;
+  studentId?: string | null;
+  department?: string | null;
+  academicYear?: string | null;
+  interests?: string[];
   roles: string[];
 };
 
@@ -54,10 +64,7 @@ function mapUser(user: BackendUser): AuthUser {
       }
     }
 
-    if (
-      role === "scanner_staff" ||
-      role === "scanner"
-    ) {
+    if (role === "scanner_staff" || role === "scanner") {
       if (!roles.includes("scanner")) {
         roles.push("scanner");
       }
@@ -69,6 +76,11 @@ function mapUser(user: BackendUser): AuthUser {
     fullName: user.fullName,
     email: user.email,
     phone: user.phone ?? null,
+    organization: user.organization ?? null,
+    studentId: user.studentId ?? null,
+    department: user.department ?? null,
+    academicYear: user.academicYear ?? null,
+    interests: user.interests ?? [],
     roles,
   };
 }
@@ -164,19 +176,19 @@ export async function loginRequest(payload: {
   }
 
   if (!response.ok) {
-  const errorData = await response.json().catch(() => null);
+    const errorData = await response.json().catch(() => null);
 
-  let errorMessage =
-    "Login failed. Please check your details and try again.";
+    let errorMessage =
+      "Login failed. Please check your details and try again.";
 
-  if (typeof errorData?.message === "string") {
-    errorMessage = errorData.message;
-  } else if (Array.isArray(errorData?.message)) {
-    errorMessage = errorData.message.join(", ");
+    if (typeof errorData?.message === "string") {
+      errorMessage = errorData.message;
+    } else if (Array.isArray(errorData?.message)) {
+      errorMessage = errorData.message.join(", ");
+    }
+
+    throw new AuthError("server_error", errorMessage);
   }
-
-  throw new AuthError("server_error", errorMessage);
-}
 
   try {
     const data: LoginResponse = await response.json();
@@ -243,7 +255,13 @@ export async function getCurrentUserRequest(): Promise<AuthUser> {
 
 export async function updateProfileRequest(payload: {
   fullName?: string;
-  phone?: string;
+  email?: string;
+  phone?: string | null;
+  organization?: string | null;
+  studentId?: string | null;
+  department?: string | null;
+  academicYear?: string | null;
+  interests?: string[];
 }): Promise<AuthUser> {
   let response: Response;
 
@@ -326,10 +344,8 @@ export async function activateRoleRequest(
       );
     }
 
-    // The backend returns the updated user fields at the top level.
     const user = mapUser(data);
 
-    // Replace the old token with one containing the newly activated role.
     sessionStorage.setItem(
       "eventpulse_access_token",
       data.accessToken
@@ -352,10 +368,8 @@ export function logoutRequest(): void {
   sessionStorage.removeItem("eventpulse_access_token");
 }
 
-
 export const getMyProfile = getCurrentUserRequest;
 export const updateMyProfile = updateProfileRequest;
-
 
 export async function forgotPasswordRequest(email: string): Promise<string> {
   let response: Response;
@@ -384,7 +398,8 @@ export async function forgotPasswordRequest(email: string): Promise<string> {
     );
   }
 
-  return data?.message ?? "If an account with that email exists, a password reset link has been sent.";
+  return data?.message ??
+    "If an account with that email exists, a password reset link has been sent.";
 }
 
 export async function resetPasswordRequest(
@@ -419,5 +434,3 @@ export async function resetPasswordRequest(
 
   return data?.message ?? "Password has been reset successfully.";
 }
-
-

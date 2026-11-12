@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createIncident,
   deleteIncident,
@@ -16,12 +16,14 @@ interface OrganizerEvent {
   title: string;
 }
 
-const filters = [
+type StatusFilter = "all" | IncidentStatus;
+
+const statusFilters: { label: string; value: StatusFilter }[] = [
   { label: "All", value: "all" },
   { label: "Open", value: "open" },
   { label: "In Progress", value: "in_progress" },
   { label: "Resolved", value: "resolved" },
-] as const;
+];
 
 const severityOptions: IncidentSeverity[] = [
   "low",
@@ -30,52 +32,47 @@ const severityOptions: IncidentSeverity[] = [
   "critical",
 ];
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en-IN", {
+const statusLabels: Record<IncidentStatus, string> = {
+  open: "Open",
+  in_progress: "In Progress",
+  resolved: "Resolved",
+};
+
+const severityStyles: Record<IncidentSeverity, string> = {
+  low: "bg-slate-100 text-slate-700",
+  medium: "bg-blue-100 text-blue-700",
+  high: "bg-orange-100 text-orange-700",
+  critical: "bg-red-100 text-red-700",
+};
+
+const statusStyles: Record<IncidentStatus, string> = {
+  open: "bg-red-50 text-red-700",
+  in_progress: "bg-amber-50 text-amber-700",
+  resolved: "bg-emerald-50 text-emerald-700",
+};
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
-function displayLabel(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function severityClass(severity: IncidentSeverity) {
-  switch (severity) {
-    case "critical":
-      return "bg-red-100 text-red-800";
-    case "high":
-      return "bg-orange-100 text-orange-800";
-    case "medium":
-      return "bg-amber-100 text-amber-800";
-    default:
-      return "bg-slate-100 text-slate-700";
-  }
-}
-
-function statusClass(status: IncidentStatus) {
-  switch (status) {
-    case "resolved":
-      return "bg-emerald-100 text-emerald-800";
-    case "in_progress":
-      return "bg-blue-100 text-blue-800";
-    default:
-      return "bg-rose-100 text-rose-800";
-  }
-}
-
 export default function Incidents() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+
+  const [activeFilter, setActiveFilter] =
+    useState<StatusFilter>("all");
+  const [selectedEventFilter, setSelectedEventFilter] =
+    useState("all");
+
   const [loading, setLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -87,13 +84,20 @@ export default function Incidents() {
   const [severity, setSeverity] =
     useState<IncidentSeverity>("medium");
 
-  const loadIncidents = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadIncidents = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
 
     try {
-      const data = await getIncidents();
-      setIncidents(data);
+      const result = await getIncidents(
+        selectedEventFilter === "all"
+          ? undefined
+          : selectedEventFilter,
+      );
+
+      setIncidents(Array.isArray(result) ? result : []);
+      setError("");
     } catch (err) {
       setError(
         err instanceof Error
@@ -101,56 +105,74 @@ export default function Incidents() {
           : "Unable to load incidents.",
       );
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [selectedEventFilter]);
 
   const loadEvents = useCallback(async () => {
     setEventsLoading(true);
 
     try {
-      const data = await getMyEvents();
-      setEvents(data.map((event) => ({
-        id: event.id,
-        title: event.title,
-      })));
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `Unable to load your events: ${err.message}`
-          : "Unable to load your events.",
-      );
+      const response = await getMyEvents();
+      const eventList = Array.isArray(response)
+        ? response as OrganizerEvent[]
+        : [];
+
+      setEvents(eventList);
+    } catch {
+      setEvents([]);
     } finally {
       setEventsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadIncidents();
     void loadEvents();
-  }, [loadIncidents, loadEvents]);
+  }, [loadEvents]);
 
-  const filteredIncidents =
-    activeFilter === "all"
-      ? incidents
-      : incidents.filter(
-          (incident) => incident.status === activeFilter,
-        );
+  useEffect(() => {
+    void loadIncidents(true);
 
-  const resetForm = () => {
+    const interval = window.setInterval(() => {
+      void loadIncidents();
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, [loadIncidents]);
+
+  const filteredIncidents = useMemo(() => {
+    if (activeFilter === "all") {
+      return incidents;
+    }
+
+    return incidents.filter(
+      (incident) => incident.status === activeFilter,
+    );
+  }, [incidents, activeFilter]);
+
+  const totalIncidents = incidents.length;
+  const openIncidents = incidents.filter(
+    (incident) => incident.status === "open",
+  ).length;
+  const inProgressIncidents = incidents.filter(
+    (incident) => incident.status === "in_progress",
+  ).length;
+  const resolvedIncidents = incidents.filter(
+    (incident) => incident.status === "resolved",
+  ).length;
+
+  function resetForm() {
     setEventId("");
     setTitle("");
     setDescription("");
     setLocation("");
     setSeverity("medium");
-  };
+  }
 
-  const handleCreate = async (
-    formEvent: React.FormEvent<HTMLFormElement>,
-  ) => {
-    formEvent.preventDefault();
-    setError("");
-    setSuccess("");
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
     if (!eventId) {
       setError("Please select an event.");
@@ -158,9 +180,11 @@ export default function Incidents() {
     }
 
     setSubmitting(true);
+    setError("");
+    setSuccess("");
 
     try {
-      const created = await createIncident({
+      await createIncident({
         eventId,
         title: title.trim(),
         description: description.trim(),
@@ -168,39 +192,40 @@ export default function Incidents() {
         location: location.trim() || undefined,
       });
 
-      setIncidents((current) => [created, ...current]);
-      setShowForm(false);
       resetForm();
+      setShowForm(false);
       setSuccess("Incident reported successfully.");
+
+      await loadIncidents();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to report this incident.",
+          : "Unable to report incident.",
       );
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const handleStatusChange = async (
-    incident: Incident,
+  async function handleStatusChange(
+    incidentId: string,
     status: IncidentStatus,
-  ) => {
-    if (incident.status === status) return;
-
+  ) {
+    setUpdatingId(incidentId);
     setError("");
     setSuccess("");
-    setUpdatingId(incident.id);
 
     try {
-      const updated = await updateIncident(incident.id, {
+      const updatedIncident = await updateIncident(incidentId, {
         status,
       });
 
-      setIncidents((current) =>
-        current.map((item) =>
-          item.id === incident.id ? updated : item,
+      setIncidents((previous) =>
+        previous.map((incident) =>
+          incident.id === incidentId
+            ? updatedIncident
+            : incident,
         ),
       );
 
@@ -214,24 +239,24 @@ export default function Incidents() {
     } finally {
       setUpdatingId(null);
     }
-  };
+  }
 
-  const handleDelete = async (incident: Incident) => {
+  async function handleDelete(incidentId: string) {
     const confirmed = window.confirm(
-      `Delete the incident "${incident.title}"? This cannot be undone.`,
+      "Are you sure you want to delete this incident?",
     );
 
     if (!confirmed) return;
 
+    setDeletingId(incidentId);
     setError("");
     setSuccess("");
-    setDeletingId(incident.id);
 
     try {
-      await deleteIncident(incident.id);
+      await deleteIncident(incidentId);
 
-      setIncidents((current) =>
-        current.filter((item) => item.id !== incident.id),
+      setIncidents((previous) =>
+        previous.filter((incident) => incident.id !== incidentId),
       );
 
       setSuccess("Incident deleted successfully.");
@@ -239,204 +264,171 @@ export default function Incidents() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to delete this incident.",
+          : "Unable to delete incident.",
       );
     } finally {
       setDeletingId(null);
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#1E293B]">
-            Incidents
-          </h2>
-          <p className="mt-1 text-sm text-[#64748B]">
-            Report and track operational issues across your events.
+          <h1 className="text-2xl font-bold text-slate-800">
+            Incident Management
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Review reports and manage incidents across your events.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setError("");
-            setSuccess("");
-            setShowForm((current) => !current);
-          }}
-          className="rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          {showForm ? "Cancel" : "+ Report Incident"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => void loadIncidents(true)}
+            disabled={loading}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Refresh
+          </button>
+
+          <button
+            onClick={() => {
+              setShowForm((previous) => !previous);
+              setError("");
+              setSuccess("");
+            }}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            {showForm ? "Close Form" : "+ Report Incident"}
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div
-          role="alert"
-          className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError("")}
-            className="font-semibold"
-            aria-label="Dismiss error"
-          >
-            ×
-          </button>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
       )}
 
       {success && (
-        <div
-          role="status"
-          className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-        >
-          <span>{success}</span>
-          <button
-            type="button"
-            onClick={() => setSuccess("")}
-            className="font-semibold"
-            aria-label="Dismiss success message"
-          >
-            ×
-          </button>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
         </div>
       )}
 
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="space-y-4 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
+          className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
         >
-          <h3 className="text-lg font-semibold text-[#1E293B]">
-            Report a new incident
-          </h3>
-
           <div>
-            <label
-              htmlFor="incident-event"
-              className="mb-1.5 block text-sm font-medium text-[#334155]"
-            >
-              Event
-            </label>
-            <select
-              id="incident-event"
-              value={eventId}
-              onChange={(e) => setEventId(e.target.value)}
-              required
-              disabled={eventsLoading || events.length === 0}
-              className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="">
-                {eventsLoading
-                  ? "Loading your events..."
-                  : events.length === 0
-                    ? "No events available"
-                    : "Select an event"}
-              </option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
-                </option>
-              ))}
-            </select>
+            <h2 className="text-lg font-semibold text-slate-800">
+              Report a New Incident
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Submit an incident you noticed at one of your events.
+            </p>
           </div>
 
-          <div>
-            <label
-              htmlFor="incident-title"
-              className="mb-1.5 block text-sm font-medium text-[#334155]"
-            >
-              Incident title
-            </label>
-            <input
-              id="incident-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              maxLength={200}
-              placeholder="e.g. High crowd density at Gate 2"
-              className="w-full rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="incident-description"
-              className="mb-1.5 block text-sm font-medium text-[#334155]"
-            >
-              Description
-            </label>
-            <textarea
-              id="incident-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              rows={3}
-              placeholder="Describe what happened and any action required."
-              className="w-full rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label
-                htmlFor="incident-location"
-                className="mb-1.5 block text-sm font-medium text-[#334155]"
-              >
-                Location
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Event
               </label>
-              <input
-                id="incident-location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                maxLength={150}
-                placeholder="e.g. Gate 2 or Main Hall"
-                className="w-full rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
+              <select
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+                required
+                disabled={eventsLoading}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              >
+                <option value="">Select an event</option>
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.title}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label
-                htmlFor="incident-severity"
-                className="mb-1.5 block text-sm font-medium text-[#334155]"
-              >
+              <label className="mb-1 block text-sm font-medium text-slate-700">
                 Severity
               </label>
               <select
-                id="incident-severity"
                 value={severity}
                 onChange={(e) =>
                   setSeverity(e.target.value as IncidentSeverity)
                 }
-                className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
               >
                 {severityOptions.map((option) => (
                   <option key={option} value={option}>
-                    {displayLabel(option)}
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Incident Title
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              maxLength={200}
+              placeholder="Briefly describe the incident"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              rows={4}
+              placeholder="Provide details about what happened..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Location (Optional)
+            </label>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              maxLength={150}
+              placeholder="e.g. Main Gate, Hall A"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => {
-                setShowForm(false);
                 resetForm();
+                setShowForm(false);
               }}
-              className="rounded-lg border border-[#CBD5E1] px-4 py-2.5 text-sm font-medium text-[#475569] hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={submitting || eventsLoading || events.length === 0}
-              className="rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? "Submitting..." : "Submit Incident"}
             </button>
@@ -444,44 +436,51 @@ export default function Incidents() {
         </form>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
             label: "Total Incidents",
-            value: incidents.length,
+            value: totalIncidents,
+            color: "text-slate-800",
           },
           {
             label: "Open",
-            value: incidents.filter((item) => item.status === "open").length,
+            value: openIncidents,
+            color: "text-red-600",
+          },
+          {
+            label: "In Progress",
+            value: inProgressIncidents,
+            color: "text-amber-600",
           },
           {
             label: "Resolved",
-            value: incidents.filter((item) => item.status === "resolved").length,
+            value: resolvedIncidents,
+            color: "text-emerald-600",
           },
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm"
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <p className="text-sm text-[#64748B]">{stat.label}</p>
-            <p className="mt-2 text-2xl font-bold text-[#1E293B]">
-              {loading ? "—" : stat.value}
+            <p className="text-sm text-slate-500">{stat.label}</p>
+            <p className={`mt-2 text-2xl font-bold ${stat.color}`}>
+              {stat.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
+          {statusFilters.map((filter) => (
             <button
               key={filter.value}
-              type="button"
               onClick={() => setActiveFilter(filter.value)}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                 activeFilter === filter.value
-                  ? "bg-[#EFF6FF] text-[#2563EB]"
-                  : "text-[#64748B] hover:bg-[#F8FAFC]"
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               {filter.label}
@@ -489,140 +488,161 @@ export default function Incidents() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            void loadIncidents();
-            void loadEvents();
-          }}
-          disabled={loading}
-          className="rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm font-medium text-[#475569] hover:bg-slate-50 disabled:opacity-50"
+        <select
+          value={selectedEventFilter}
+          onChange={(e) => setSelectedEventFilter(e.target.value)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
         >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+          <option value="all">All Events</option>
+          {events.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.title}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-10 text-center text-sm text-[#64748B]">
+        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
           Loading incidents...
         </div>
       ) : filteredIncidents.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white px-5 py-12 text-center">
-          <h3 className="font-semibold text-[#1E293B]">
-            {incidents.length === 0
-              ? "No incidents reported yet"
-              : "No incidents match this filter"}
+        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+          <h3 className="font-semibold text-slate-700">
+            No incidents found
           </h3>
-          <p className="mt-2 text-sm text-[#64748B]">
-            {incidents.length === 0
-              ? "Report an incident to start tracking operational issues."
-              : "Choose another status to view your incidents."}
+          <p className="mt-1 text-sm text-slate-500">
+            There are no incidents matching the selected filters.
           </p>
-          {incidents.length === 0 && (
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="mt-4 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              Report your first incident
-            </button>
-          )}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
           {filteredIncidents.map((incident) => (
-            <article
+            <div
               key={incident.id}
-              className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
             >
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <h3 className="text-base font-semibold text-[#1E293B]">
-                  {incident.title}
-                </h3>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${severityClass(incident.severity)}`}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      {incident.title}
+                    </h3>
+
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${severityStyles[incident.severity]}`}
+                    >
+                      {incident.severity.toUpperCase()}
+                    </span>
+
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[incident.status]}`}
+                    >
+                      {statusLabels[incident.status]}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                    {incident.description}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => void handleDelete(incident.id)}
+                  disabled={deletingId === incident.id}
+                  className="self-start rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
-                  {displayLabel(incident.severity)}
-                </span>
+                  {deletingId === incident.id ? "Deleting..." : "Delete"}
+                </button>
               </div>
 
-              <p className="mb-4 whitespace-pre-wrap text-sm leading-6 text-[#64748B]">
-                {incident.description}
-              </p>
-
-              <div className="space-y-2 border-t border-[#F1F5F9] pt-3 text-sm text-[#64748B]">
-                <p>
-                  <span className="font-medium text-[#475569]">Event:</span>{" "}
-                  {incident.event?.title ??
-                    events.find((event) => event.id === incident.eventId)
-                      ?.title ??
-                    "Event"}
-                </p>
-                <p>
-                  <span className="font-medium text-[#475569]">Location:</span>{" "}
-                  {incident.location || "Not specified"}
-                </p>
-                <p>
-                  <span className="font-medium text-[#475569]">
-                    Reported:
-                  </span>{" "}
-                  {formatDate(incident.createdAt)}
-                </p>
-                {incident.resolvedAt && (
-                  <p>
-                    <span className="font-medium text-[#475569]">
-                      Resolved:
-                    </span>{" "}
-                    {formatDate(incident.resolvedAt)}
+              <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Event
                   </p>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {incident.event?.title ||
+                      events.find((event) => event.id === incident.eventId)?.title ||
+                      "Event"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Reported By
+                  </p>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {incident.reportedBy?.fullName || "Unknown reporter"}
+                  </p>
+                  {incident.reportedBy?.email && (
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {incident.reportedBy.email}
+                    </p>
+                  )}
+                  {incident.reportedById === incident.organizerId && (
+                    <span className="mt-1 inline-block text-xs font-medium text-blue-600">
+                      Event Organizer
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Location
+                  </p>
+                  <p className="mt-1 text-slate-700">
+                    {incident.location || "Not specified"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Reported On
+                  </p>
+                  <p className="mt-1 text-slate-700">
+                    {formatDate(incident.createdAt)}
+                  </p>
+                </div>
+
+                {incident.resolvedAt && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Resolved On
+                    </p>
+                    <p className="mt-1 text-emerald-700">
+                      {formatDate(incident.resolvedAt)}
+                    </p>
+                  </div>
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#F1F5F9] pt-4">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(incident.status)}`}
+              <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <label
+                  htmlFor={`status-${incident.id}`}
+                  className="text-sm font-medium text-slate-600"
                 >
-                  {displayLabel(incident.status)}
-                </span>
+                  Update Status
+                </label>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="sr-only" htmlFor={`status-${incident.id}`}>
-                    Update incident status
-                  </label>
-                  <select
-                    id={`status-${incident.id}`}
-                    value={incident.status}
-                    disabled={
-                      updatingId === incident.id ||
-                      deletingId === incident.id
-                    }
-                    onChange={(e) =>
-                      void handleStatusChange(
-                        incident,
-                        e.target.value as IncidentStatus,
-                      )
-                    }
-                    className="max-w-36 rounded-lg border border-[#CBD5E1] bg-white px-2 py-1.5 text-xs text-[#334155] outline-none focus:border-blue-500"
-                  >
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    disabled={
-                      updatingId === incident.id ||
-                      deletingId === incident.id
-                    }
-                    onClick={() => void handleDelete(incident)}
-                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                  >
-                    {deletingId === incident.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
+                <select
+                  id={`status-${incident.id}`}
+                  value={incident.status}
+                  disabled={updatingId === incident.id}
+                  onChange={(e) =>
+                    void handleStatusChange(
+                      incident.id,
+                      e.target.value as IncidentStatus,
+                    )
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 disabled:opacity-50"
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
               </div>
-            </article>
+            </div>
           ))}
         </div>
       )}

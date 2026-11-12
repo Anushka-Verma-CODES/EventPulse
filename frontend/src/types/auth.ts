@@ -12,6 +12,13 @@ export interface AuthUser {
   fullName: string;
   email: string;
   phone: string | null;
+
+  organization?: string | null;
+  studentId?: string | null;
+  department?: string | null;
+  academicYear?: string | null;
+  interests?: string[];
+
   roles: UserRole[];
 }
 

@@ -9,8 +9,10 @@ import type {
 } from "../../features/events/api/eventsApi";
 import {
   createIncident,
+  getMyIncidentReports,
 } from "../../features/incidents/api/incidentsApi";
 import type {
+  Incident,
   IncidentSeverity,
 } from "../../features/incidents/api/incidentsApi";
 
@@ -26,6 +28,58 @@ type TicketItem = {
   status: string;
   imageUrl: string;
 };
+
+function formatIncidentDate(value: string | null) {
+  if (!value) return null;
+
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+function getSeverityStyle(severity: IncidentSeverity) {
+  switch (severity) {
+    case "low":
+      return "bg-green-100 text-green-700";
+    case "medium":
+      return "bg-yellow-100 text-yellow-700";
+    case "high":
+      return "bg-orange-100 text-orange-700";
+    case "critical":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+}
+
+function getStatusStyle(status: Incident["status"]) {
+  switch (status) {
+    case "open":
+      return "bg-red-100 text-red-700";
+    case "in_progress":
+      return "bg-blue-100 text-blue-700";
+    case "resolved":
+      return "bg-green-100 text-green-700";
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+}
+
+function formatStatus(status: Incident["status"]) {
+  switch (status) {
+    case "in_progress":
+      return "In Progress";
+    case "resolved":
+      return "Resolved";
+    default:
+      return "Open";
+  }
+}
 
 export default function MyTickets() {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
@@ -43,6 +97,26 @@ export default function MyTickets() {
   const [reportError, setReportError] = useState("");
   const [reportSuccess, setReportSuccess] = useState("");
 
+  const [myIncidents, setMyIncidents] = useState<Incident[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
+  const [incidentsError, setIncidentsError] = useState("");
+
+  async function loadMyIncidents() {
+    try {
+      setIncidentsError("");
+      const reports = await getMyIncidentReports();
+      setMyIncidents(reports);
+    } catch (err: unknown) {
+      setIncidentsError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load your incident reports.",
+      );
+    } finally {
+      setIncidentsLoading(false);
+    }
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -53,35 +127,30 @@ export default function MyTickets() {
 
         if (!isMounted) return;
 
-        const mappedTickets = registrations.map(
-          (registration) => {
-            const event = registration.event;
+        const mappedTickets = registrations.map((registration) => {
+          const event = registration.event;
 
-            return {
-              id: registration.id,
-              eventId: registration.eventId,
-              eventName: event.title,
-              date: new Date(event.startDate).toLocaleString(
-                "en-IN",
-                {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  timeZone: "Asia/Kolkata",
-                },
-              ),
-              venue: event.location,
-              gate: "Main Entry",
-              ticketNumber: `EP-${registration.id.slice(0, 8).toUpperCase()}`,
-              section: event.category,
-              status: "Registration Confirmed",
-              imageUrl: event.bannerImage || "/event-hero.png",
-            };
-          },
-        );
+          return {
+            id: registration.id,
+            eventId: registration.eventId,
+            eventName: event.title,
+            date: new Date(event.startDate).toLocaleString("en-IN", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              timeZone: "Asia/Kolkata",
+            }),
+            venue: event.location,
+            gate: "Main Entry",
+            ticketNumber: `EP-${registration.id.slice(0, 8).toUpperCase()}`,
+            section: event.category,
+            status: "Registration Confirmed",
+            imageUrl: event.bannerImage || "/event-hero.png",
+          };
+        });
 
         setTickets(mappedTickets);
       } catch (err: unknown) {
@@ -104,6 +173,14 @@ export default function MyTickets() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    loadMyIncidents();
+
+    const interval = window.setInterval(loadMyIncidents, 30000);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   function openReportForm(ticket: TicketItem) {
@@ -152,6 +229,8 @@ export default function MyTickets() {
       setIncidentDescription("");
       setIncidentLocation("");
       setIncidentSeverity("medium");
+
+      await loadMyIncidents();
     } catch (err: unknown) {
       setReportError(
         err instanceof Error
@@ -267,6 +346,114 @@ export default function MyTickets() {
         </div>
       )}
 
+      {/* My Incident Reports */}
+      <section className="mt-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-bold text-[#1E293B]">
+              My Incident Reports
+            </h3>
+            <p className="mt-1 text-sm text-[#64748B]">
+              Track the incidents you have reported.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadMyIncidents}
+            disabled={incidentsLoading}
+            className="rounded-lg border border-[#CBD5E1] px-3 py-2 text-sm font-medium text-[#334155] transition hover:bg-[#F8FAFC] disabled:opacity-50"
+          >
+            {incidentsLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        {incidentsError && (
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          >
+            {incidentsError}
+          </div>
+        )}
+
+        {incidentsLoading ? (
+          <div className="mt-4 rounded-xl border border-[#E2E8F0] bg-white p-6 text-sm text-[#64748B]">
+            Loading your incident reports...
+          </div>
+        ) : incidentsError ? (
+          <div className="mt-4 rounded-xl border border-[#E2E8F0] bg-white p-6 text-sm text-[#64748B]">
+            Your incident reports could not be displayed.
+          </div>
+        ) : myIncidents.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-[#E2E8F0] bg-white p-8 text-center">
+            <p className="text-sm font-medium text-[#334155]">
+              No incident reports yet.
+            </p>
+            <p className="mt-1 text-xs text-[#64748B]">
+              Reports you submit from your tickets will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {myIncidents.map((incident) => (
+              <div
+                key={incident.id}
+                className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="break-words text-base font-semibold text-[#1E293B]">
+                      {incident.title}
+                    </h4>
+                    <p className="mt-1 text-sm text-[#64748B]">
+                      {incident.event?.title || "Event"}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(incident.status)}`}
+                  >
+                    {formatStatus(incident.status)}
+                  </span>
+                </div>
+
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm text-[#475569]">
+                  {incident.description}
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${getSeverityStyle(incident.severity)}`}
+                  >
+                    {incident.severity} Severity
+                  </span>
+
+                  {incident.location && (
+                    <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs text-[#475569]">
+                      {incident.location}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-1 border-t border-[#E2E8F0] pt-3 text-xs text-[#64748B]">
+                  <p>
+                    Reported: {formatIncidentDate(incident.createdAt)}
+                  </p>
+
+                  {incident.resolvedAt && (
+                    <p className="font-medium text-green-700">
+                      Resolved: {formatIncidentDate(incident.resolvedAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Report Incident Modal */}
       {reportTicket && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
@@ -407,7 +594,10 @@ export default function MyTickets() {
                     htmlFor="incident-location"
                     className="mb-1.5 block text-sm font-medium text-[#334155]"
                   >
-                    Location <span className="font-normal text-[#64748B]">(optional)</span>
+                    Location{" "}
+                    <span className="font-normal text-[#64748B]">
+                      (optional)
+                    </span>
                   </label>
                   <input
                     id="incident-location"

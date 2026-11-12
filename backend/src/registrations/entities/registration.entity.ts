@@ -9,6 +9,7 @@ import {
   Unique,
 } from "typeorm";
 import { Event } from "../../events/entities/event.entity";
+import { EventGate } from "../../gates/entities/event-gate.entity";
 
 @Entity("registrations")
 @Unique(["attendeeId", "eventId"])
@@ -35,6 +36,13 @@ export class Registration {
 
   @Column({ type: "timestamptz", nullable: true })
   checkedInAt: Date | null;
+
+  @Column({ type: "uuid", nullable: true })
+  checkedInGateId: string | null;
+
+  @ManyToOne(() => EventGate, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "checkedInGateId" })
+  checkedInGate: EventGate | null;
 
   @CreateDateColumn()
   registeredAt: Date;

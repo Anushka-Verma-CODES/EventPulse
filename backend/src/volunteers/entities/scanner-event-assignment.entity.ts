@@ -7,12 +7,16 @@ import {
   ManyToOne,
   JoinColumn,
   Unique,
+  Index,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+
 import { Event } from '../../events/entities/event.entity';
+import { User } from '../../users/entities/user.entity';
+import { EventGate } from '../../gates/entities/event-gate.entity';
 
 @Entity('scanner_event_assignments')
 @Unique(['eventId', 'scannerUserId'])
+@Index(['eventId', 'gateId', 'isActive'])
 export class ScannerEventAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -38,6 +42,17 @@ export class ScannerEventAssignment {
   @JoinColumn({ name: 'assignedByOrganizerId' })
   assignedByOrganizer: User;
 
+  // Gate assigned to this scanner for this event
+  @Column({ type: 'uuid', nullable: true })
+  gateId: string | null;
+
+  @ManyToOne(() => EventGate, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'gateId' })
+  gate: EventGate | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
@@ -46,7 +61,7 @@ export class ScannerEventAssignment {
 
   @Column({ type: 'timestamptz', nullable: true })
   endsAt: Date | null;
-  
-  @CreateDateColumn()
+
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -28,6 +29,11 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(AuthGuard("jwt"))
 export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
+
+  @Get("my-reports")
+  findMyReports(@Req() req: AuthenticatedRequest) {
+    return this.incidentsService.findMyReports(req.user.userId);
+  }
 
   @Get()
   findAll(

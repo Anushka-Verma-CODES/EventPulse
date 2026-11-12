@@ -18,6 +18,7 @@ import {
   VolunteerApplicationStatus,
 } from './entities/volunteer-application.entity';
 import { Event } from '../events/entities/event.entity';
+import { EventGate } from '../gates/entities/event-gate.entity';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/enums/user-role.enum';
 import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
@@ -70,6 +71,9 @@ export class VolunteersService {
 
     @InjectRepository(ScannerEventAssignment)
     private readonly scannerEventAssignmentRepository: Repository<ScannerEventAssignment>,
+
+    @InjectRepository(EventGate)
+    private readonly eventGateRepository: Repository<EventGate>,
 
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
@@ -592,6 +596,7 @@ export class VolunteersService {
     organizerId: string,
     eventId: string,
     scannerUserId: string,
+    gateId: string,
     startsAt: string,
     endsAt: string,
   ): Promise<ScannerEventAssignment> {
@@ -620,12 +625,34 @@ export class VolunteersService {
       );
     }
 
+    if (!gateId) {
+      throw new BadRequestException('A gate must be selected.');
+    }
+
+    const gate = await this.eventGateRepository.findOne({
+      where: {
+        id: gateId,
+        eventId,
+        isActive: true,
+      },
+    });
+
+    if (!gate) {
+      throw new BadRequestException(
+        'Select an active gate belonging to this event.',
+      );
+    }
+
+    if (!startsAt || !endsAt) {
+      throw new BadRequestException(
+        'Scanner access start and end times are required.',
+      );
+    }
+
     const startDate = new Date(startsAt);
     const endDate = new Date(endsAt);
 
     if (
-      !startsAt ||
-      !endsAt ||
       Number.isNaN(startDate.getTime()) ||
       Number.isNaN(endDate.getTime()) ||
       endDate.getTime() <= startDate.getTime()
@@ -667,19 +694,21 @@ export class VolunteersService {
 
     if (assignment?.isActive) {
       throw new ConflictException(
-        'This volunteer already has scanner access for this event.',
+        'This volunteer already has scanner access for this event. Revoke the existing access before assigning again.',
       );
     }
 
     if (assignment) {
       assignment.isActive = true;
       assignment.assignedByOrganizerId = organizerId;
+      assignment.gateId = gate.id;
       assignment.startsAt = startDate;
       assignment.endsAt = endDate;
     } else {
       assignment = this.scannerEventAssignmentRepository.create({
         eventId,
         scannerUserId,
+        gateId: gate.id,
         assignedByOrganizerId: organizerId,
         isActive: true,
         startsAt: startDate,
@@ -687,7 +716,17 @@ export class VolunteersService {
       });
     }
 
-    return this.scannerEventAssignmentRepository.save(assignment);
+    const savedAssignment =
+      await this.scannerEventAssignmentRepository.save(assignment);
+
+    return this.scannerEventAssignmentRepository.findOneOrFail({
+      where: { id: savedAssignment.id },
+      relations: {
+        scanner: true,
+        event: true,
+        gate: true,
+      },
+    });
   }
 
   async getEventScanners(
@@ -721,7 +760,10 @@ export class VolunteersService {
 
     return this.scannerEventAssignmentRepository.find({
       where: { eventId, isActive: true },
-      relations: { scanner: true },
+      relations: {
+        scanner: true,
+        gate: true,
+      },
       order: { createdAt: 'DESC' },
     });
   }
@@ -795,6 +837,7 @@ export class VolunteersService {
       },
       relations: {
         event: true,
+        gate: true,
       },
       order: {
         createdAt: 'DESC',

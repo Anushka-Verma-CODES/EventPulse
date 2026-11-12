@@ -55,6 +55,16 @@ export class Event {
   @Column({ type: "uuid" })
   organizerId: string;
 
+  // Gate traffic thresholds per 5-minute window
+  @Column({ type: "int", default: 20 })
+  normalMax: number;
+
+  @Column({ type: "int", default: 50 })
+  moderateMax: number;
+
+  @Column({ type: "int", default: 80 })
+  highMax: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

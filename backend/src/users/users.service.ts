@@ -141,61 +141,88 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async updateProfile(
-    userId: string,
-    data: {
-      fullName: string;
-      email: string;
-      phone?: string | null;
-    },
-  ): Promise<User> {
-    const email = data.email.trim().toLowerCase();
-    const normalizedPhone = data.phone?.trim();
+  
+async updateProfile(
+  userId: string,
+  data: {
+    fullName: string;
+    email: string;
+    phone?: string | null;
+    organization?: string | null;
+    studentId?: string | null;
+    department?: string | null;
+    academicYear?: string | null;
+    interests?: string[];
+  },
+): Promise<User> {
+  const email = data.email.trim().toLowerCase();
+  const normalizedPhone = data.phone?.trim();
 
-    if (!normalizedPhone) {
-      throw new BadRequestException(
-        'Mobile number is required',
-      );
-    }
-
-    const existingUser = await this.usersRepository.findOne({
-      where: {
-        email,
-        id: Not(userId),
-      },
-    });
-
-    if (existingUser) {
-      throw new ConflictException(
-        'This email address is already in use',
-      );
-    }
-
-    const existingPhone = await this.usersRepository.findOne({
-      where: {
-        phone: normalizedPhone,
-        id: Not(userId),
-      },
-    });
-
-    if (existingPhone) {
-      throw new ConflictException(
-        'This mobile number is already registered with another account.',
-      );
-    }
-
-    const user = await this.findById(userId);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    user.fullName = data.fullName.trim();
-    user.email = email;
-    user.phone = normalizedPhone;
-
-    return this.usersRepository.save(user);
+  if (!normalizedPhone) {
+    throw new BadRequestException(
+      'Mobile number is required',
+    );
   }
+
+  const existingUser = await this.usersRepository.findOne({
+    where: {
+      email,
+      id: Not(userId),
+    },
+  });
+
+  if (existingUser) {
+    throw new ConflictException(
+      'This email address is already in use',
+    );
+  }
+
+  const existingPhone = await this.usersRepository.findOne({
+    where: {
+      phone: normalizedPhone,
+      id: Not(userId),
+    },
+  });
+
+  if (existingPhone) {
+    throw new ConflictException(
+      'This mobile number is already registered with another account.',
+    );
+  }
+
+  const user = await this.findById(userId);
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  user.fullName = data.fullName.trim();
+  user.email = email;
+  user.phone = normalizedPhone;
+
+  if (data.organization !== undefined) {
+    user.organization = data.organization?.trim() || null;
+  }
+
+  if (data.studentId !== undefined) {
+    user.studentId = data.studentId?.trim() || null;
+  }
+
+  if (data.department !== undefined) {
+    user.department = data.department?.trim() || null;
+  }
+
+  if (data.academicYear !== undefined) {
+    user.academicYear = data.academicYear?.trim() || null;
+  }
+
+  if (data.interests !== undefined) {
+    user.interests = data.interests;
+  }
+
+  return this.usersRepository.save(user);
+}
+
 
   async changePassword(
     userId: string,

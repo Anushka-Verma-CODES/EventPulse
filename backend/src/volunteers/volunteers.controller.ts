@@ -79,24 +79,23 @@ export class VolunteersController {
   }
 
   @Get('eligible-volunteers')
-async getEligibleVolunteers(
-  @Req() request: AuthenticatedRequest,
-) {
-  const isOrganizer = await this.usersService.hasRole(
-    request.user.userId,
-    UserRole.ORGANIZER,
-  );
-
-  if (!isOrganizer) {
-    throw new ForbiddenException(
-      'Only organizers can view eligible volunteers.',
+  async getEligibleVolunteers(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const isOrganizer = await this.usersService.hasRole(
+      request.user.userId,
+      UserRole.ORGANIZER,
     );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Only organizers can view eligible volunteers.',
+      );
+    }
+
+    return this.usersService.findVolunteers();
   }
 
-  return this.usersService.findVolunteers();
-}
-
-  
   @Get('me/applications')
   async getMyApplications(
     @Req() request: AuthenticatedRequest,
@@ -107,7 +106,6 @@ async getEligibleVolunteers(
       request.user.userId,
     );
   }
-
 
   @Post('applications')
   async applyForEvent(
@@ -128,7 +126,6 @@ async getEligibleVolunteers(
     );
   }
 
-  
   @Get('organizer/applications')
   async getOrganizerApplications(
     @Req() request: AuthenticatedRequest,
@@ -138,15 +135,14 @@ async getEligibleVolunteers(
     );
   }
 
-  
   @Patch('applications/:id/review')
   async reviewApplication(
     @Req() request: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) applicationId: string,
     @Body()
     body: {
-  status: VolunteerApplicationStatus;
-},
+      status: VolunteerApplicationStatus;
+    },
   ) {
     return this.volunteersService.reviewApplication(
       request.user.userId,
@@ -154,8 +150,6 @@ async getEligibleVolunteers(
       body.status,
     );
   }
-
-
 
   @Post('assignments')
   async createAssignment(
@@ -177,7 +171,7 @@ async getEligibleVolunteers(
     );
   }
 
-    @Get('organizer/assignments')
+  @Get('organizer/assignments')
   async getOrganizerAssignments(
     @Req() request: AuthenticatedRequest,
   ) {
@@ -207,26 +201,27 @@ async getEligibleVolunteers(
     );
   }
 
-  
   @Post('organizer/events/:eventId/scanners')
   async grantScannerAccess(
-  @Req() request: AuthenticatedRequest,
-  @Param('eventId', ParseUUIDPipe) eventId: string,
-  @Body()
-  body: {
-    scannerUserId: string;
-    startsAt: string;
-    endsAt: string;
-  },
-    ) {
-  return this.volunteersService.grantScannerAccess(
-    request.user.userId,
-    eventId,
-    body.scannerUserId,
-    body.startsAt,
-    body.endsAt,
-  );
-}
+    @Req() request: AuthenticatedRequest,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body()
+    body: {
+      scannerUserId: string;
+      gateId: string;
+      startsAt: string;
+      endsAt: string;
+    },
+  ) {
+    return this.volunteersService.grantScannerAccess(
+      request.user.userId,
+      eventId,
+      body.scannerUserId,
+      body.gateId,
+      body.startsAt,
+      body.endsAt,
+    );
+  }
 
   @Get('organizer/events/:eventId/scanners')
   async getEventScanners(
@@ -255,13 +250,11 @@ async getEligibleVolunteers(
   }
 
   @Get('scanner/me/events')
-async getMyScannerEvents(
-  @Req() request: AuthenticatedRequest,
-) {
-  return this.volunteersService.getMyScannerEvents(
-    request.user.userId,
-  );
-}
-
-
+  async getMyScannerEvents(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.volunteersService.getMyScannerEvents(
+      request.user.userId,
+    );
+  }
 }
