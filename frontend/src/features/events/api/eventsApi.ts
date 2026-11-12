@@ -1,6 +1,6 @@
+
 import type { EventItem, NewEventInput } from '../../../types/event';
 import { getAuthHeaders } from '../../../lib/authApi';
-
 import { API_BASE_URL } from '../../../lib/apiConfig';
 
 type BackendEvent = {
@@ -30,12 +30,25 @@ type BackendRegistration = {
   checkedInAt: string | null;
 };
 
-type ScannerEventAssignment = {
+export type ScannerGate = {
+  id: string;
+  eventId: string;
+  name: string;
+  code: string;
+  capacity: number | null;
+  isActive: boolean;
+};
+
+export type ScannerEventAssignment = {
   id: string;
   eventId: string;
   scannerUserId: string;
+  gateId: string | null;
   isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
   event?: BackendEvent;
+  gate?: ScannerGate | null;
 };
 
 export type MyRegistration = BackendRegistration & {
@@ -106,17 +119,22 @@ export async function getMyEvents(): Promise<BackendEvent[]> {
   return request<BackendEvent[]>('/events/my-events');
 }
 
-export async function getMyScannerEvents(): Promise<BackendEvent[]> {
+export async function getMyScannerAssignments(): Promise<ScannerEventAssignment[]> {
   const assignments = await request<ScannerEventAssignment[]>(
     '/volunteers/scanner/me/events',
   );
 
-  return assignments
-    .filter(
-      (assignment) =>
-        assignment.isActive && assignment.event,
-    )
-    .map((assignment) => assignment.event as BackendEvent);
+  return assignments.filter(
+    (assignment) => assignment.isActive && assignment.event,
+  );
+}
+
+export async function getMyScannerEvents(): Promise<BackendEvent[]> {
+  const assignments = await getMyScannerAssignments();
+
+  return assignments.map(
+    (assignment) => assignment.event as BackendEvent,
+  );
 }
 
 export async function getEventById(

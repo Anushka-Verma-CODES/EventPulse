@@ -14,12 +14,18 @@ interface PersonalInformationProps {
   info: ProfileFormInfo;
   onSave: (updatedInfo: ProfileFormInfo) => void;
   showAttendeeFields: boolean;
+  showOrganizerFields: boolean;
+  organizerId: string;
+  editRequest: number;
 }
 
 export default function PersonalInformation({
   info,
   onSave,
   showAttendeeFields,
+  showOrganizerFields,
+  organizerId,
+  editRequest,
 }: PersonalInformationProps) {
   const { refreshProfile } = useAuth();
 
@@ -31,6 +37,13 @@ export default function PersonalInformation({
   useEffect(() => {
     setDraft(info);
   }, [info]);
+
+  useEffect(() => {
+    if (editRequest > 0) {
+      setIsEditing(true);
+      setError("");
+    }
+  }, [editRequest]);
 
   const handleChange = (
     field: keyof ProfileFormInfo,
@@ -64,7 +77,11 @@ export default function PersonalInformation({
               department: draft.department.trim(),
               academicYear: draft.academicYear.trim(),
             }
-          : {}),
+          : showOrganizerFields
+            ? {
+                department: draft.department.trim(),
+              }
+            : {}),
       });
 
       const updatedInfo: ProfileFormInfo = {
@@ -125,33 +142,50 @@ export default function PersonalInformation({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-[#1E293B]">
-            Personal Information
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage your personal details.
-          </p>
-        </div>
+      <h2 className="mb-1 text-lg font-semibold text-[#1E293B]">
+        Personal Information
+      </h2>
 
-        {!isEditing && (
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-[#1E293B] transition hover:bg-gray-50"
-          >
-            Edit
-          </button>
-        )}
-      </div>
+      <p className="mb-5 text-sm text-gray-500">
+        Manage your personal details.
+      </p>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {renderField("Full Name", "fullName")}
         {renderField("Email Address", "email")}
         {renderField("Phone Number", "phone")}
-        {renderField("College / Organization", "organization")}
+
+        {showAttendeeFields &&
+          renderField("College / Organization", "organization")}
       </div>
+
+      {showOrganizerFields && (
+        <>
+          <div className="my-5 border-t border-gray-100" />
+
+          <h2 className="mb-1 text-lg font-semibold text-[#1E293B]">
+            Organizer Details
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            Manage your organization information.
+          </p>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {renderField("Organization", "organization")}
+            {renderField("Department / Society", "department")}
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-600">
+                Organizer ID
+              </label>
+              <p className="break-all text-sm font-medium text-[#1E293B]">
+                {organizerId || "Not available"}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
 
       {showAttendeeFields && (
         <>

@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import StatCard from "../../components/organizer/StatCard";
 import StatusBadge from "../../components/organizer/StatusBadge";
-import { volunteerShifts } from "../../lib/organizerMockData";
 import { getMyEvents } from "../../features/events/api/eventsApi";
 import { getAuthHeaders } from "../../lib/authApi";
 import {
@@ -86,6 +85,7 @@ type ScannerAssignment = {
   endsAt?: string | null;
   isActive?: boolean;
   status?: string;
+  scanner?: Volunteer;
   scannerUser?: Volunteer;
   volunteer?: Volunteer;
   user?: Volunteer;
@@ -183,6 +183,7 @@ function scannerAssignmentUserId(
 ): string {
   return (
     assignment.scannerUserId ||
+    assignment.scanner?.id ||
     assignment.volunteerId ||
     assignment.userId ||
     assignment.scannerUser?.id ||
@@ -196,7 +197,10 @@ function scannerAssignmentName(
   assignment: ScannerAssignment,
 ): string {
   return getVolunteerName(
-    assignment.scannerUser || assignment.volunteer || assignment.user,
+    assignment.scanner ||
+      assignment.scannerUser ||
+      assignment.volunteer ||
+      assignment.user,
   );
 }
 
@@ -323,20 +327,29 @@ export default function Volunteers() {
     return Array.from(uniqueApplicants.values());
   }, [applications, assignments, selectedEventId]);
 
-  const acceptedScannerApplicants = useMemo(
-    () =>
-      applications.filter(
-        (application) =>
-          getEventId(application) === selectedEventId &&
-          ["accepted", "approved"].includes(application.status.toLowerCase()) &&
-          getVolunteerId(application) &&
-          application.volunteer &&
-          ["scanner", "any role", "any_role"].includes(
-            (application.preferredRole || "Any Role").toLowerCase(),
-          ),
-      ),
-    [applications, selectedEventId],
-  );
+  const acceptedScannerApplicants = useMemo(() => {
+    const activeScannerIds = new Set(
+      scannerAssignments
+        .filter((assignment) => assignment.isActive !== false)
+        .map((assignment) => scannerAssignmentUserId(assignment))
+        .filter(Boolean),
+    );
+
+    return applications.filter((application) => {
+      const volunteerId = getVolunteerId(application);
+
+      return (
+        getEventId(application) === selectedEventId &&
+        application.status.toLowerCase() === "accepted" &&
+        !!volunteerId &&
+        !!application.volunteer &&
+        !activeScannerIds.has(volunteerId) &&
+        ["scanner", "any role", "any_role"].includes(
+          (application.preferredRole || "Any Role").toLowerCase(),
+        )
+      );
+    });
+  }, [applications, selectedEventId, scannerAssignments]);
 
   const selectedEvent = events.find(
     (event) => event.id === selectedEventId,
@@ -1062,16 +1075,20 @@ export default function Volunteers() {
                     setScannerVolunteerId(event.target.value)
                   }
                   disabled={
-                    !selectedEventId || acceptedScannerApplicants.length === 0
+                    !selectedEventId ||
+                    loadingScanners ||
+                    acceptedScannerApplicants.length === 0
                   }
                   className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
                 >
                   <option value="">
                     {!selectedEventId
                       ? "Select an event first"
-                      : acceptedScannerApplicants.length === 0
-                        ? "No accepted applicants available"
-                        : "Select a volunteer"}
+                      : loadingScanners
+                        ? "Loading scanner assignments..."
+                        : acceptedScannerApplicants.length === 0
+                          ? "No eligible accepted applicants available"
+                          : "Select a volunteer"}
                   </option>
                   {acceptedScannerApplicants.map((application) => (
                     <option
@@ -1101,7 +1118,11 @@ export default function Volunteers() {
                   id="scanner-gate"
                   value={selectedGateId}
                   onChange={(event) => setSelectedGateId(event.target.value)}
-                  disabled={!selectedEventId || loadingGates || eventGates.length === 0}
+                  disabled={
+                    !selectedEventId ||
+                    loadingGates ||
+                    eventGates.length === 0
+                  }
                   className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
                 >
                   <option value="">
@@ -1192,6 +1213,7 @@ export default function Volunteers() {
                   onClick={grantScannerAccess}
                   disabled={
                     grantingScanner ||
+                    loadingScanners ||
                     !selectedEventId ||
                     !scannerVolunteerId ||
                     !selectedGateId ||
@@ -1269,11 +1291,13 @@ export default function Volunteers() {
                               <div className="font-medium text-[#1E293B]">
                                 {scannerAssignmentName(assignment)}
                               </div>
-                              {(assignment.scannerUser?.email ||
+                              {(assignment.scanner?.email ||
+                                assignment.scannerUser?.email ||
                                 assignment.volunteer?.email ||
                                 assignment.user?.email) && (
                                 <div className="mt-1 text-xs text-[#64748B]">
-                                  {assignment.scannerUser?.email ||
+                                  {assignment.scanner?.email ||
+                                    assignment.scannerUser?.email ||
                                     assignment.volunteer?.email ||
                                     assignment.user?.email}
                                 </div>
@@ -1331,25 +1355,6 @@ export default function Volunteers() {
             </div>
           </div>
         )}
-      </section>
-
-      <section className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
-        <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">
-          Volunteer Shift Reference
-        </h3>
-        <div className="flex flex-col divide-y divide-[#E2E8F0]">
-          {volunteerShifts.map((shift) => (
-            <div
-              key={`${shift.location}-${shift.time}`}
-              className="flex items-center justify-between gap-4 py-2.5 text-sm"
-            >
-              <span className="font-medium text-[#1E293B]">
-                {shift.location}
-              </span>
-              <span className="text-[#64748B]">{shift.time}</span>
-            </div>
-          ))}
-        </div>
       </section>
 
       {loading && (

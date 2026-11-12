@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EventHero from "../components/events/EventHero";
@@ -116,7 +117,7 @@ export default function EventDetails() {
       </div>
 
       <div className="mt-6">
-        <LiveEntryStatus />
+        <LiveEntryStatus eventId={event.id} />
       </div>
 
       <div className="mt-6">
