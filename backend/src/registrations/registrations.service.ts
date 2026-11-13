@@ -475,59 +475,7 @@ export class RegistrationsService {
   }
 
   async getScannerScanHistory(scannerUserId: string) {
-    const assignments = await this.scannerEventAssignmentRepository.find({
-      where: {
-        scannerUserId,
-        isActive: true,
-      },
-      select: {
-        eventId: true,
-      },
-    });
-
-    const eventIds = [...new Set(assignments.map((item) => item.eventId))];
-
-    if (eventIds.length === 0) {
-      return [];
-    }
-
-    const registrations = await this.registrationsRepository
-      .createQueryBuilder("registration")
-      .innerJoin("registration.event", "event")
-      .innerJoin(User, "attendee", "attendee.id = registration.attendeeId")
-      .leftJoin("registration.checkedInGate", "gate")
-      .select("registration.id", "registrationId")
-      .addSelect("registration.eventId", "eventId")
-      .addSelect("registration.attendeeId", "attendeeId")
-      .addSelect("attendee.fullName", "attendeeName")
-      .addSelect("event.title", "eventName")
-      .addSelect("registration.checkedInAt", "checkedInAt")
-      .addSelect("registration.checkedInGateId", "gateId")
-      .addSelect("gate.name", "gateName")
-      .where("registration.eventId IN (:...eventIds)", { eventIds })
-      .andWhere("registration.isCheckedIn = :isCheckedIn", {
-        isCheckedIn: true,
-      })
-      .orderBy("registration.checkedInAt", "DESC")
-      .getRawMany();
-
-    const successfulScans = registrations.map((registration) => ({
-      id: registration.registrationId,
-      registrationId: registration.registrationId,
-      eventId: registration.eventId,
-      attendeeId: registration.attendeeId,
-      attendeeName: registration.attendeeName,
-      eventName: registration.eventName,
-      ticketId: registration.registrationId.slice(0, 8).toUpperCase(),
-      checkedInAt: registration.checkedInAt,
-      scannedAt: registration.checkedInAt,
-      gateId: registration.gateId,
-      gateName: registration.gateName ?? "Unknown gate",
-      result: "valid",
-      message: "Check-in successful",
-    }));
-
-    const rejectedScans = await this.scanAttemptRepository
+    const scans = await this.scanAttemptRepository
       .createQueryBuilder("scan")
       .leftJoin(
         Event,
@@ -544,6 +492,10 @@ export class RegistrationsService {
         "attendee",
         "attendee.id = registration.attendeeId",
       )
+      .leftJoin(
+        "registration.checkedInGate",
+        "gate",
+      )
       .select("scan.id", "id")
       .addSelect("scan.registrationId", "registrationId")
       .addSelect("scan.eventId", "eventId")
@@ -553,12 +505,16 @@ export class RegistrationsService {
       .addSelect("scan.scannedAt", "scannedAt")
       .addSelect("scan.result", "result")
       .addSelect("scan.message", "message")
-      .where("scan.scannerUserId = :scannerUserId", { scannerUserId })
-      .andWhere("scan.result <> :valid", { valid: "valid" })
+      .addSelect("registration.checkedInAt", "checkedInAt")
+      .addSelect("registration.checkedInGateId", "gateId")
+      .addSelect("gate.name", "gateName")
+      .where("scan.scannerUserId = :scannerUserId", {
+        scannerUserId,
+      })
       .orderBy("scan.scannedAt", "DESC")
       .getRawMany();
 
-    const formattedRejectedScans = rejectedScans.map((scan) => ({
+    return scans.map((scan) => ({
       id: scan.id,
       registrationId: scan.registrationId ?? null,
       eventId: scan.eventId ?? null,
@@ -566,20 +522,23 @@ export class RegistrationsService {
       attendeeName: scan.attendeeName ?? "Unknown attendee",
       eventName: scan.eventName ?? "Unknown event",
       ticketId: scan.registrationId
-        ? scan.registrationId.slice(0, 8).toUpperCase()
+        ? `EP-${scan.registrationId.slice(0, 8).toUpperCase()}`
         : "Unknown ticket",
-      checkedInAt: null,
+      checkedInAt:
+        scan.result === "valid"
+          ? scan.checkedInAt
+          : null,
       scannedAt: scan.scannedAt,
-      gateId: null,
-      gateName: null,
+      gateId:
+        scan.result === "valid"
+          ? scan.gateId
+          : null,
+      gateName:
+        scan.result === "valid"
+          ? scan.gateName ?? "Unknown gate"
+          : null,
       result: scan.result,
       message: scan.message,
     }));
-
-    return [...successfulScans, ...formattedRejectedScans].sort(
-      (a, b) =>
-        new Date(b.scannedAt).getTime() -
-        new Date(a.scannedAt).getTime(),
-    );
   }
 }
