@@ -1,11 +1,12 @@
-import { FormEvent, useState } from "react";
+
+import { useState } from "react";
+import type { FormEvent } from "react";
 import AuthInput from "./AuthInput";
 import PasswordInput from "./PasswordInput";
 import PasswordStrength from "./PasswordStrength";
 import Checkbox from "../ui/Checkbox";
 import Button from "../ui/Button";
 import Alert from "../ui/Alert";
-import { AuthError } from "../../types/auth";
 import type { RegisterPayload } from "../../types/auth";
 
 interface SignupFormProps {
@@ -60,10 +61,13 @@ export default function SignupForm({ onSubmit }: SignupFormProps) {
       password: password.length >= 8 ? undefined : "Use at least 8 characters.",
       confirmPassword:
         confirmPassword === password ? undefined : "Passwords do not match.",
-      terms: agreedToTerms ? undefined : "Please accept the Terms & Conditions to continue.",
+      terms: agreedToTerms
+        ? undefined
+        : "Please accept the Terms & Conditions to continue.",
     };
 
     const hasErrors = Object.values(errors).some(Boolean);
+
     if (hasErrors) {
       setFieldErrors(errors);
       return;
@@ -76,7 +80,7 @@ export default function SignupForm({ onSubmit }: SignupFormProps) {
       await onSubmit({ fullName, email, phone, password });
       setIsRegistered(true);
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (error instanceof Error) {
         setFormError(error.message);
       } else {
         setFormError("Something went wrong. Please try again.");
@@ -90,16 +94,32 @@ export default function SignupForm({ onSubmit }: SignupFormProps) {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0FDF4] text-[#16A34A]">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              d="M5 13l4 4L19 7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
+
         <div>
-          <h1 className="text-xl font-bold text-[#1E293B]">Account created successfully!</h1>
+          <h1 className="text-xl font-bold text-[#1E293B]">
+            Account created successfully!
+          </h1>
           <p className="mt-2 text-sm text-[#64748B]">
-            Your EventPulse account has been created. You can now log in to continue.
+            Your EventPulse account has been created. You can now log in to
+            continue.
           </p>
         </div>
+
         <a href="/login" className="w-full">
           <Button type="button">Go to Login</Button>
         </a>
@@ -107,13 +127,23 @@ export default function SignupForm({ onSubmit }: SignupFormProps) {
     );
   }
 
-  const emailExists = formError === "An account with this email already exists.";
+  const emailExists = formError === "Email is already registered";
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       <div>
-        <span className="text-xs font-semibold tracking-wide text-[#2563EB]">GET STARTED</span>
-        <h1 className="mt-1 text-2xl font-bold text-[#1E293B]">Create your account</h1>
+        <span className="text-xs font-semibold tracking-wide text-[#2563EB]">
+          GET STARTED
+        </span>
+
+        <h1 className="mt-1 text-2xl font-bold text-[#1E293B]">
+          Create your account
+        </h1>
+
         <p className="mt-1 text-sm text-[#64748B]">
           Join EventPulse and make event management simpler.
         </p>
@@ -196,11 +226,17 @@ export default function SignupForm({ onSubmit }: SignupFormProps) {
         label={
           <>
             I agree to the{" "}
-            <a href="/terms" className="font-medium text-[#2563EB] hover:underline">
+            <a
+              href="/terms"
+              className="font-medium text-[#2563EB] hover:underline"
+            >
               Terms &amp; Conditions
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="font-medium text-[#2563EB] hover:underline">
+            <a
+              href="/privacy"
+              className="font-medium text-[#2563EB] hover:underline"
+            >
               Privacy Policy
             </a>
           </>

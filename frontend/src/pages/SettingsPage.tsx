@@ -19,6 +19,11 @@ import {
   type AuthUser,
 } from "../lib/authApi";
 import ThemeSelector from "../components/settings/ThemeSelector";
+import {
+  getPushPublicKey,
+  savePushSubscription,
+  removePushSubscription,
+} from "../features/notifications/api/pushNotificationsApi";
 
 type SettingsRole = "attendee" | "organizer" | "volunteer" | "scanner";
 type Language = "English" | "Hindi";
@@ -109,6 +114,20 @@ async function requestSettings(
   };
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+
+  return Uint8Array.from(rawData, (character) =>
+    character.charCodeAt(0),
+  );
+}
+
 export default function SettingsPage({ role }: SettingsPageProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -120,6 +139,9 @@ export default function SettingsPage({ role }: SettingsPageProps) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
 
   const [passwordForm, setPasswordForm] =
     useState<PasswordForm>(emptyPasswordForm);
@@ -151,7 +173,31 @@ export default function SettingsPage({ role }: SettingsPageProps) {
         if (cancelled) return;
 
         setProfile(user);
-        setSettings(userSettings);
+
+        let pushEnabled = false;
+
+        if (
+          role !== "scanner" &&
+          "serviceWorker" in navigator &&
+          "PushManager" in window
+        ) {
+          const registration =
+            await navigator.serviceWorker.getRegistration("/");
+
+          if (registration) {
+            const subscription =
+              await registration.pushManager.getSubscription();
+
+            pushEnabled = Boolean(subscription);
+          }
+        }
+
+        if (cancelled) return;
+
+        setSettings({
+          ...userSettings,
+          pushNotifications: pushEnabled,
+        });
       } catch (err) {
         if (cancelled) return;
 
@@ -170,7 +216,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [role]);
 
   function updateSetting<K extends keyof UserSettings>(
     key: K,
@@ -179,6 +225,89 @@ export default function SettingsPage({ role }: SettingsPageProps) {
     setSettings((current) => ({ ...current, [key]: value }));
     setSaved(false);
     setSuccess("");
+  }
+
+  async function handlePushNotificationsToggle(enabled: boolean) {
+    setPushLoading(true);
+    setPushMessage("");
+    setError("");
+    setSuccess("");
+
+    try {
+      if (
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window) ||
+        !("Notification" in window)
+      ) {
+        throw new Error(
+          "Push notifications are not supported by this browser.",
+        );
+      }
+
+      if (enabled) {
+        const permission = await Notification.requestPermission();
+
+        if (permission !== "granted") {
+          throw new Error(
+            permission === "denied"
+              ? "Notification permission is blocked. Please allow notifications in your browser settings."
+              : "Notification permission was not granted.",
+          );
+        }
+
+        const registration =
+          await navigator.serviceWorker.register("/sw.js");
+
+        const publicKey = await getPushPublicKey();
+
+        let subscription =
+          await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(
+              publicKey,
+            ) as BufferSource,
+          });
+        }
+
+        await savePushSubscription(subscription);
+
+        await requestSettings("PATCH", {
+          pushNotifications: true,
+        });
+
+        updateSetting("pushNotifications", true);
+        setPushMessage("Push notifications enabled successfully.");
+      } else {
+        const registration =
+          await navigator.serviceWorker.getRegistration("/");
+
+        const subscription =
+          await registration?.pushManager.getSubscription();
+
+        if (subscription) {
+          await removePushSubscription(subscription.endpoint);
+          await subscription.unsubscribe();
+        }
+
+        await requestSettings("PATCH", {
+          pushNotifications: false,
+        });
+
+        updateSetting("pushNotifications", false);
+        setPushMessage("Push notifications disabled.");
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update push notification settings.",
+      );
+    } finally {
+      setPushLoading(false);
+    }
   }
 
   async function handleSave() {
@@ -419,14 +548,35 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                     updateSetting("emailNotifications", value)
                   }
                 />
-                <SettingToggle
-                  label="Push notifications"
-                  description="Preference for browser or device notifications. Delivery requires push notification setup."
-                  checked={settings.pushNotifications}
-                  onChange={(value) =>
-                    updateSetting("pushNotifications", value)
-                  }
-                />
+
+                {role !== "scanner" && (
+                  <div>
+                    <SettingToggle
+                      label="Push notifications"
+                      description="Receive browser or device notifications, even when EventPulse is not open."
+                      checked={settings.pushNotifications}
+                      disabled={pushLoading}
+                      onChange={handlePushNotificationsToggle}
+                    />
+
+                    {pushLoading && (
+                      <div className="flex items-center gap-2 pb-3 text-xs text-[#64748B]">
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                        Updating push notification settings...
+                      </div>
+                    )}
+
+                    {pushMessage && (
+                      <p
+                        role="status"
+                        className="pb-3 text-xs font-medium text-[#15803D]"
+                      >
+                        {pushMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <SettingToggle
                   label="Event reminders"
                   description="Preference for reminders about events, shifts, and deadlines."
@@ -452,7 +602,9 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                   </p>
                 </div>
               </div>
+
               <ThemeSelector />
+
               <div className="mt-5">
                 <label
                   htmlFor="settings-language"
@@ -650,6 +802,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                 Preferences saved
               </span>
             )}
+
             <button
               type="button"
               onClick={handleSave}
@@ -729,6 +882,7 @@ interface SettingToggleProps {
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }
 
 function SettingToggle({
@@ -736,9 +890,14 @@ function SettingToggle({
   description,
   checked,
   onChange,
+  disabled = false,
 }: SettingToggleProps) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+    <label
+      className={`flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0 ${
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+      }`}
+    >
       <span>
         <span className="block text-sm font-semibold text-[#1E293B]">
           {label}
@@ -747,11 +906,13 @@ function SettingToggle({
           {description}
         </span>
       </span>
+
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-5 w-5 shrink-0 accent-[#2563EB]"
+        className="h-5 w-5 shrink-0 accent-[#2563EB] disabled:cursor-not-allowed"
       />
     </label>
   );
