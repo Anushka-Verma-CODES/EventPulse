@@ -11,6 +11,8 @@ import { GatesController } from './gates.controller';
 import { GatesService } from './gates.service';
 import { GateThresholdsController } from './gate-thresholds.controller';
 import { GateThresholdsService } from './gate-thresholds.service';
+import { LiveEntryStatusController } from './live-entry-status.controller';
+import { LiveEntryStatusService } from './live-entry-status.service';
 
 @Module({
   imports: [
@@ -24,10 +26,12 @@ import { GateThresholdsService } from './gate-thresholds.service';
   controllers: [
     GatesController,
     GateThresholdsController,
+    LiveEntryStatusController,
   ],
   providers: [
     GatesService,
     GateThresholdsService,
+    LiveEntryStatusService,
   ],
   exports: [
     GatesService,
