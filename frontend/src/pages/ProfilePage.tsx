@@ -21,6 +21,7 @@ interface ProfilePageProps {
 
 export default function ProfilePage({ role }: ProfilePageProps) {
   const { profile } = useAuth();
+  const [editRequest, setEditRequest] = useState(0);
 
   const [personalInfo, setPersonalInfo] = useState<ProfileFormInfo>({
     fullName: profile?.fullName ?? "",
@@ -68,6 +69,15 @@ export default function ProfilePage({ role }: ProfilePageProps) {
     .slice(0, 2)
     .toUpperCase();
 
+  const handleEditProfile = () => {
+    setEditRequest((current) => current + 1);
+
+    document.getElementById("personal-information")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-[#1E293B]">Profile</h1>
@@ -76,13 +86,7 @@ export default function ProfilePage({ role }: ProfilePageProps) {
         role={role}
         info={personalInfo}
         initials={initials || "U"}
-        onEditClick={() => {
-          const element = document.getElementById("personal-information");
-          element?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }}
+        onEditClick={handleEditProfile}
       />
 
       <div id="personal-information">
@@ -90,6 +94,9 @@ export default function ProfilePage({ role }: ProfilePageProps) {
           info={personalInfo}
           onSave={setPersonalInfo}
           showAttendeeFields={role === "attendee"}
+          showOrganizerFields={role === "organizer"}
+          organizerId={profile?.id ?? ""}
+          editRequest={editRequest}
         />
       </div>
 

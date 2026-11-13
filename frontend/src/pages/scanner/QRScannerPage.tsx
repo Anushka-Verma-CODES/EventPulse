@@ -1,11 +1,24 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+
 import QRScanner from "../../components/scanner/QRScanner";
 import ManualTicketInput from "../../components/scanner/ManualTicketInput";
 import ScanResultCard from "../../components/scanner/ScanResultCard";
+
 import type { ScanResult } from "../../lib/scannerMockData";
+
 import { checkInTicket } from "../../features/checkin/api/checkinApi";
-import { getEventById } from "../../features/events/api/eventsApi";
+
+import {
+  getEventById,
+  getMyScannerAssignments,
+} from "../../features/events/api/eventsApi";
+
+import type {
+  ScannerEventAssignment,
+} from "../../features/events/api/eventsApi";
+
 import type { EventItem } from "../../types/event";
 
 export default function QRScannerPage() {
@@ -15,6 +28,9 @@ export default function QRScannerPage() {
   }>();
 
   const [event, setEvent] = useState<EventItem | null>(null);
+  const [assignment, setAssignment] =
+    useState<ScannerEventAssignment | null>(null);
+
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [eventError, setEventError] = useState("");
 
@@ -28,8 +44,8 @@ export default function QRScannerPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadEvent() {
-      if (!eventId) {
+    async function loadScannerDetails() {
+      if (!eventId || !gateId) {
         setLoadingEvent(false);
         return;
       }
@@ -38,17 +54,40 @@ export default function QRScannerPage() {
         setLoadingEvent(true);
         setEventError("");
 
-        const data = await getEventById(eventId);
+        const assignments = await getMyScannerAssignments();
+
+        const currentAssignment = assignments.find(
+          (item) =>
+            item.eventId === eventId &&
+            item.gateId === gateId &&
+            item.gate?.id === gateId,
+        );
+
+        if (!currentAssignment) {
+          throw new Error(
+            "You are not assigned to this event and gate. Contact the organizer.",
+          );
+        }
+
+        const eventData = await getEventById(eventId);
+
+        if (!eventData) {
+          throw new Error("Event not found.");
+        }
 
         if (!cancelled) {
-          setEvent(data);
+          setAssignment(currentAssignment);
+          setEvent(eventData);
         }
       } catch (error) {
         if (!cancelled) {
+          setAssignment(null);
+          setEvent(null);
+
           setEventError(
             error instanceof Error
               ? error.message
-              : "Unable to load event details.",
+              : "Unable to load scanner assignment.",
           );
         }
       } finally {
@@ -58,21 +97,21 @@ export default function QRScannerPage() {
       }
     }
 
-    void loadEvent();
+    void loadScannerDetails();
 
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, gateId]);
 
-  if (!eventId || gateId !== "general-entry") {
+  if (!eventId || !gateId) {
     return <Navigate to="/scanner" replace />;
   }
 
   if (loadingEvent) {
     return (
       <div className="p-4 text-sm text-[#64748B]">
-        Loading event details...
+        Loading scanner assignment...
       </div>
     );
   }
@@ -82,7 +121,12 @@ export default function QRScannerPage() {
   }
 
   async function handleCode(code: string) {
-    if (checkingRef.current || result || !event) {
+    if (
+      checkingRef.current ||
+      result ||
+      !event ||
+      !assignment?.gate
+    ) {
       return;
     }
 
@@ -91,7 +135,7 @@ export default function QRScannerPage() {
     setErrorMessage(null);
 
     try {
-      // The backend verifies either the QR token or the manual Ticket ID.
+      // The backend uses the authenticated scanner's active gate assignment.
       const response = await checkInTicket(code.trim(), event.id);
 
       if (response.eventId !== event.id) {
@@ -109,7 +153,7 @@ export default function QRScannerPage() {
         type: "valid",
         ticketId: response.ticketId,
         eventName: response.eventName,
-        gate: "General Entry",
+        gate: assignment.gate.name,
         checkedInAt: new Date(response.checkedInAt).toLocaleTimeString(
           "en-IN",
           {
@@ -129,7 +173,11 @@ export default function QRScannerPage() {
 
       const normalizedMessage = message.toLowerCase();
 
-      if (normalizedMessage.includes("does not belong to the selected event")) {
+      if (
+        normalizedMessage.includes(
+          "does not belong to the selected event",
+        )
+      ) {
         setResult({
           type: "wrong_event",
           ticketId: code.trim(),
@@ -169,6 +217,12 @@ export default function QRScannerPage() {
     );
   }
 
+  if (!event || !assignment?.gate) {
+    return <Navigate to="/scanner" replace />;
+  }
+
+  const gateName = assignment.gate.name;
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between">
@@ -187,10 +241,12 @@ export default function QRScannerPage() {
 
       <div className="mt-2 text-center">
         <h2 className="text-xl font-bold text-[#1E293B]">
-          {event?.name ?? "Selected event"}
+          {event.name}
         </h2>
 
-        <p className="text-sm text-[#64748B]">General Entry</p>
+        <p className="text-sm text-[#64748B]">
+          {gateName} · {assignment.gate.code}
+        </p>
       </div>
 
       <div className="mt-6 flex flex-1 flex-col items-center justify-center">
@@ -249,7 +305,7 @@ export default function QRScannerPage() {
       {!result && (
         <div className="mt-6 flex items-center justify-between border-t border-[#E2E8F0] pt-4 text-sm text-[#64748B]">
           <span>Live check-in enabled</span>
-          <span>Station: General Entry</span>
+          <span>Station: {gateName}</span>
         </div>
       )}
     </div>

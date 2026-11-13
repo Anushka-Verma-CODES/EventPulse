@@ -25,7 +25,7 @@ const resultColor: Record<string, string> = {
   transferred: "text-[#DC2626]",
 };
 
-function formatScanTime(value: string) {
+function formatScanTime(value: string | null) {
   if (!value) {
     return "—";
   }
@@ -40,6 +40,16 @@ function formatScanTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function formatTicketId(ticketId: string) {
+  if (!ticketId || ticketId === "Unknown ticket") {
+    return "—";
+  }
+
+  return ticketId.startsWith("EP-")
+    ? ticketId
+    : `EP-${ticketId.slice(0, 8).toUpperCase()}`;
 }
 
 export default function ScanHistory() {
@@ -85,12 +95,14 @@ export default function ScanHistory() {
 
       return true;
     })
-    .filter(
-      (entry) =>
-        entry.ticketId.toLowerCase().includes(query) ||
-        entry.attendeeName.toLowerCase().includes(query) ||
-        entry.eventName.toLowerCase().includes(query),
-    );
+    .filter((entry) => {
+      return (
+        (entry.ticketId ?? "").toLowerCase().includes(query) ||
+        (entry.attendeeName ?? "").toLowerCase().includes(query) ||
+        (entry.eventName ?? "").toLowerCase().includes(query) ||
+        (entry.gateName ?? "").toLowerCase().includes(query)
+      );
+    });
 
   return (
     <div>
@@ -100,7 +112,7 @@ export default function ScanHistory() {
             Scan History
           </h2>
           <p className="mt-1 text-sm text-[#64748B]">
-            View successful ticket check-ins for your assigned events.
+            View successful check-ins and rejected scan attempts.
           </p>
         </div>
 
@@ -118,7 +130,7 @@ export default function ScanHistory() {
         type="text"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search ticket, attendee, or event..."
+        placeholder="Search ticket, attendee, event, or gate..."
         className="mt-4 w-full max-w-sm rounded-lg border border-[#E2E8F0] px-3.5 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
       />
 
@@ -153,13 +165,14 @@ export default function ScanHistory() {
       )}
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-[#E2E8F0] bg-white">
-        <table className="w-full min-w-[650px] text-left text-sm">
+        <table className="w-full min-w-[850px] text-left text-sm">
           <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
             <tr>
               <th className="px-4 py-3 font-medium">Ticket</th>
               <th className="px-4 py-3 font-medium">Attendee</th>
               <th className="px-4 py-3 font-medium">Event</th>
-              <th className="px-4 py-3 font-medium">Time</th>
+              <th className="px-4 py-3 font-medium">Gate</th>
+              <th className="px-4 py-3 font-medium">Scanned At</th>
               <th className="px-4 py-3 font-medium">Result</th>
             </tr>
           </thead>
@@ -168,7 +181,7 @@ export default function ScanHistory() {
             {loading ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-8 text-center text-[#64748B]"
                 >
                   Loading scan history...
@@ -177,7 +190,7 @@ export default function ScanHistory() {
             ) : error ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-8 text-center text-[#64748B]"
                 >
                   Scan history could not be loaded.
@@ -186,29 +199,37 @@ export default function ScanHistory() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-8 text-center text-[#64748B]"
                 >
                   {entries.length === 0
-                    ? "No successful scans found for your assigned events."
+                    ? "No scan records found."
                     : "No scans match your search or filter."}
                 </td>
               </tr>
             ) : (
               filtered.map((entry) => (
-                <tr key={entry.id}>
+                <tr key={`${entry.id}-${entry.result}`}>
                   <td className="px-4 py-3 font-medium text-[#1E293B]">
-                    {entry.ticketId}
+                    {formatTicketId(entry.ticketId)}
                   </td>
+
                   <td className="px-4 py-3 text-[#64748B]">
-                    {entry.attendeeName}
+                    {entry.attendeeName || "Unknown attendee"}
                   </td>
+
                   <td className="px-4 py-3 text-[#64748B]">
-                    {entry.eventName}
+                    {entry.eventName || "Unknown event"}
                   </td>
+
                   <td className="px-4 py-3 text-[#64748B]">
-                    {formatScanTime(entry.checkedInAt)}
+                    {entry.gateName || "—"}
                   </td>
+
+                  <td className="px-4 py-3 text-[#64748B]">
+                    {formatScanTime(entry.scannedAt)}
+                  </td>
+
                   <td
                     className={`px-4 py-3 font-medium ${
                       resultColor[entry.result] ?? "text-[#64748B]"

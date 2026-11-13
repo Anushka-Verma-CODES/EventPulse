@@ -11,13 +11,6 @@ type OrganizerEvent = {
   status: "draft" | "published" | "cancelled";
 };
 
-type DashboardStats = {
-  totalEvents: number;
-  upcomingEvents: number;
-  totalRegistrations: number;
-  totalCheckIns: number;
-};
-
 type BackendAttendee = {
   id: string;
   attendeeId: string;
@@ -66,7 +59,6 @@ function isValidGate(gate: string | null) {
 export default function LiveMonitoring() {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [attendees, setAttendees] = useState<BackendAttendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,23 +80,16 @@ export default function LiveMonitoring() {
         "Cache-Control": "no-cache",
       };
 
-      const [statsResponse, attendeesResponse, eventData] =
-        await Promise.all([
-          fetch(`${API_BASE_URL}/registrations/organizer/dashboard-stats`, {
-            headers,
-            cache: "no-store",
-          }),
-          fetch(`${API_BASE_URL}/registrations/organizer/attendees`, {
-            headers,
-            cache: "no-store",
-          }),
-          getMyEvents(),
-        ]);
+      const [attendeesResponse, eventData] = await Promise.all([
+        fetch(`${API_BASE_URL}/registrations/organizer/attendees`, {
+          headers,
+          cache: "no-store",
+        }),
+        getMyEvents(),
+      ]);
 
-      if (!statsResponse.ok || !attendeesResponse.ok) {
+      if (!attendeesResponse.ok) {
         if (
-          statsResponse.status === 401 ||
-          statsResponse.status === 403 ||
           attendeesResponse.status === 401 ||
           attendeesResponse.status === 403
         ) {
@@ -118,7 +103,6 @@ export default function LiveMonitoring() {
         );
       }
 
-      const statsData: DashboardStats = await statsResponse.json();
       const attendeeData: BackendAttendee[] =
         await attendeesResponse.json();
 
@@ -126,7 +110,6 @@ export default function LiveMonitoring() {
         (event) => event.status !== "cancelled"
       );
 
-      setStats(statsData);
       setAttendees(Array.isArray(attendeeData) ? attendeeData : []);
       setEvents(availableEvents);
 
@@ -169,9 +152,10 @@ export default function LiveMonitoring() {
   );
 
   const eventAttendees = useMemo(
-    () => attendees.filter(
-      (attendee) => attendee.eventId === selectedEventId
-    ),
+    () =>
+      attendees.filter(
+        (attendee) => attendee.eventId === selectedEventId
+      ),
     [attendees, selectedEventId]
   );
 
@@ -225,6 +209,7 @@ export default function LiveMonitoring() {
 
   const totalRegistrations = eventAttendees.length;
   const totalCheckIns = checkedInAttendees.length;
+
   const remainingRegistrations = Math.max(
     0,
     totalRegistrations - totalCheckIns
@@ -277,6 +262,7 @@ export default function LiveMonitoring() {
           <p className="mt-1 text-sm text-[#64748B]">
             Monitor attendance and gate activity for your events.
           </p>
+
           {lastUpdated && (
             <p className="mt-1 text-xs text-[#64748B]">
               Last updated: {lastUpdated.toLocaleTimeString("en-IN")}
@@ -300,6 +286,7 @@ export default function LiveMonitoring() {
           className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
         >
           <p>{error}</p>
+
           <button
             type="button"
             onClick={() => void loadMonitoringData()}
@@ -355,6 +342,7 @@ export default function LiveMonitoring() {
                 <div className="text-2xl font-semibold text-[#1E293B]">
                   {stat.value.toLocaleString()}
                 </div>
+
                 <div className="mt-1 text-xs text-[#64748B]">
                   {stat.label}
                 </div>
@@ -371,6 +359,7 @@ export default function LiveMonitoring() {
               <span className="text-[#64748B]">
                 Registration check-in rate
               </span>
+
               <span className="font-semibold text-[#1E293B]">
                 {checkInRate}%
               </span>
@@ -395,10 +384,12 @@ export default function LiveMonitoring() {
                 <h3 className="text-sm font-semibold text-[#1E293B]">
                   Gate Activity
                 </h3>
+
                 <p className="mt-1 text-xs text-[#64748B]">
                   Successful check-ins grouped by recorded gate.
                 </p>
               </div>
+
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
                 {gateActivity.length} active gate records
               </span>
@@ -414,9 +405,11 @@ export default function LiveMonitoring() {
                     <div className="text-sm font-semibold text-[#1E293B]">
                       {gate.gateName}
                     </div>
+
                     <div className="mt-2 text-2xl font-semibold text-[#2563EB]">
                       {gate.entries}
                     </div>
+
                     <div className="text-xs text-[#64748B]">
                       Successful entries
                     </div>
@@ -431,15 +424,14 @@ export default function LiveMonitoring() {
             )}
           </div>
 
-          {selectedEventId && (
-  <ScannerAssignmentsPanel eventId={selectedEventId} />
-)}
+          <ScannerAssignmentsPanel eventId={selectedEventId} />
 
           <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-[#1E293B]">
                 Recent Check-ins
               </h3>
+
               <span className="text-xs text-[#64748B]">
                 Latest 10 recorded check-ins
               </span>
@@ -450,12 +442,21 @@ export default function LiveMonitoring() {
                 <table className="w-full min-w-[700px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] text-xs text-[#64748B]">
-                      <th className="py-3 pr-4 font-medium">Attendee</th>
-                      <th className="py-3 pr-4 font-medium">Gate</th>
-                      <th className="py-3 pr-4 font-medium">Check-in time</th>
-                      <th className="py-3 font-medium">Status</th>
+                      <th className="py-3 pr-4 font-medium">
+                        Attendee
+                      </th>
+                      <th className="py-3 pr-4 font-medium">
+                        Gate
+                      </th>
+                      <th className="py-3 pr-4 font-medium">
+                        Check-in time
+                      </th>
+                      <th className="py-3 font-medium">
+                        Status
+                      </th>
                     </tr>
                   </thead>
+
                   <tbody className="divide-y divide-[#E2E8F0]">
                     {recentScans.map((attendee) => (
                       <tr key={attendee.id}>
@@ -463,18 +464,22 @@ export default function LiveMonitoring() {
                           <div className="font-medium text-[#1E293B]">
                             {attendee.name}
                           </div>
+
                           <div className="text-xs text-[#64748B]">
                             {attendee.email}
                           </div>
                         </td>
+
                         <td className="py-3 pr-4 text-[#64748B]">
                           {isValidGate(attendee.gate)
                             ? attendee.gate
                             : "Not recorded"}
                         </td>
+
                         <td className="py-3 pr-4 text-[#64748B]">
                           {formatDate(attendee.checkedInAt)}
                         </td>
+
                         <td className="py-3">
                           <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                             Checked In

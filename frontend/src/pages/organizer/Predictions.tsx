@@ -12,20 +12,32 @@ type OrganizerEvent = {
   status?: string;
 };
 
+type PredictionWindow = {
+  entries: number;
+  start?: string;
+  end?: string;
+};
+
 type GatePrediction = {
   gateId: string;
   gateName: string;
+  gateCode: string;
   isActive: boolean;
-  thirdWindowEntries: number;
-  previousWindowEntries: number;
-  latestWindowEntries: number;
+  currentWindow: PredictionWindow;
+  previousWindow: {
+    entries: number;
+  };
+  thirdWindow: {
+    entries: number;
+  };
   predictedEntries: number;
   trafficLevel: string;
+  recommendation: string;
 };
 
 type PredictionResponse = {
   eventId: string;
-  eventName?: string;
+  eventTitle?: string;
   generatedAt?: string;
   totalCurrentEntries: number;
   totalPredictedEntries: number;
@@ -134,7 +146,10 @@ export default function Predictions() {
   }, [loadEvents]);
 
   useEffect(() => {
-    if (!selectedEventId) return;
+    if (!selectedEventId) {
+      setPredictionData(null);
+      return;
+    }
 
     loadPredictions();
 
@@ -155,10 +170,10 @@ export default function Predictions() {
       activeGates.map((gate) => ({
         gateId: gate.gateId,
         gateName: gate.gateName,
-        thirdWindowEntries: gate.thirdWindowEntries,
-        previousWindowEntries: gate.previousWindowEntries,
-        latestWindowEntries: gate.latestWindowEntries,
-        predictedEntries: gate.predictedEntries,
+        thirdWindowEntries: gate.thirdWindow?.entries ?? 0,
+        previousWindowEntries: gate.previousWindow?.entries ?? 0,
+        latestWindowEntries: gate.currentWindow?.entries ?? 0,
+        predictedEntries: gate.predictedEntries ?? 0,
       })),
     [activeGates],
   );
@@ -317,74 +332,78 @@ export default function Predictions() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {activeGates.map((gate) => (
-                  <div
-                    key={gate.gateId}
-                    className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h4 className="font-semibold text-[#1E293B]">
-                          {gate.gateName}
-                        </h4>
-                        <p className="mt-1 text-xs text-[#94A3B8]">
-                          Gate traffic status
-                        </p>
-                      </div>
+                {activeGates.map((gate) => {
+                  const currentEntries =
+                    gate.currentWindow?.entries ?? 0;
 
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getTrafficStyles(
-                          gate.trafficLevel,
-                        )}`}
-                      >
-                        {getTrafficLabel(gate.trafficLevel)}
-                      </span>
-                    </div>
+                  return (
+                    <div
+                      key={gate.gateId}
+                      className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h4 className="font-semibold text-[#1E293B]">
+                            {gate.gateName}
+                          </h4>
+                          <p className="mt-1 text-xs text-[#94A3B8]">
+                            Gate traffic status
+                          </p>
+                        </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-4">
-                      <div className="rounded-lg bg-slate-50 p-4">
-                        <p className="text-xs text-[#64748B]">
-                          Last 5 minutes
-                        </p>
-                        <p className="mt-1 text-2xl font-bold text-[#334155]">
-                          {gate.latestWindowEntries}
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-indigo-50 p-4">
-                        <p className="text-xs text-indigo-600">
-                          Next 5 min prediction
-                        </p>
-                        <p className="mt-1 text-2xl font-bold text-indigo-700">
-                          {gate.predictedEntries}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <div className="mb-2 flex justify-between text-xs text-[#64748B]">
-                        <span>Recent traffic</span>
-                        <span>
-                          {gate.latestWindowEntries} entries
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getTrafficStyles(
+                            gate.trafficLevel,
+                          )}`}
+                        >
+                          {getTrafficLabel(gate.trafficLevel)}
                         </span>
                       </div>
 
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-blue-500 transition-all"
-                          style={{
-                            width: `${
-                              Math.min(
-                                (gate.latestWindowEntries / 100) * 100,
-                                100,
-                              )
-                            }%`,
-                          }}
-                        />
+                      <div className="mt-5 grid grid-cols-2 gap-4">
+                        <div className="rounded-lg bg-slate-50 p-4">
+                          <p className="text-xs text-[#64748B]">
+                            Last 5 minutes
+                          </p>
+                          <p className="mt-1 text-2xl font-bold text-[#334155]">
+                            {currentEntries}
+                          </p>
+                        </div>
+
+                        <div className="rounded-lg bg-indigo-50 p-4">
+                          <p className="text-xs text-indigo-600">
+                            Next 5 min prediction
+                          </p>
+                          <p className="mt-1 text-2xl font-bold text-indigo-700">
+                            {gate.predictedEntries ?? 0}
+                          </p>
+                        </div>
                       </div>
+
+                      <div className="mt-4">
+                        <div className="mb-2 flex justify-between text-xs text-[#64748B]">
+                          <span>Recent traffic</span>
+                          <span>{currentEntries} entries</span>
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-blue-500 transition-all"
+                            style={{
+                              width: `${Math.min(currentEntries, 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {gate.recommendation && (
+                        <p className="mt-4 text-xs text-[#64748B]">
+                          {gate.recommendation}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
