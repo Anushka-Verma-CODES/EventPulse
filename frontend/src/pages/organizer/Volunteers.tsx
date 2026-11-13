@@ -7,6 +7,7 @@ import { getAuthHeaders } from "../../lib/authApi";
 import {
   createVolunteerAssignment,
   getOrganizerVolunteerAssignments,
+  reviewVolunteerHours,
 } from "../../features/volunteers/api/volunteersApi";
 
 const VITE_API_BASE_URL =
@@ -62,6 +63,7 @@ type Assignment = {
   assignedRole: string;
   status: string;
   hoursWorked?: string;
+  hoursApprovalStatus?: "pending" | "approved" | "flagged";
   createdAt?: string;
   volunteer?: Volunteer;
   event?: {
@@ -169,6 +171,19 @@ function formatDateTime(date?: string | null): string {
   });
 }
 
+function toLocalDateTimeInput(date?: string | null): string {
+  if (!date) return "";
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) return "";
+
+  const offset = parsedDate.getTimezoneOffset();
+  const localDate = new Date(parsedDate.getTime() - offset * 60 * 1000);
+
+  return localDate.toISOString().slice(0, 16);
+}
+
 function displayStatus(status: string): string {
   if (!status) return "Unknown";
 
@@ -218,6 +233,8 @@ export default function Volunteers() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedVolunteerId, setSelectedVolunteerId] = useState("");
   const [assignedRole, setAssignedRole] = useState("");
+  const [scheduledStartAt, setScheduledStartAt] = useState("");
+  const [scheduledEndAt, setScheduledEndAt] = useState("");
   const [activeTab, setActiveTab] = useState<
     "applications" | "assignments" | "scanners"
   >("applications");
@@ -365,6 +382,8 @@ export default function Volunteers() {
 
   useEffect(() => {
     setSelectedVolunteerId("");
+    setScheduledStartAt("");
+    setScheduledEndAt("");
     setScannerVolunteerId("");
     setSelectedGateId("");
     setEventGates([]);
@@ -478,11 +497,76 @@ export default function Volunteers() {
     }
   }
 
-  async function assignVolunteer() {
-    if (!selectedEventId || !selectedVolunteerId || !assignedRole.trim()) {
-      setError(
-        "Select an event, an accepted applicant, and enter an assigned role.",
+  async function handleReviewHours(
+    assignmentId: string,
+    status: "approved" | "flagged",
+  ) {
+    setReviewingId(assignmentId);
+    setError("");
+    setSuccess("");
+
+    try {
+      await reviewVolunteerHours(assignmentId, status);
+
+      setSuccess(
+        status === "approved"
+          ? "Volunteer working hours approved successfully."
+          : "Volunteer working hours flagged for verification.",
       );
+
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to review volunteer working hours.",
+      );
+    } finally {
+      setReviewingId("");
+    }
+  }
+
+  async function assignVolunteer() {
+    if (
+      !selectedEventId ||
+      !selectedVolunteerId ||
+      !assignedRole.trim() ||
+      !scheduledStartAt ||
+      !scheduledEndAt
+    ) {
+      setError(
+        "Select an event, volunteer, responsibility, and scheduled shift timings.",
+      );
+      return;
+    }
+
+    const startDate = new Date(scheduledStartAt);
+    const endDate = new Date(scheduledEndAt);
+
+    if (
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime()) ||
+      endDate <= startDate
+    ) {
+      setError("Shift end time must be after the shift start time.");
+      return;
+    }
+
+    if (!selectedEvent) {
+      setError("Please select a valid event.");
+      return;
+    }
+
+    const eventStart = new Date(selectedEvent.startDate);
+    const eventEnd = new Date(selectedEvent.endDate);
+
+    if (
+      Number.isNaN(eventStart.getTime()) ||
+      Number.isNaN(eventEnd.getTime()) ||
+      startDate < eventStart ||
+      endDate > eventEnd
+    ) {
+      setError("The volunteer shift must be within the event dates and times.");
       return;
     }
 
@@ -506,10 +590,14 @@ export default function Volunteers() {
         eventId: selectedEventId,
         volunteerId: selectedVolunteerId,
         assignedRole: assignedRole.trim(),
+        scheduledStartAt: startDate.toISOString(),
+        scheduledEndAt: endDate.toISOString(),
       });
 
       setSelectedVolunteerId("");
       setAssignedRole("");
+      setScheduledStartAt("");
+      setScheduledEndAt("");
       setSuccess("Volunteer assigned successfully.");
       await loadData();
     } catch (err) {
@@ -763,6 +851,49 @@ export default function Volunteers() {
             />
           </div>
 
+          <div>
+            <label
+              htmlFor="scheduled-shift-start"
+              className="mb-2 block text-sm font-medium text-[#334155]"
+            >
+              Scheduled Shift Start
+            </label>
+            <input
+              id="scheduled-shift-start"
+              type="datetime-local"
+              value={scheduledStartAt}
+              onChange={(event) => setScheduledStartAt(event.target.value)}
+              min={toLocalDateTimeInput(selectedEvent?.startDate)}
+              max={toLocalDateTimeInput(selectedEvent?.endDate)}
+              disabled={!selectedEvent}
+              required
+              className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="scheduled-shift-end"
+              className="mb-2 block text-sm font-medium text-[#334155]"
+            >
+              Scheduled Shift End
+            </label>
+            <input
+              id="scheduled-shift-end"
+              type="datetime-local"
+              value={scheduledEndAt}
+              onChange={(event) => setScheduledEndAt(event.target.value)}
+              min={
+                scheduledStartAt ||
+                toLocalDateTimeInput(selectedEvent?.startDate)
+              }
+              max={toLocalDateTimeInput(selectedEvent?.endDate)}
+              disabled={!selectedEvent}
+              required
+              className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
+            />
+          </div>
+
           {selectedEvent && selectedApplicant && (
             <div className="rounded-lg bg-[#F8FAFC] p-3 text-sm text-[#475569] md:col-span-2">
               Assigning{" "}
@@ -785,7 +916,9 @@ export default function Volunteers() {
                 assigning ||
                 !selectedEventId ||
                 !selectedVolunteerId ||
-                !assignedRole.trim()
+                !assignedRole.trim() ||
+                !scheduledStartAt ||
+                !scheduledEndAt
               }
               className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -975,52 +1108,126 @@ export default function Volunteers() {
 
         {activeTab === "assignments" && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[650px] text-left text-sm">
+            <table className="w-full min-w-[950px] text-left text-sm">
               <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Volunteer</th>
                   <th className="px-4 py-3 font-medium">Assigned Role</th>
                   <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium">Hours</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Hours Worked</th>
+                  <th className="px-4 py-3 font-medium">Assignment Status</th>
+                  <th className="px-4 py-3 font-medium">Hours Approval</th>
+                  <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-[#E2E8F0]">
                 {!loading && assignments.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="px-4 py-8 text-center text-[#64748B]"
                     >
                       No volunteer assignments yet.
                     </td>
                   </tr>
                 )}
-                {assignments.map((assignment) => (
-                  <tr key={assignment.id}>
-                    <td className="px-4 py-3 font-medium text-[#1E293B]">
-                      {getVolunteerName(assignment.volunteer)}
-                    </td>
-                    <td className="px-4 py-3 text-[#64748B]">
-                      {assignment.assignedRole}
-                    </td>
-                    <td className="px-4 py-3 text-[#64748B]">
-                      {assignment.event?.title ||
-                        events.find(
-                          (event) => event.id === assignment.eventId,
-                        )?.title ||
-                        "—"}
-                    </td>
-                    <td className="px-4 py-3 text-[#64748B]">
-                      {Number(assignment.hoursWorked || 0)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge
-                        status={displayStatus(assignment.status)}
-                      />
-                    </td>
-                  </tr>
-                ))}
+
+                {assignments.map((assignment) => {
+                  const completed =
+                    assignment.status.toLowerCase() === "completed";
+
+                  const approvalStatus =
+                    assignment.hoursApprovalStatus || "pending";
+
+                  return (
+                    <tr key={assignment.id}>
+                      <td className="px-4 py-3 font-medium text-[#1E293B]">
+                        {getVolunteerName(assignment.volunteer)}
+                      </td>
+
+                      <td className="px-4 py-3 text-[#64748B]">
+                        {assignment.assignedRole}
+                      </td>
+
+                      <td className="px-4 py-3 text-[#64748B]">
+                        {assignment.event?.title ||
+                          events.find(
+                            (event) => event.id === assignment.eventId,
+                          )?.title ||
+                          "—"}
+                      </td>
+
+                      <td className="px-4 py-3 font-medium text-[#1E293B]">
+                        {Number(assignment.hoursWorked || 0).toFixed(2)} hrs
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <StatusBadge
+                          status={displayStatus(assignment.status)}
+                        />
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {completed ? (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                              approvalStatus === "approved"
+                                ? "bg-green-50 text-green-700"
+                                : approvalStatus === "flagged"
+                                  ? "bg-red-50 text-red-700"
+                                  : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {displayStatus(approvalStatus)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[#64748B]">
+                            Not available yet
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {completed ? (
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              disabled={reviewingId === assignment.id}
+                              onClick={() =>
+                                void handleReviewHours(
+                                  assignment.id,
+                                  "approved",
+                                )
+                              }
+                              className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
+                            >
+                              {reviewingId === assignment.id
+                                ? "Saving..."
+                                : "Approve"}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={reviewingId === assignment.id}
+                              onClick={() =>
+                                void handleReviewHours(
+                                  assignment.id,
+                                  "flagged",
+                                )
+                              }
+                              className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                            >
+                              Flag
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[#64748B]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

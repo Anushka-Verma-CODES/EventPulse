@@ -52,7 +52,7 @@ export default function EventDetails() {
       })
       .catch((err: unknown) => {
         setError(
-          err instanceof Error ? err.message : "Failed to load event."
+          err instanceof Error ? err.message : "Failed to load event.",
         );
       })
       .finally(() => {
@@ -62,7 +62,7 @@ export default function EventDetails() {
     getMyRegistrations()
       .then((registrations) => {
         setIsRegistered(
-          registrations.some((registration) => registration.eventId === id)
+          registrations.some((registration) => registration.eventId === id),
         );
         setRegistrationError("");
       })
@@ -70,7 +70,7 @@ export default function EventDetails() {
         setRegistrationError(
           err instanceof Error
             ? err.message
-            : "Unable to check registration status."
+            : "Unable to check registration status.",
         );
       })
       .finally(() => {
@@ -101,6 +101,7 @@ export default function EventDetails() {
       <div className="mt-6">
         <RegistrationOptions
           eventId={event.id}
+          eventName={event.name}
           price={event.price}
           isRegistered={isRegistered}
           registrationLoading={registrationLoading}

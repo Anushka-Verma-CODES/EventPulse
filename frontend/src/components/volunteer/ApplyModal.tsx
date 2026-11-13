@@ -1,22 +1,17 @@
+
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "../../lib/authApi";
+import { API_BASE_URL } from "../../lib/apiConfig";
 
 interface ApplyModalProps {
   eventId: string;
   eventName: string;
   role: string;
   onClose: () => void;
+  onSubmitted?: () => void;
 }
-
-const VITE_API_BASE_URL =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
-    ? "http://localhost:3000"
-    : window.location.hostname === "172.16.78.105"
-      ? "http://172.16.78.105:3000"
-      : "https://eventpulse-toa3.onrender.com";
 
 const availabilityOptions = ["Morning", "Afternoon", "Evening"];
 
@@ -25,6 +20,7 @@ export default function ApplyModal({
   eventName,
   role,
   onClose,
+  onSubmitted,
 }: ApplyModalProps) {
   const [reason, setReason] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
@@ -61,7 +57,7 @@ export default function ApplyModal({
 
     try {
       const response = await fetch(
-        `${VITE_API_BASE_URL}/volunteers/applications`,
+        `${API_BASE_URL}/volunteers/applications`,
         {
           method: "POST",
           headers: {
@@ -89,6 +85,7 @@ export default function ApplyModal({
       }
 
       setSubmitted(true);
+      onSubmitted?.();
     } catch (err) {
       setError(
         err instanceof Error
@@ -142,6 +139,14 @@ export default function ApplyModal({
             >
               View My Applications
             </Link>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-2 rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
+            >
+              Close
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

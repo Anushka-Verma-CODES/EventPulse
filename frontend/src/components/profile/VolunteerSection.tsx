@@ -1,7 +1,7 @@
+
 import { useEffect, useState } from "react";
 import StatGrid from "./StatGrid";
 import {
-  attendeeAcademicInfo,
   volunteerAvailability,
   volunteerCertificates,
 } from "../../lib/profileMockData";
@@ -12,8 +12,199 @@ import {
 } from "../../features/volunteers/api/volunteersApi";
 import type { VolunteerActivityStats } from "../../features/volunteers/api/volunteersApi";
 
-export default function VolunteerSection() {
+function parseList(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+// This section appears inside the Personal Information card.
+export function VolunteerSkillsSection() {
   const [skills, setSkills] = useState<string[]>([]);
+  const [skillsDraft, setSkillsDraft] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSkills() {
+      try {
+        const profile = await getMyVolunteerProfile();
+
+        if (isMounted) {
+          setSkills(profile.skills);
+          setSkillsDraft(profile.skills.join(", "));
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load your skills.",
+          );
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    void loadSkills();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function saveSkills() {
+    setError("");
+    setSuccess("");
+    setIsSaving(true);
+
+    try {
+      const profile = await updateMyVolunteerProfile({
+        skills: parseList(skillsDraft),
+      });
+
+      setSkills(profile.skills);
+      setSkillsDraft(profile.skills.join(", "));
+      setIsEditing(false);
+      setSuccess("Your skills have been saved.");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save your skills.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mt-5 border-t border-gray-100 pt-5">
+        <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">
+          Volunteer Information
+        </h3>
+        <p className="text-sm text-[#64748B]">
+          Loading volunteer information...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 border-t border-gray-100 pt-5">
+      <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">
+        Volunteer Information
+      </h3>
+
+      <h4 className="mb-2 text-sm font-medium text-[#1E293B]">
+        Skills
+      </h4>
+
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+
+      {success && (
+        <p role="status" className="mb-3 text-sm text-green-700">
+          {success}
+        </p>
+      )}
+
+      {isEditing ? (
+        <>
+          <label
+            htmlFor="volunteer-skills"
+            className="mb-2 block text-xs text-[#64748B]"
+          >
+            Enter skills separated by commas
+          </label>
+
+          <textarea
+            id="volunteer-skills"
+            value={skillsDraft}
+            onChange={(event) => setSkillsDraft(event.target.value)}
+            placeholder="Communication, Event Management, First Aid"
+            rows={3}
+            className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm text-[#1E293B] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+          />
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={saveSkills}
+              className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSaving ? "Saving..." : "Save Skills"}
+            </button>
+
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => {
+                setSkillsDraft(skills.join(", "));
+                setIsEditing(false);
+                setError("");
+              }}
+              className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {skills.length > 0 ? (
+              skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="rounded-full bg-[#F8FAFC] px-3 py-1 text-sm text-[#1E293B]"
+                >
+                  {skill}
+                </span>
+              ))
+            ) : (
+              <p className="text-sm text-[#64748B]">
+                No skills added yet.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSkillsDraft(skills.join(", "));
+              setIsEditing(true);
+              setError("");
+              setSuccess("");
+            }}
+            className="mt-3 rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
+          >
+            Edit Skills
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// These sections appear as separate cards below Personal Information.
+export default function VolunteerSection() {
   const [preferredRoles, setPreferredRoles] = useState<string[]>([]);
   const [availability, setAvailability] = useState<string[]>([]);
 
@@ -23,10 +214,8 @@ export default function VolunteerSection() {
     activeAssignments: 0,
   });
 
-  const [skillsDraft, setSkillsDraft] = useState("");
   const [rolesDraft, setRolesDraft] = useState("");
 
-  const [isEditingSkills, setIsEditingSkills] = useState(false);
   const [isEditingRoles, setIsEditingRoles] = useState(false);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
 
@@ -34,7 +223,6 @@ export default function VolunteerSection() {
   const [isActivityLoading, setIsActivityLoading] = useState(true);
 
   const [savingSection, setSavingSection] = useState("");
-
   const [error, setError] = useState("");
   const [activityError, setActivityError] = useState("");
   const [success, setSuccess] = useState("");
@@ -46,13 +234,11 @@ export default function VolunteerSection() {
       try {
         const profile = await getMyVolunteerProfile();
 
-        if (!isMounted) return;
-
-        setSkills(profile.skills);
-        setPreferredRoles(profile.preferredRoles);
-        setAvailability(profile.availability);
-        setSkillsDraft(profile.skills.join(", "));
-        setRolesDraft(profile.preferredRoles.join(", "));
+        if (isMounted) {
+          setPreferredRoles(profile.preferredRoles);
+          setAvailability(profile.availability);
+          setRolesDraft(profile.preferredRoles.join(", "));
+        }
       } catch (err: unknown) {
         if (isMounted) {
           setError(
@@ -89,19 +275,8 @@ export default function VolunteerSection() {
     };
   }, []);
 
-  function parseList(value: string): string[] {
-    return [
-      ...new Set(
-        value
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
-      ),
-    ];
-  }
-
   async function saveSection(
-    section: "skills" | "preferredRoles" | "availability",
+    section: "preferredRoles" | "availability",
     values: string[],
   ) {
     setError("");
@@ -113,14 +288,11 @@ export default function VolunteerSection() {
         [section]: values,
       });
 
-      setSkills(profile.skills);
       setPreferredRoles(profile.preferredRoles);
       setAvailability(profile.availability);
-      setSkillsDraft(profile.skills.join(", "));
       setRolesDraft(profile.preferredRoles.join(", "));
       setSuccess("Your changes have been saved.");
 
-      if (section === "skills") setIsEditingSkills(false);
       if (section === "preferredRoles") setIsEditingRoles(false);
       if (section === "availability") setIsEditingAvailability(false);
     } catch (err: unknown) {
@@ -159,8 +331,10 @@ export default function VolunteerSection() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 text-sm text-[#64748B] shadow-sm">
-        Loading volunteer profile...
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <p className="text-sm text-[#64748B]">
+          Loading volunteer details...
+        </p>
       </div>
     );
   }
@@ -170,7 +344,7 @@ export default function VolunteerSection() {
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
           {error}
         </div>
@@ -179,148 +353,20 @@ export default function VolunteerSection() {
       {success && (
         <div
           role="status"
-          className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700"
+          className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
         >
           {success}
         </div>
       )}
 
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-[#1E293B]">
-          Volunteer Information
-        </h2>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <div className="text-xs text-[#64748B]">Student ID</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.studentId}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs text-[#64748B]">Department</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.department}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs text-[#64748B]">Year</div>
-            <div className="mt-1 text-sm font-medium text-[#1E293B]">
-              {attendeeAcademicInfo.year}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-[#1E293B]">
-          Volunteer Activity
-        </h2>
-
-        {isActivityLoading ? (
-          <p className="text-sm text-[#64748B]">
-            Loading activity statistics...
-          </p>
-        ) : activityError ? (
-          <p role="alert" className="text-sm text-red-600">
-            {activityError}
-          </p>
-        ) : (
-          <StatGrid stats={activityStats} />
-        )}
-      </div>
-
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-[#1E293B]">
-          Skills
-        </h2>
-
-        {isEditingSkills ? (
-          <div>
-            <label
-              htmlFor="volunteer-skills"
-              className="mb-2 block text-xs text-[#64748B]"
-            >
-              Enter skills separated by commas
-            </label>
-
-            <textarea
-              id="volunteer-skills"
-              value={skillsDraft}
-              onChange={(event) => setSkillsDraft(event.target.value)}
-              placeholder="Communication, Event Management, First Aid"
-              rows={3}
-              className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm text-[#1E293B] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
-            />
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={savingSection !== ""}
-                onClick={() => saveSection("skills", parseList(skillsDraft))}
-                className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {savingSection === "skills" ? "Saving..." : "Save Skills"}
-              </button>
-
-              <button
-                type="button"
-                disabled={savingSection !== ""}
-                onClick={() => {
-                  setSkillsDraft(skills.join(", "));
-                  setIsEditingSkills(false);
-                  setError("");
-                }}
-                className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-2">
-              {skills.length > 0 ? (
-                skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-full bg-[#F8FAFC] px-3 py-1 text-sm text-[#1E293B]"
-                  >
-                    {skill}
-                  </span>
-                ))
-              ) : (
-                <p className="text-sm text-[#64748B]">
-                  No skills added yet.
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSkillsDraft(skills.join(", "));
-                setIsEditingSkills(true);
-                setError("");
-                setSuccess("");
-              }}
-              className="mt-3 rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
-            >
-              Edit Skills
-            </button>
-          </>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-[#1E293B]">
+      {/* Preferred Roles */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-3 text-lg font-semibold text-[#1E293B]">
           Preferred Roles
-        </h2>
+        </h3>
 
         {isEditingRoles ? (
-          <div>
+          <>
             <label
               htmlFor="volunteer-roles"
               className="mb-2 block text-xs text-[#64748B]"
@@ -364,7 +410,7 @@ export default function VolunteerSection() {
                 Cancel
               </button>
             </div>
-          </div>
+          </>
         ) : (
           <>
             {preferredRoles.length > 0 ? (
@@ -395,10 +441,11 @@ export default function VolunteerSection() {
         )}
       </div>
 
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-[#1E293B]">
+      {/* Availability */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-3 text-lg font-semibold text-[#1E293B]">
           Availability
-        </h2>
+        </h3>
 
         <div className="flex flex-col gap-2">
           {volunteerAvailability.map((item) => (
@@ -470,11 +517,31 @@ export default function VolunteerSection() {
         )}
       </div>
 
+      {/* Volunteer Activity */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-3 text-lg font-semibold text-[#1E293B]">
+          Volunteer Activity
+        </h3>
+
+        {isActivityLoading ? (
+          <p className="text-sm text-[#64748B]">
+            Loading activity statistics...
+          </p>
+        ) : activityError ? (
+          <p role="alert" className="text-sm text-red-600">
+            {activityError}
+          </p>
+        ) : (
+          <StatGrid stats={activityStats} />
+        )}
+      </div>
+
+      {/* Certificates */}
       {volunteerCertificates.length > 0 && (
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-[#1E293B]">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-lg font-semibold text-[#1E293B]">
             Certificates
-          </h2>
+          </h3>
 
           {volunteerCertificates.map((cert) => (
             <div

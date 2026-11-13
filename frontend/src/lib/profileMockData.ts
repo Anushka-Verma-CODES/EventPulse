@@ -112,13 +112,6 @@ export const organizerOrgDetails = {
   contactEmail: "organizer@example.com",
 };
 
-export const organizerActivityStats = [
-  { label: "Events Created", value: "12" },
-  { label: "Upcoming Events", value: "4" },
-  { label: "Registrations", value: "2,840" },
-  { label: "Volunteers Managed", value: "86" },
-];
-
 // ---- Scanner ----
 export const scannerStaffInfo = {
   staffId: "STF-001",

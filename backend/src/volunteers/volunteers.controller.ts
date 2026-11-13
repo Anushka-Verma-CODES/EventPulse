@@ -23,6 +23,7 @@ import {
 } from './dto/create-volunteer-assignment.dto';
 import { UpdateVolunteerProfileDto } from '../auth/dto/update-volunteer-profile.dto';
 import { VolunteerApplicationStatus } from './entities/volunteer-application.entity';
+import { ReviewVolunteerHoursDto } from './dto/review-volunteer-hours.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -179,6 +180,19 @@ export class VolunteersController {
       request.user.userId,
     );
   }
+
+  @Patch('organizer/assignments/:id/review-hours')
+async reviewVolunteerHours(
+  @Req() request: AuthenticatedRequest,
+  @Param('id', ParseUUIDPipe) assignmentId: string,
+  @Body() dto: ReviewVolunteerHoursDto,
+) {
+  return this.volunteersService.reviewVolunteerHours(
+    request.user.userId,
+    assignmentId,
+    dto.status,
+  );
+}
 
   @Get('me/assignments')
   async getMyAssignments(@Req() request: AuthenticatedRequest) {
