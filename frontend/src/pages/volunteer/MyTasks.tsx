@@ -1,16 +1,32 @@
+
 import { useEffect, useState } from "react";
 import StatusBadge from "../../components/volunteer/StatusBadge";
 import {
   getMyVolunteerAssignments,
   updateMyVolunteerAssignment,
 } from "../../features/volunteers/api/volunteersApi";
-import type { VolunteerAssignment } from "../../features/volunteers/api/volunteersApi";
+import type {
+  VolunteerAssignment,
+  UpdateVolunteerAssignmentInput,
+} from "../../features/volunteers/api/volunteersApi";
 
 const filters = ["All", "Pending", "Completed"];
 
+function formatDateTime(value: string | null) {
+  if (!value) return "Not scheduled";
+
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 export default function MyTasks() {
   const [assignments, setAssignments] = useState<VolunteerAssignment[]>([]);
-  const [hoursDrafts, setHoursDrafts] = useState<Record<string, string>>({});
   const [activeFilter, setActiveFilter] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
   const [updatingAssignmentId, setUpdatingAssignmentId] = useState("");
@@ -24,17 +40,9 @@ export default function MyTasks() {
       try {
         const data = await getMyVolunteerAssignments();
 
-        if (!isMounted) return;
-
-        setAssignments(data);
-        setHoursDrafts(
-          Object.fromEntries(
-            data.map((assignment) => [
-              assignment.id,
-              String(assignment.hoursWorked ?? "0"),
-            ]),
-          ),
-        );
+        if (isMounted) {
+          setAssignments(data);
+        }
       } catch (err: unknown) {
         if (isMounted) {
           setError(
@@ -44,7 +52,9 @@ export default function MyTasks() {
           );
         }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -57,36 +67,17 @@ export default function MyTasks() {
 
   async function updateAssignment(
     assignment: VolunteerAssignment,
-    status: "in_progress" | "completed",
+    status: UpdateVolunteerAssignmentInput["status"],
   ) {
     if (updatingAssignmentId) return;
 
     setError("");
     setSuccess("");
-
-    let hoursWorked: number | undefined;
-
-    if (status === "completed") {
-      const hoursValue = hoursDrafts[assignment.id] ?? "";
-      hoursWorked = Number(hoursValue);
-
-      if (
-        hoursValue.trim() === "" ||
-        !Number.isFinite(hoursWorked) ||
-        hoursWorked < 0 ||
-        hoursWorked > 9999
-      ) {
-        setError("Enter valid volunteer hours between 0 and 9999.");
-        return;
-      }
-    }
-
     setUpdatingAssignmentId(assignment.id);
 
     try {
       const updated = await updateMyVolunteerAssignment(assignment.id, {
         status,
-        ...(status === "completed" ? { hoursWorked } : {}),
       });
 
       setAssignments((previous) =>
@@ -95,16 +86,17 @@ export default function MyTasks() {
         ),
       );
 
-      setHoursDrafts((previous) => ({
-        ...previous,
-        [updated.id]: String(updated.hoursWorked ?? "0"),
-      }));
+      const messages: Record<
+        UpdateVolunteerAssignmentInput["status"],
+        string
+      > = {
+        accepted: "Assignment accepted successfully.",
+        declined: "Assignment declined.",
+        in_progress: "Your shift has started.",
+        completed: "Your shift has ended. Your hours were calculated automatically.",
+      };
 
-      setSuccess(
-        status === "completed"
-          ? "Assignment marked as completed."
-          : "Assignment started.",
-      );
+      setSuccess(messages[status]);
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -117,29 +109,36 @@ export default function MyTasks() {
   }
 
   const filteredAssignments = assignments.filter((assignment) => {
-  if (assignment.status === "cancelled") {
-    return false;
-  }
+    if (
+      assignment.status === "cancelled" ||
+      assignment.status === "declined"
+    ) {
+      return false;
+    }
 
-  if (activeFilter === "Pending") {
-    return (
-      assignment.status === "assigned" ||
-      assignment.status === "in_progress"
-    );
-  }
+    if (activeFilter === "Pending") {
+      return (
+        assignment.status === "pending_acceptance" ||
+        assignment.status === "accepted" ||
+        assignment.status === "assigned" ||
+        assignment.status === "in_progress"
+      );
+    }
 
-  if (activeFilter === "Completed") {
-    return assignment.status === "completed";
-  }
+    if (activeFilter === "Completed") {
+      return assignment.status === "completed";
+    }
 
-  return true;
-});
+    return true;
+  });
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-[#1E293B]">My Tasks</h2>
+
       <p className="mt-1 text-sm text-[#64748B]">
-        View your assigned events and update your task progress.
+        View your assigned shifts, manage your participation, and track your
+        volunteer hours.
       </p>
 
       {error && (
@@ -192,116 +191,143 @@ export default function MyTasks() {
           {filteredAssignments.map((assignment) => {
             const event = assignment.event;
             const isUpdating = updatingAssignmentId === assignment.id;
-            const isActive =
-              assignment.status === "assigned" ||
-              assignment.status === "in_progress";
+
+            const statusLabels: Record<string, string> = {
+              pending_acceptance: "Awaiting Response",
+              accepted: "Accepted",
+              assigned: "Assigned",
+              in_progress: "In Progress",
+              completed: "Completed",
+              declined: "Declined",
+              cancelled: "Cancelled",
+            };
 
             const statusLabel =
-              assignment.status === "in_progress"
-                ? "In Progress"
-                : assignment.status === "completed"
-                  ? "Completed"
-                  : assignment.status === "cancelled"
-                    ? "Cancelled"
-                    : "Pending";
+              statusLabels[assignment.status] ?? assignment.status;
 
             return (
               <div
                 key={assignment.id}
-                className="flex items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
+                className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm"
               >
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-[#1E293B]">
-                      {event?.title ?? "Event"}
-                    </h3>
-                    <StatusBadge status={statusLabel} />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-[#1E293B]">
+                    {event?.title ?? "Event"}
+                  </h3>
+
+                  <StatusBadge status={statusLabel} />
+                </div>
+
+                <p className="mt-1 text-sm text-[#64748B]">
+                  {event?.location ?? "Location unavailable"}
+                </p>
+
+                <p className="mt-3 text-sm text-[#334155]">
+                  Assigned role: {assignment.assignedRole}
+                </p>
+
+                <div className="mt-3 grid gap-2 text-sm text-[#64748B]">
+                  <p>
+                    <span className="font-medium text-[#334155]">
+                      Scheduled start:
+                    </span>{" "}
+                    {formatDateTime(assignment.scheduledStartAt)}
+                  </p>
+
+                  <p>
+                    <span className="font-medium text-[#334155]">
+                      Scheduled end:
+                    </span>{" "}
+                    {formatDateTime(assignment.scheduledEndAt)}
+                  </p>
+
+                  {assignment.actualStartedAt && (
+                    <p>
+                      <span className="font-medium text-[#334155]">
+                        Actual start:
+                      </span>{" "}
+                      {formatDateTime(assignment.actualStartedAt)}
+                    </p>
+                  )}
+
+                  {assignment.actualEndedAt && (
+                    <p>
+                      <span className="font-medium text-[#334155]">
+                        Actual end:
+                      </span>{" "}
+                      {formatDateTime(assignment.actualEndedAt)}
+                    </p>
+                  )}
+                </div>
+
+                {assignment.status === "completed" && (
+                  <div className="mt-4 rounded-lg bg-[#F8FAFC] p-3">
+                    <p className="text-sm font-semibold text-[#1E293B]">
+                      Hours worked: {Number(assignment.hoursWorked).toFixed(2)}
+                    </p>
+
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      Hours approval:{" "}
+                      {assignment.hoursApprovalStatus === "approved"
+                        ? "Approved"
+                        : assignment.hoursApprovalStatus === "flagged"
+                          ? "Flagged for organizer review"
+                          : "Pending organizer approval"}
+                    </p>
                   </div>
+                )}
 
-                  <p className="mt-1 text-sm text-[#64748B]">
-                    {event?.location ?? "Location unavailable"}
-                  </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {assignment.status === "pending_acceptance" && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={Boolean(updatingAssignmentId)}
+                        onClick={() =>
+                          updateAssignment(assignment, "accepted")
+                        }
+                        className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {isUpdating ? "Updating..." : "Accept Assignment"}
+                      </button>
 
-                  {event?.startDate && (
-                    <p className="mt-2 text-xs text-[#64748B]">
-                      Event date:{" "}
-                      {new Date(event.startDate).toLocaleString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                        timeZone: "Asia/Kolkata",
-                      })}
-                    </p>
+                      <button
+                        type="button"
+                        disabled={Boolean(updatingAssignmentId)}
+                        onClick={() =>
+                          updateAssignment(assignment, "declined")
+                        }
+                        className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC] disabled:opacity-50"
+                      >
+                        Decline
+                      </button>
+                    </>
                   )}
 
-                  <p className="mt-2 text-sm text-[#334155]">
-                    Assigned role: {assignment.assignedRole}
-                  </p>
-
-                  {assignment.status === "completed" && (
-                    <p className="mt-2 text-sm text-[#64748B]">
-                      Hours worked: {assignment.hoursWorked ?? 0}
-                    </p>
+                  {assignment.status === "accepted" && (
+                    <button
+                      type="button"
+                      disabled={Boolean(updatingAssignmentId)}
+                      onClick={() =>
+                        updateAssignment(assignment, "in_progress")
+                      }
+                      className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isUpdating ? "Updating..." : "Start Shift"}
+                    </button>
                   )}
 
-                  {isActive && (
-                    <div className="mt-4 flex flex-col items-start gap-3">
-                      {assignment.status === "in_progress" && (
-                        <div>
-                          <label
-                            htmlFor={`hours-${assignment.id}`}
-                            className="mb-1 block text-xs text-[#64748B]"
-                          >
-                            Hours worked upon completion
-                          </label>
-                          <input
-                            id={`hours-${assignment.id}`}
-                            type="number"
-                            min="0"
-                            max="9999"
-                            step="0.25"
-                            value={hoursDrafts[assignment.id] ?? ""}
-                            onChange={(event) =>
-                              setHoursDrafts((previous) => ({
-                                ...previous,
-                                [assignment.id]: event.target.value,
-                              }))
-                            }
-                            className="w-40 rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm outline-none focus:border-[#2563EB]"
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-2">
-                        {assignment.status === "assigned" && (
-                          <button
-                            type="button"
-                            disabled={Boolean(updatingAssignmentId)}
-                            onClick={() =>
-                              updateAssignment(assignment, "in_progress")
-                            }
-                            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            {isUpdating ? "Updating..." : "Start Assignment"}
-                          </button>
-                        )}
-
-                        {assignment.status === "in_progress" && (
-                          <button
-                            type="button"
-                            disabled={Boolean(updatingAssignmentId)}
-                            onClick={() =>
-                              updateAssignment(assignment, "completed")
-                            }
-                            className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] disabled:opacity-50"
-                          >
-                            {isUpdating ? "Updating..." : "Mark Completed"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                  {assignment.status === "in_progress" && (
+                    <button
+                      type="button"
+                      disabled={Boolean(updatingAssignmentId)}
+                      onClick={() =>
+                        updateAssignment(assignment, "completed")
+                      }
+                      className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isUpdating ? "Updating..." : "End Shift"}
+                    </button>
                   )}
                 </div>
               </div>

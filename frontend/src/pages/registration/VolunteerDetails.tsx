@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RegistrationStepper from "../../components/registration/RegistrationStepper";
 import { mockEventDetail, volunteerRoleOptions, volunteerShiftOptions } from "../../lib/registrationMockData";

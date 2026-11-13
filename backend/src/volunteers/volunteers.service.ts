@@ -12,6 +12,7 @@ import { VolunteerProfile } from './entities/volunteer-profile.entity';
 import {
   VolunteerAssignment,
   VolunteerAssignmentStatus,
+  VolunteerHoursApprovalStatus,
 } from './entities/volunteer-assignment.entity';
 import {
   VolunteerApplication,
@@ -40,11 +41,12 @@ export interface CreateVolunteerAssignmentInput {
   volunteerId: string;
   eventId: string;
   assignedRole: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
 }
 
 export interface UpdateVolunteerAssignmentInput {
   status: VolunteerAssignmentStatus;
-  hoursWorked?: number;
 }
 
 export interface ApplyForEventInput {
@@ -78,6 +80,62 @@ export class VolunteersService {
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  async reviewVolunteerHours(
+    organizerId: string,
+    assignmentId: string,
+    status: VolunteerHoursApprovalStatus,
+  ): Promise<VolunteerAssignment> {
+    const isOrganizer = await this.usersService.hasRole(
+      organizerId,
+      UserRole.ORGANIZER,
+    );
+
+    if (!isOrganizer) {
+      throw new ForbiddenException(
+        'Only organizers can review volunteer working hours.',
+      );
+    }
+
+    if (
+      status !== VolunteerHoursApprovalStatus.APPROVED &&
+      status !== VolunteerHoursApprovalStatus.FLAGGED
+    ) {
+      throw new BadRequestException(
+        'Hours can only be approved or flagged.',
+      );
+    }
+
+    const assignment =
+      await this.volunteerAssignmentRepository.findOne({
+        where: { id: assignmentId },
+        relations: {
+          event: true,
+        },
+      });
+
+    if (!assignment) {
+      throw new NotFoundException(
+        'Volunteer assignment not found.',
+      );
+    }
+
+    if (assignment.event.organizerId !== organizerId) {
+      throw new ForbiddenException(
+        'You can only review hours for your own events.',
+      );
+    }
+
+    if (assignment.status !== VolunteerAssignmentStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Only completed volunteer assignments can have their hours reviewed.',
+      );
+    }
+
+    assignment.hoursApprovalStatus = status;
+
+    return this.volunteerAssignmentRepository.save(assignment);
+  }
 
   async getMyProfile(userId: string): Promise<VolunteerProfile> {
     let profile = await this.volunteerProfileRepository.findOne({
@@ -336,6 +394,28 @@ export class VolunteersService {
       );
     }
 
+    const scheduledStartAt = new Date(input.scheduledStartAt);
+    const scheduledEndAt = new Date(input.scheduledEndAt);
+
+    if (
+      Number.isNaN(scheduledStartAt.getTime()) ||
+      Number.isNaN(scheduledEndAt.getTime()) ||
+      scheduledEndAt <= scheduledStartAt
+    ) {
+      throw new BadRequestException(
+        'Please provide a valid shift start and end time.',
+      );
+    }
+
+    if (
+      scheduledStartAt < new Date(event.startDate) ||
+      scheduledEndAt > new Date(event.endDate)
+    ) {
+      throw new BadRequestException(
+        'The volunteer shift must fall within the event dates and times.',
+      );
+    }
+
     const isVolunteer = await this.usersService.hasRole(
       input.volunteerId,
       UserRole.VOLUNTEER,
@@ -372,16 +452,48 @@ export class VolunteersService {
 
     if (
       existingAssignment &&
-      existingAssignment.status !== VolunteerAssignmentStatus.CANCELLED
+      existingAssignment.status !== VolunteerAssignmentStatus.CANCELLED &&
+      existingAssignment.status !== VolunteerAssignmentStatus.DECLINED
     ) {
       throw new ConflictException(
         'This volunteer is already assigned to the event.',
       );
     }
 
+    const overlappingAssignment =
+      await this.volunteerAssignmentRepository
+        .createQueryBuilder('assignment')
+        .where('assignment.volunteerId = :volunteerId', {
+          volunteerId: input.volunteerId,
+        })
+        .andWhere('assignment.scheduledStartAt < :scheduledEndAt', {
+          scheduledEndAt,
+        })
+        .andWhere('assignment.scheduledEndAt > :scheduledStartAt', {
+          scheduledStartAt,
+        })
+        .andWhere('assignment.status NOT IN (:...ignoredStatuses)', {
+          ignoredStatuses: [
+            VolunteerAssignmentStatus.DECLINED,
+            VolunteerAssignmentStatus.CANCELLED,
+          ],
+        })
+        .getOne();
+
+    if (overlappingAssignment) {
+      throw new ConflictException(
+        'This volunteer already has another assignment scheduled during this time.',
+      );
+    }
+
     if (existingAssignment) {
       existingAssignment.assignedRole = input.assignedRole;
-      existingAssignment.status = VolunteerAssignmentStatus.ASSIGNED;
+      existingAssignment.status =
+        VolunteerAssignmentStatus.PENDING_ACCEPTANCE;
+      existingAssignment.scheduledStartAt = scheduledStartAt;
+      existingAssignment.scheduledEndAt = scheduledEndAt;
+      existingAssignment.actualStartedAt = null;
+      existingAssignment.actualEndedAt = null;
       existingAssignment.hoursWorked = '0';
       existingAssignment.completedAt = null;
 
@@ -392,7 +504,11 @@ export class VolunteersService {
       volunteerId: input.volunteerId,
       eventId: input.eventId,
       assignedRole: input.assignedRole,
-      status: VolunteerAssignmentStatus.ASSIGNED,
+      status: VolunteerAssignmentStatus.PENDING_ACCEPTANCE,
+      scheduledStartAt,
+      scheduledEndAt,
+      actualStartedAt: null,
+      actualEndedAt: null,
       hoursWorked: '0',
       completedAt: null,
     });
@@ -450,35 +566,146 @@ export class VolunteersService {
       throw new NotFoundException('Volunteer assignment not found.');
     }
 
-    if (
-      assignment.status === VolunteerAssignmentStatus.COMPLETED ||
-      assignment.status === VolunteerAssignmentStatus.CANCELLED
-    ) {
-      throw new BadRequestException(
-        'This assignment can no longer be updated.',
-      );
+    const now = new Date();
+
+    // Step 1: Accept the assignment.
+    if (input.status === VolunteerAssignmentStatus.ACCEPTED) {
+      if (
+        assignment.status !==
+        VolunteerAssignmentStatus.PENDING_ACCEPTANCE
+      ) {
+        throw new BadRequestException(
+          'This assignment cannot be accepted in its current state.',
+        );
+      }
+
+      if (!assignment.scheduledStartAt || !assignment.scheduledEndAt) {
+        throw new BadRequestException(
+          'This assignment does not have a valid scheduled shift.',
+        );
+      }
+
+      const overlappingAssignment =
+        await this.volunteerAssignmentRepository
+          .createQueryBuilder('other')
+          .where('other.volunteerId = :volunteerId', { volunteerId })
+          .andWhere('other.id != :assignmentId', { assignmentId })
+          .andWhere('other.scheduledStartAt < :scheduledEndAt', {
+            scheduledEndAt: assignment.scheduledEndAt,
+          })
+          .andWhere('other.scheduledEndAt > :scheduledStartAt', {
+            scheduledStartAt: assignment.scheduledStartAt,
+          })
+          .andWhere('other.status NOT IN (:...ignoredStatuses)', {
+            ignoredStatuses: [
+              VolunteerAssignmentStatus.DECLINED,
+              VolunteerAssignmentStatus.CANCELLED,
+            ],
+          })
+          .getOne();
+
+      if (overlappingAssignment) {
+        throw new ConflictException(
+          'You already have another assignment scheduled during this time. You cannot accept overlapping shifts.',
+        );
+      }
+
+      assignment.status = VolunteerAssignmentStatus.ACCEPTED;
+
+      return this.volunteerAssignmentRepository.save(assignment);
     }
 
-    if (
-      input.status !== VolunteerAssignmentStatus.IN_PROGRESS &&
-      input.status !== VolunteerAssignmentStatus.COMPLETED
-    ) {
-      throw new BadRequestException(
-        'You can only mark an assignment as in progress or completed.',
-      );
+    // Step 2: Start the shift.
+    if (input.status === VolunteerAssignmentStatus.IN_PROGRESS) {
+      if (assignment.status !== VolunteerAssignmentStatus.ACCEPTED) {
+        throw new BadRequestException(
+          'You must accept this assignment before starting your shift.',
+        );
+      }
+
+      if (!assignment.scheduledStartAt || !assignment.scheduledEndAt) {
+        throw new BadRequestException(
+          'This assignment does not have a valid scheduled shift.',
+        );
+      }
+
+      if (now < assignment.scheduledStartAt) {
+        throw new BadRequestException(
+          'You cannot start your shift before its scheduled start time.',
+        );
+      }
+
+      if (now >= assignment.scheduledEndAt) {
+        throw new BadRequestException(
+          'The scheduled shift has already ended.',
+        );
+      }
+
+      assignment.actualStartedAt = now;
+      assignment.actualEndedAt = null;
+      assignment.status = VolunteerAssignmentStatus.IN_PROGRESS;
+
+      return this.volunteerAssignmentRepository.save(assignment);
     }
 
-    if (input.hoursWorked !== undefined) {
-      assignment.hoursWorked = String(input.hoursWorked);
-    }
-
-    assignment.status = input.status;
-
+    // Step 3: End the shift and calculate hours automatically.
     if (input.status === VolunteerAssignmentStatus.COMPLETED) {
-      assignment.completedAt = new Date();
+      if (assignment.status !== VolunteerAssignmentStatus.IN_PROGRESS) {
+        throw new BadRequestException(
+          'You must start your shift before ending it.',
+        );
+      }
+
+      if (!assignment.actualStartedAt) {
+        throw new BadRequestException(
+          'The shift start time could not be found.',
+        );
+      }
+
+      if (now <= assignment.actualStartedAt) {
+        throw new BadRequestException(
+          'The shift end time must be after its start time.',
+        );
+      }
+
+      const elapsedMilliseconds =
+        now.getTime() - assignment.actualStartedAt.getTime();
+
+      const calculatedHours = elapsedMilliseconds / (1000 * 60 * 60);
+
+      assignment.actualEndedAt = now;
+      assignment.hoursWorked = calculatedHours.toFixed(2);
+      assignment.status = VolunteerAssignmentStatus.COMPLETED;
+      assignment.completedAt = now;
+
+      assignment.hoursApprovalStatus =
+        assignment.scheduledEndAt &&
+        now > assignment.scheduledEndAt
+          ? VolunteerHoursApprovalStatus.FLAGGED
+          : VolunteerHoursApprovalStatus.PENDING;
+
+      return this.volunteerAssignmentRepository.save(assignment);
     }
 
-    return this.volunteerAssignmentRepository.save(assignment);
+    // Step 4: Decline a pending assignment.
+    if (input.status === VolunteerAssignmentStatus.DECLINED) {
+      if (
+        assignment.status !==
+        VolunteerAssignmentStatus.PENDING_ACCEPTANCE
+      ) {
+        throw new BadRequestException(
+          'Only pending assignments can be declined.',
+        );
+      }
+
+      assignment.status = VolunteerAssignmentStatus.DECLINED;
+
+      return this.volunteerAssignmentRepository.save(assignment);
+    }
+
+    throw new BadRequestException(
+      'Invalid assignment action.',
+    );
   }
 
   async getMyActivity(
@@ -493,6 +720,7 @@ export class VolunteersService {
         select: {
           eventId: true,
           hoursWorked: true,
+          hoursApprovalStatus: true,
         },
       });
 
@@ -501,7 +729,16 @@ export class VolunteersService {
     ).size;
 
     const totalVolunteerHours = completedAssignments.reduce(
-      (total, assignment) => total + Number(assignment.hoursWorked),
+      (total, assignment) => {
+        if (
+          assignment.hoursApprovalStatus !==
+          VolunteerHoursApprovalStatus.APPROVED
+        ) {
+          return total;
+        }
+
+        return total + Number(assignment.hoursWorked);
+      },
       0,
     );
 

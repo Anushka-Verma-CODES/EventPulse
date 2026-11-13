@@ -1,7 +1,6 @@
 
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getVolunteerApplication } from "../../lib/registrationMockData";
 import {
   getMyRegistrations,
   registerForEvent,
@@ -11,33 +10,115 @@ import {
   verifyPayment,
 } from "../../features/payments/api/paymentsApi";
 import { loadRazorpayCheckout } from "../../features/payments/razorpay";
+import ApplyModal from "../volunteer/ApplyModal";
+import { useAuth } from "../../context/AuthContext";
+import { getAuthHeaders } from "../../lib/authApi";
+import { API_BASE_URL } from "../../lib/apiConfig";
 
 interface RegistrationOptionsProps {
   eventId: string;
+  eventName: string;
   price: number;
   isRegistered: boolean;
   registrationLoading: boolean;
   registrationError?: string;
 }
 
+type ApplicationStatus = "pending" | "accepted" | "rejected";
+
+interface VolunteerApplication {
+  id: string;
+  eventId: string;
+  status: ApplicationStatus;
+}
+
 export default function RegistrationOptions({
   eventId,
+  eventName,
   price,
   isRegistered,
   registrationLoading,
   registrationError,
 }: RegistrationOptionsProps) {
   const navigate = useNavigate();
-  const volunteerApp = getVolunteerApplication(eventId);
+  const { profile, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const isVolunteer = profile?.roles.includes("volunteer") ?? false;
 
   const [registered, setRegistered] = useState(isRegistered);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
 
+  const [volunteerApplications, setVolunteerApplications] = useState<
+    VolunteerApplication[]
+  >([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [applicationsError, setApplicationsError] = useState("");
+  const [isApplyOpen, setIsApplyOpen] = useState(false);
+
   useEffect(() => {
     setRegistered(isRegistered);
   }, [isRegistered]);
+
+  async function fetchVolunteerApplications() {
+    if (!isAuthenticated || !isVolunteer) {
+      setVolunteerApplications([]);
+      setApplicationsLoading(false);
+      return;
+    }
+
+    setApplicationsLoading(true);
+    setApplicationsError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/volunteers/me/applications`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+
+      if (!response.ok) {
+        const responseData = await response.json().catch(() => null);
+        const errorMessage = responseData?.message;
+
+        throw new Error(
+          Array.isArray(errorMessage)
+            ? errorMessage.join(" ")
+            : errorMessage || "Unable to load your volunteer applications.",
+        );
+      }
+
+      const data: VolunteerApplication[] = await response.json();
+
+      setVolunteerApplications(
+        data.filter((application) => application.eventId === eventId),
+      );
+    } catch (error) {
+      setApplicationsError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your volunteer applications.",
+      );
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (isAuthenticated && isVolunteer) {
+      fetchVolunteerApplications();
+    } else {
+      setVolunteerApplications([]);
+      setApplicationsError("");
+      setApplicationsLoading(false);
+    }
+  }, [eventId, authLoading, isAuthenticated, isVolunteer]);
 
   async function openRegisteredTicket(registrationId?: string) {
     let ticketId = registrationId;
@@ -169,6 +250,10 @@ export default function RegistrationOptions({
 
   const hasAttendeeRegistration = registered || isRegistered;
 
+  const existingVolunteerApplication = volunteerApplications.find(
+    (application) => application.eventId === eventId,
+  );
+
   const formattedPrice =
     price === 0
       ? "Free"
@@ -176,6 +261,28 @@ export default function RegistrationOptions({
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}`;
+
+  function getApplicationStatusLabel(status: ApplicationStatus) {
+    switch (status) {
+      case "pending":
+        return "Pending Review";
+      case "accepted":
+        return "Accepted";
+      case "rejected":
+        return "Rejected";
+    }
+  }
+
+  function getApplicationStatusColor(status: ApplicationStatus) {
+    switch (status) {
+      case "pending":
+        return "text-[#D97706]";
+      case "accepted":
+        return "text-[#16A34A]";
+      case "rejected":
+        return "text-red-600";
+    }
+  }
 
   return (
     <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
@@ -275,13 +382,41 @@ export default function RegistrationOptions({
             No registration fee &middot; Application required
           </div>
 
-          {volunteerApp ? (
+          {authLoading ? (
+            <p className="mt-4 text-sm text-[#64748B]">
+              Checking account...
+            </p>
+          ) : !isAuthenticated ? (
             <div className="mt-4">
-              <div className="mb-2 text-sm font-medium text-[#D97706]">
-                &#10003; Volunteer Application{" "}
-                {volunteerApp.status === "Pending"
-                  ? "Submitted"
-                  : volunteerApp.status}
+              <p className="mb-2 text-xs text-[#64748B]">
+                Log in with a volunteer account to apply.
+              </p>
+              <Link
+                to="/login"
+                className="block rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-center text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
+              >
+                Log In to Apply
+              </Link>
+            </div>
+          ) : !isVolunteer ? (
+            <p className="mt-4 text-sm text-[#64748B]">
+              Volunteer applications are available to accounts with the
+              volunteer role.
+            </p>
+          ) : applicationsLoading ? (
+            <p className="mt-4 text-sm text-[#64748B]">
+              Checking your application...
+            </p>
+          ) : existingVolunteerApplication ? (
+            <div className="mt-4">
+              <div
+                className={`mb-2 text-sm font-semibold ${getApplicationStatusColor(
+                  existingVolunteerApplication.status,
+                )}`}
+              >
+                &#10003; {getApplicationStatusLabel(
+                  existingVolunteerApplication.status,
+                )}
               </div>
 
               <Link
@@ -291,16 +426,40 @@ export default function RegistrationOptions({
                 View Application
               </Link>
             </div>
+          ) : applicationsError ? (
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-red-600">
+                {applicationsError}
+              </p>
+              <button
+                type="button"
+                onClick={fetchVolunteerApplications}
+                className="w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
-            <Link
-              to={`/events/${eventId}/register/volunteer`}
-              className="mt-4 block rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-center text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
+            <button
+              type="button"
+              onClick={() => setIsApplyOpen(true)}
+              className="mt-4 block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-center text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC]"
             >
-              Register as Volunteer
-            </Link>
+              Apply as Volunteer
+            </button>
           )}
         </div>
       </div>
+
+      {isApplyOpen && (
+        <ApplyModal
+          eventId={eventId}
+          eventName="Event"
+          role="Volunteer"
+          onClose={() => setIsApplyOpen(false)}
+          onSubmitted={fetchVolunteerApplications}
+        />
+      )}
     </div>
   );
 }

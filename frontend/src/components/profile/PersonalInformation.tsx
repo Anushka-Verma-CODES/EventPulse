@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { PersonalInfo } from "../../lib/profileMockData";
 import { updateMyProfile } from "../../lib/authApi";
 import { useAuth } from "../../context/AuthContext";
+import { VolunteerSkillsSection } from "./VolunteerSection";
 
 type ProfileFormInfo = PersonalInfo & {
   studentId: string;
@@ -14,7 +15,9 @@ interface PersonalInformationProps {
   info: ProfileFormInfo;
   onSave: (updatedInfo: ProfileFormInfo) => void;
   showAttendeeFields: boolean;
+  showAcademicFields: boolean;
   showOrganizerFields: boolean;
+  showVolunteerFields: boolean;
   organizerId: string;
   editRequest: number;
 }
@@ -23,7 +26,9 @@ export default function PersonalInformation({
   info,
   onSave,
   showAttendeeFields,
+  showAcademicFields,
   showOrganizerFields,
+  showVolunteerFields,
   organizerId,
   editRequest,
 }: PersonalInformationProps) {
@@ -47,7 +52,7 @@ export default function PersonalInformation({
 
   const handleChange = (
     field: keyof ProfileFormInfo,
-    value: string
+    value: string,
   ) => {
     setDraft((current) => ({
       ...current,
@@ -71,7 +76,7 @@ export default function PersonalInformation({
         email: draft.email.trim(),
         phone: draft.phone.trim(),
         organization: draft.organization.trim(),
-        ...(showAttendeeFields
+        ...(showAcademicFields
           ? {
               studentId: draft.studentId.trim(),
               department: draft.department.trim(),
@@ -103,7 +108,7 @@ export default function PersonalInformation({
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to update your profile. Please try again."
+          : "Unable to update your profile. Please try again.",
       );
     } finally {
       setIsSaving(false);
@@ -118,7 +123,7 @@ export default function PersonalInformation({
 
   const renderField = (
     label: string,
-    field: keyof ProfileFormInfo
+    field: keyof ProfileFormInfo,
   ) => (
     <div>
       <label className="mb-2 block text-sm font-medium text-gray-600">
@@ -129,7 +134,7 @@ export default function PersonalInformation({
         <input
           type="text"
           value={draft[field]}
-          onChange={(e) => handleChange(field, e.target.value)}
+          onChange={(event) => handleChange(field, event.target.value)}
           className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
       ) : (
@@ -187,7 +192,7 @@ export default function PersonalInformation({
         </>
       )}
 
-      {showAttendeeFields && (
+      {showAcademicFields && (
         <>
           <div className="my-5 border-t border-gray-100" />
 
@@ -202,6 +207,8 @@ export default function PersonalInformation({
           </div>
         </>
       )}
+
+      {showVolunteerFields && <VolunteerSkillsSection />}
 
       {error && (
         <p role="alert" className="mt-4 text-sm text-red-600">

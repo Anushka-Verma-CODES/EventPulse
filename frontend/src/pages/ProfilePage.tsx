@@ -53,12 +53,14 @@ export default function ProfilePage({ role }: ProfilePageProps) {
     profile?.academicYear,
   ]);
 
-  const RoleSection = {
-    attendee: AttendeeSection,
-    volunteer: VolunteerSection,
-    organizer: OrganizerSection,
-    scanner: ScannerSection,
-  }[role];
+  const RoleSection =
+    role === "attendee"
+      ? AttendeeSection
+      : role === "organizer"
+        ? OrganizerSection
+        : role === "scanner"
+          ? ScannerSection
+          : null;
 
   const initials = personalInfo.fullName
     .trim()
@@ -80,7 +82,9 @@ export default function ProfilePage({ role }: ProfilePageProps) {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <h1 className="text-2xl font-bold text-[#1E293B]">Profile</h1>
+      <h1 className="text-2xl font-bold text-[#1E293B]">
+        Profile
+      </h1>
 
       <ProfileHeader
         role={role}
@@ -94,13 +98,17 @@ export default function ProfilePage({ role }: ProfilePageProps) {
           info={personalInfo}
           onSave={setPersonalInfo}
           showAttendeeFields={role === "attendee"}
+          showAcademicFields={role === "attendee"}
           showOrganizerFields={role === "organizer"}
+          showVolunteerFields={role === "volunteer"}
           organizerId={profile?.id ?? ""}
           editRequest={editRequest}
         />
       </div>
 
-      <RoleSection />
+      {role === "volunteer" && <VolunteerSection />}
+
+      {RoleSection && <RoleSection />}
     </div>
   );
 }

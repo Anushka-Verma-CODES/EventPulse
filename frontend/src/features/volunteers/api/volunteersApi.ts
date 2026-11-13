@@ -1,3 +1,4 @@
+
 import { getAuthHeaders } from "../../../lib/authApi";
 
 const VITE_API_BASE_URL =
@@ -75,17 +76,39 @@ export async function getMyVolunteerActivity(): Promise<VolunteerActivityStats> 
   return handleResponse<VolunteerActivityStats>(response);
 }
 
+export type VolunteerAssignmentStatus =
+  | "pending_acceptance"
+  | "accepted"
+  | "declined"
+  | "assigned"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export type VolunteerHoursApprovalStatus =
+  | "pending"
+  | "approved"
+  | "flagged";
 
 export interface VolunteerAssignment {
   id: string;
   volunteerId: string;
   eventId: string;
   assignedRole: string;
-  status: "assigned" | "in_progress" | "completed" | "cancelled";
+  status: VolunteerAssignmentStatus;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+
+  actualStartedAt: string | null;
+  actualEndedAt: string | null;
+
   hoursWorked: string;
+  hoursApprovalStatus: VolunteerHoursApprovalStatus;
+
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+
   event: {
     id: string;
     title: string;
@@ -94,6 +117,7 @@ export interface VolunteerAssignment {
     endDate: string;
     status: string;
   };
+
   volunteer?: {
     id: string;
     fullName?: string;
@@ -105,11 +129,16 @@ export interface CreateVolunteerAssignmentInput {
   volunteerId: string;
   eventId: string;
   assignedRole: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
 }
 
 export interface UpdateVolunteerAssignmentInput {
-  status: "in_progress" | "completed";
-  hoursWorked?: number;
+  status:
+    | "accepted"
+    | "declined"
+    | "in_progress"
+    | "completed";
 }
 
 export async function getMyVolunteerAssignments(): Promise<VolunteerAssignment[]> {
@@ -183,4 +212,23 @@ export async function getOrganizerVolunteerAssignments(): Promise<VolunteerAssig
   );
 
   return handleResponse<VolunteerAssignment[]>(response);
+}
+
+export async function reviewVolunteerHours(
+  assignmentId: string,
+  status: "approved" | "flagged",
+): Promise<VolunteerAssignment> {
+  const response = await fetch(
+    `${VITE_API_BASE_URL}/volunteers/organizer/assignments/${assignmentId}/review-hours`,
+    {
+      method: "PATCH",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  return handleResponse<VolunteerAssignment>(response);
 }

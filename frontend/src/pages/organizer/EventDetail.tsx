@@ -203,7 +203,13 @@ export default function EventDetail() {
   const [gates, setGates] = useState<EventGate[]>([]);
   const [loadingGates, setLoadingGates] = useState(false);
   const [creatingGate, setCreatingGate] = useState(false);
+  const [savingGate, setSavingGate] = useState(false);
+  const [editingGateId, setEditingGateId] = useState("");
   const [deactivatingGateId, setDeactivatingGateId] = useState("");
+
+  const [editGateName, setEditGateName] = useState("");
+  const [editGateCode, setEditGateCode] = useState("");
+  const [editGateCapacity, setEditGateCapacity] = useState("");
 
   const [gateName, setGateName] = useState("");
   const [gateCode, setGateCode] = useState("");
@@ -307,6 +313,88 @@ export default function EventDetail() {
       );
     } finally {
       setCreatingGate(false);
+    }
+  }
+
+  // START EDITING A GATE
+  function startEditingGate(gate: EventGate) {
+    setEditingGateId(gate.id);
+    setEditGateName(gate.name);
+    setEditGateCode(gate.code);
+    setEditGateCapacity(
+      gate.capacity === null ? "" : String(gate.capacity),
+    );
+    setGateError("");
+    setGateSuccess("");
+  }
+
+  // CANCEL GATE EDITING
+  function cancelEditingGate() {
+    setEditingGateId("");
+    setEditGateName("");
+    setEditGateCode("");
+    setEditGateCapacity("");
+  }
+
+  // SAVE GATE CHANGES
+  async function updateGate() {
+    if (!editingGateId) return;
+
+    const trimmedName = editGateName.trim();
+    const trimmedCode = editGateCode.trim().toUpperCase();
+
+    if (!trimmedName || !trimmedCode) {
+      setGateError("Enter both a gate name and gate code.");
+      return;
+    }
+
+    if (
+      editGateCapacity.trim() &&
+      (!Number.isInteger(Number(editGateCapacity)) ||
+        Number(editGateCapacity) <= 0)
+    ) {
+      setGateError("Capacity must be a positive whole number.");
+      return;
+    }
+
+    const duplicateCode = gates.some(
+      (gate) =>
+        gate.id !== editingGateId &&
+        gate.code.toLowerCase() === trimmedCode.toLowerCase(),
+    );
+
+    if (duplicateCode) {
+      setGateError("A gate with this code already exists for this event.");
+      return;
+    }
+
+    setSavingGate(true);
+    setGateError("");
+    setGateSuccess("");
+
+    try {
+      await apiRequest<EventGate>(`/gates/${editingGateId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: trimmedName,
+          code: trimmedCode,
+          capacity: editGateCapacity.trim()
+            ? Number(editGateCapacity)
+            : null,
+        }),
+      });
+
+      cancelEditingGate();
+      setGateSuccess("Gate details updated successfully.");
+      await loadGates();
+    } catch (err) {
+      setGateError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update gate details.",
+      );
+    } finally {
+      setSavingGate(false);
     }
   }
 
@@ -1047,6 +1135,114 @@ export default function EventDetail() {
               )}
             </div>
 
+            {/* EDIT GATE FORM */}
+            {editingGateId && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-semibold text-[#1E293B]">
+                      Edit gate details
+                    </h4>
+                    <p className="mt-1 text-sm text-[#64748B]">
+                      Update the gate name, code or capacity.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelEditingGate}
+                    disabled={savingGate}
+                    className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="edit-gate-name"
+                      className="mb-2 block text-sm font-medium text-[#334155]"
+                    >
+                      Gate name
+                    </label>
+                    <input
+                      id="edit-gate-name"
+                      type="text"
+                      value={editGateName}
+                      onChange={(e) => setEditGateName(e.target.value)}
+                      maxLength={100}
+                      disabled={savingGate || isCancelled}
+                      className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="edit-gate-code"
+                      className="mb-2 block text-sm font-medium text-[#334155]"
+                    >
+                      Gate code
+                    </label>
+                    <input
+                      id="edit-gate-code"
+                      type="text"
+                      value={editGateCode}
+                      onChange={(e) =>
+                        setEditGateCode(e.target.value.toUpperCase())
+                      }
+                      maxLength={40}
+                      disabled={savingGate || isCancelled}
+                      className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm uppercase outline-none focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="edit-gate-capacity"
+                      className="mb-2 block text-sm font-medium text-[#334155]"
+                    >
+                      Capacity (optional)
+                    </label>
+                    <input
+                      id="edit-gate-capacity"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={editGateCapacity}
+                      onChange={(e) => setEditGateCapacity(e.target.value)}
+                      placeholder="No capacity limit"
+                      disabled={savingGate || isCancelled}
+                      className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      Leave empty to remove the capacity limit.
+                    </p>
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void updateGate()}
+                      disabled={
+                        savingGate ||
+                        isCancelled ||
+                        !editGateName.trim() ||
+                        !editGateCode.trim()
+                      }
+                      className="w-full rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savingGate ? "Saving Changes..." : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+                {isCancelled && (
+                  <p className="mt-3 text-xs text-red-600">
+                    Gates cannot be edited for a cancelled event.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* GATE LIST */}
             <div>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1111,26 +1307,38 @@ export default function EventDetail() {
                           </td>
 
                           <td className="px-4 py-4">
-                            {gate.isActive ? (
+                            <div className="flex items-center gap-3">
                               <button
                                 type="button"
                                 disabled={
+                                  isCancelled ||
+                                  savingGate ||
                                   deactivatingGateId === gate.id
                                 }
-                                onClick={() =>
-                                  void deactivateGate(gate)
-                                }
-                                className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                                onClick={() => startEditingGate(gate)}
+                                className="text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                {deactivatingGateId === gate.id
-                                  ? "Deactivating..."
-                                  : "Deactivate"}
+                                Edit
                               </button>
-                            ) : (
-                              <span className="text-xs text-[#94A3B8]">
-                                —
-                              </span>
-                            )}
+
+                              {gate.isActive && (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    deactivatingGateId === gate.id ||
+                                    savingGate
+                                  }
+                                  onClick={() =>
+                                    void deactivateGate(gate)
+                                  }
+                                  className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                                >
+                                  {deactivatingGateId === gate.id
+                                    ? "Deactivating..."
+                                    : "Deactivate"}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
