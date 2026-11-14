@@ -25,6 +25,7 @@ function parseList(value: string): string[] {
 
 // This section appears inside the Personal Information card.
 export function VolunteerSkillsSection() {
+  const [volunteerId, setVolunteerId] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsDraft, setSkillsDraft] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -41,6 +42,7 @@ export function VolunteerSkillsSection() {
         const profile = await getMyVolunteerProfile();
 
         if (isMounted) {
+          setVolunteerId(`VOL-${profile.id.toUpperCase()}`);
           setSkills(profile.skills);
           setSkillsDraft(profile.skills.join(", "));
         }
@@ -107,6 +109,13 @@ export function VolunteerSkillsSection() {
       <h3 className="mb-3 text-sm font-semibold text-[#1E293B]">
         Volunteer Information
       </h3>
+
+      <div className="mb-4">
+        <div className="text-xs text-[#64748B]">Volunteer ID</div>
+        <div className="mt-1 text-sm font-semibold text-[#2563EB]">
+          {volunteerId || "—"}
+        </div>
+      </div>
 
       <h4 className="mb-2 text-sm font-medium text-[#1E293B]">
         Skills

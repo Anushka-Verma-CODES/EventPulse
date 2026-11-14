@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -41,149 +42,200 @@ export default function OrganizerSidebar({
 }: OrganizerSidebarProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(initiallyCollapsed);
 
-  function handleLogout() {
+  const [isCollapsed, setIsCollapsed] = useState(initiallyCollapsed);
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] = useState(false);
+
+  function confirmLogout() {
+    setIsLogoutConfirmationOpen(false);
     logout();
     navigate("/login", { replace: true });
   }
 
   return (
-    <aside
-      className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
-        isCollapsed ? "w-[64px]" : "w-[216px]"
-      }`}
-    >
-      <Link
-        to="/"
-        title="EventPulse home"
-        className={`flex items-center gap-2 py-5 hover:opacity-80 ${
-          isCollapsed ? "justify-center px-3" : "px-5"
+    <>
+      <aside
+        className={`flex h-full flex-col border-r border-[#E2E8F0] bg-white transition-[width] duration-300 ${
+          isCollapsed ? "w-[64px]" : "w-[216px]"
         }`}
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2563EB] text-white">
-          <Calendar className="h-4 w-4" />
-        </span>
-
-        {!isCollapsed && (
-          <span className="text-lg font-semibold text-[#1E293B]">
-            EventPulse
-          </span>
-        )}
-      </Link>
-
-      <button
-        type="button"
-        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
-        aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
-        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
-        className={`mx-3 mb-4 flex items-center rounded-lg border border-transparent py-2 text-[#64748B] transition-colors hover:border-[#DBEAFE] hover:bg-[#EFF6FF] hover:text-[#2563EB] ${
-          isCollapsed ? "justify-center" : "gap-2 px-3"
-        }`}
-      >
-        {isCollapsed ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-
-        {!isCollapsed && (
-          <span className="text-xs font-semibold">
-            Collapse navigation
-          </span>
-        )}
-      </button>
-
-      {!isCollapsed && (
-        <div className="px-5 pb-2 text-[11px] font-semibold tracking-wide text-[#94A3B8]">
-          ORGANIZER
-        </div>
-      )}
-
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              title={isCollapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
-                  isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
-                } ${
-                  isActive
-                    ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
-                    : "text-[#1E293B] hover:bg-[#F8FAFC] hover:text-[#2563EB]"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={`h-4.5 w-4.5 ${
-                      isActive ? "text-[#2563EB]" : "text-[#64748B]"
-                    }`}
-                  />
-                  {!isCollapsed && item.label}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-[#E2E8F0] p-3">
-        <NavLink
-          to="/organizer/profile"
-          onClick={onNavigate}
-          title={isCollapsed ? "Profile" : undefined}
-          className={({ isActive }) =>
-            `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
-              isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
-            } ${
-              isActive
-                ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
-                : "text-[#1E293B] hover:bg-[#F8FAFC]"
-            }`
-          }
+        <Link
+          to="/"
+          title="EventPulse home"
+          className={`flex items-center gap-2 py-5 hover:opacity-80 ${
+            isCollapsed ? "justify-center px-3" : "px-5"
+          }`}
         >
-          <User className="h-4.5 w-4.5 text-[#64748B]" />
-          {!isCollapsed && "Profile"}
-        </NavLink>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2563EB] text-white">
+            <Calendar className="h-4 w-4" />
+          </span>
 
-        <NavLink
-          to="/organizer/settings"
-          onClick={onNavigate}
-          title={isCollapsed ? "Settings" : undefined}
-          className={({ isActive }) =>
-            `mt-1 flex items-center rounded-lg py-2.5 text-sm transition-colors ${
-              isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
-            } ${
-              isActive
-                ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
-                : "text-[#1E293B] hover:bg-[#F8FAFC]"
-            }`
-          }
-        >
-          <Settings className="h-4.5 w-4.5 text-[#64748B]" />
-          {!isCollapsed && "Settings"}
-        </NavLink>
+          {!isCollapsed && (
+            <span className="text-lg font-semibold text-[#1E293B]">
+              EventPulse
+            </span>
+          )}
+        </Link>
 
         <button
           type="button"
-          onClick={handleLogout}
-          title="Logout"
-          className={`mt-1 flex w-full items-center rounded-lg py-2.5 text-sm text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#DC2626] ${
-            isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+          aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+          title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+          className={`mx-3 mb-4 flex items-center rounded-lg border border-transparent py-2 text-[#64748B] transition-colors hover:border-[#DBEAFE] hover:bg-[#EFF6FF] hover:text-[#2563EB] ${
+            isCollapsed ? "justify-center" : "gap-2 px-3"
           }`}
         >
-          <LogOut className="h-4.5 w-4.5" />
-          {!isCollapsed && "Logout"}
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+
+          {!isCollapsed && (
+            <span className="text-xs font-semibold">
+              Collapse navigation
+            </span>
+          )}
         </button>
-      </div>
-    </aside>
+
+        {!isCollapsed && (
+          <div className="px-5 pb-2 text-[11px] font-semibold tracking-wide text-[#94A3B8]">
+            ORGANIZER
+          </div>
+        )}
+
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onNavigate}
+                title={isCollapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+                    isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+                  } ${
+                    isActive
+                      ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
+                      : "text-[#1E293B] hover:bg-[#F8FAFC] hover:text-[#2563EB]"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      className={`h-4.5 w-4.5 ${
+                        isActive ? "text-[#2563EB]" : "text-[#64748B]"
+                      }`}
+                    />
+                    {!isCollapsed && item.label}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-[#E2E8F0] p-3">
+          <NavLink
+            to="/organizer/profile"
+            onClick={onNavigate}
+            title={isCollapsed ? "Profile" : undefined}
+            className={({ isActive }) =>
+              `flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+                isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+              } ${
+                isActive
+                  ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
+                  : "text-[#1E293B] hover:bg-[#F8FAFC]"
+              }`
+            }
+          >
+            <User className="h-4.5 w-4.5 text-[#64748B]" />
+            {!isCollapsed && "Profile"}
+          </NavLink>
+
+          <NavLink
+            to="/organizer/settings"
+            onClick={onNavigate}
+            title={isCollapsed ? "Settings" : undefined}
+            className={({ isActive }) =>
+              `mt-1 flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+                isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+              } ${
+                isActive
+                  ? "bg-[#EFF6FF] font-medium text-[#2563EB]"
+                  : "text-[#1E293B] hover:bg-[#F8FAFC]"
+              }`
+            }
+          >
+            <Settings className="h-4.5 w-4.5 text-[#64748B]" />
+            {!isCollapsed && "Settings"}
+          </NavLink>
+
+          <button
+            type="button"
+            onClick={() => {
+  setIsLogoutConfirmationOpen(true);
+}}
+            title="Logout"
+            className={`mt-1 flex w-full items-center rounded-lg py-2.5 text-sm text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#DC2626] ${
+              isCollapsed ? "justify-center px-2" : "gap-2.5 px-3"
+            }`}
+          >
+            <LogOut className="h-4.5 w-4.5" />
+            {!isCollapsed && "Logout"}
+          </button>
+        </div>
+      </aside>
+
+      {isLogoutConfirmationOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirmation-title"
+            className="w-full max-w-md translate-y-6 rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
+              <LogOut className="h-6 w-6 text-red-600" />
+            </div>
+
+            <h2
+              id="logout-confirmation-title"
+              className="text-xl font-semibold text-[#0F172A]"
+            >
+              Confirm Logout
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-[#64748B]">
+              Are you sure you want to log out of your EventPulse account?
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmationOpen(false)}
+                className="rounded-lg border border-[#CBD5E1] px-4 py-2.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { Menu, Search, Bell, CalendarDays } from "lucide-react";
 import UserMenu from "./UserMenu";
+import { useNotifications } from "../../context/NotificationContext";
 
 interface AttendeeNavbarProps {
   pageTitle: string;
@@ -11,6 +12,8 @@ interface AttendeeNavbarProps {
 export default function AttendeeNavbar({
   onOpenMobileSidebar,
 }: AttendeeNavbarProps) {
+  const { unreadCount } = useNotifications();
+
   return (
     <header className="app-navbar sticky top-0 z-20 flex h-12 items-center justify-between px-3 sm:px-5">
       <div className="flex items-center gap-3">
@@ -56,9 +59,15 @@ export default function AttendeeNavbar({
         <Link
           to="/attendee/notifications"
           className="relative rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC]"
-          aria-label="Notifications"
+          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
         >
           <Bell className="h-5 w-5" />
+
+          {unreadCount > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
         </Link>
 
         <UserMenu

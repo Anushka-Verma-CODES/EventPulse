@@ -1,12 +1,8 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  getNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-  type Notification,
-} from "../../features/notifications/api/notificationsApi";
+import { useNotifications } from "../../context/NotificationContext";
+import type { Notification } from "../../features/notifications/api/notificationsApi";
 
 const filters = ["All", "Unread"] as const;
 
@@ -39,33 +35,19 @@ function formatTime(dateString: string): string {
 
 export default function Notifications() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const {
+    notifications,
+    isLoading,
+    refreshNotifications,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
+
   const [activeFilter, setActiveFilter] =
     useState<(typeof filters)[number]>("All");
-  const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
-
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const data = await getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load notifications.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
 
   const filteredNotifications =
     activeFilter === "Unread"
@@ -75,14 +57,7 @@ export default function Notifications() {
   async function handleMarkAllAsRead() {
     try {
       setError("");
-      await markAllNotificationsAsRead();
-
-      setNotifications((previous) =>
-        previous.map((notification) => ({
-          ...notification,
-          isRead: true,
-        })),
-      );
+      await markAllAsRead();
     } catch (err) {
       setError(
         err instanceof Error
@@ -95,15 +70,8 @@ export default function Notifications() {
   async function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {
       try {
-        await markNotificationAsRead(notification.id);
-
-        setNotifications((previous) =>
-          previous.map((item) =>
-            item.id === notification.id
-              ? { ...item, isRead: true }
-              : item,
-          ),
-        );
+        setError("");
+        await markAsRead(notification.id);
       } catch (err) {
         setError(
           err instanceof Error
@@ -116,6 +84,19 @@ export default function Notifications() {
 
     if (notification.link) {
       navigate(notification.link);
+    }
+  }
+
+  async function handleRetry() {
+    try {
+      setError("");
+      await refreshNotifications();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load notifications.",
+      );
     }
   }
 
@@ -135,7 +116,8 @@ export default function Notifications() {
           type="button"
           onClick={handleMarkAllAsRead}
           disabled={
-            loading ||
+            isLoading ||
+            notifications.length === 0 ||
             notifications.every((notification) => notification.isRead)
           }
           className="text-sm font-medium text-[#2563EB] transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
@@ -169,7 +151,7 @@ export default function Notifications() {
           {error}
           <button
             type="button"
-            onClick={() => void loadNotifications()}
+            onClick={() => void handleRetry()}
             className="ml-2 font-semibold underline"
           >
             Retry
@@ -178,7 +160,7 @@ export default function Notifications() {
       )}
 
       <div className="mt-5 flex flex-col gap-3">
-        {loading ? (
+        {isLoading ? (
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-10 text-center">
             <p className="text-sm text-[#64748B]">
               Loading notifications...
@@ -217,9 +199,11 @@ export default function Notifications() {
                       <h3 className="text-sm font-semibold text-[#1E293B]">
                         {notification.title}
                       </h3>
+
                       <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#475569]">
                         {notification.type}
                       </span>
+
                       {!notification.isRead && (
                         <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
                       )}

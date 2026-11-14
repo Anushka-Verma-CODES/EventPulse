@@ -1,12 +1,8 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  getNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-  type Notification,
-} from "../../features/notifications/api/notificationsApi";
+import { useNotifications } from "../../context/NotificationContext";
+import type { Notification } from "../../features/notifications/api/notificationsApi";
 
 const filters = ["All", "Unread"] as const;
 
@@ -32,32 +28,19 @@ function formatTime(dateString: string): string {
 
 export default function VolunteerNotifications() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const {
+    notifications,
+    isLoading,
+    refreshNotifications,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
+
   const [activeFilter, setActiveFilter] =
     useState<(typeof filters)[number]>("All");
-  const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
-
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      setNotifications(await getNotifications());
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load notifications.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
 
   const filteredNotifications =
     activeFilter === "Unread"
@@ -67,14 +50,7 @@ export default function VolunteerNotifications() {
   async function handleMarkAllAsRead() {
     try {
       setError("");
-      await markAllNotificationsAsRead();
-
-      setNotifications((previous) =>
-        previous.map((notification) => ({
-          ...notification,
-          isRead: true,
-        })),
-      );
+      await markAllAsRead();
     } catch (err) {
       setError(
         err instanceof Error
@@ -87,15 +63,8 @@ export default function VolunteerNotifications() {
   async function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {
       try {
-        await markNotificationAsRead(notification.id);
-
-        setNotifications((previous) =>
-          previous.map((item) =>
-            item.id === notification.id
-              ? { ...item, isRead: true }
-              : item,
-          ),
-        );
+        setError("");
+        await markAsRead(notification.id);
       } catch (err) {
         setError(
           err instanceof Error
@@ -108,6 +77,19 @@ export default function VolunteerNotifications() {
 
     if (notification.link) {
       navigate(notification.link);
+    }
+  }
+
+  async function handleRetry() {
+    try {
+      setError("");
+      await refreshNotifications();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load notifications.",
+      );
     }
   }
 
@@ -127,7 +109,8 @@ export default function VolunteerNotifications() {
           type="button"
           onClick={handleMarkAllAsRead}
           disabled={
-            loading ||
+            isLoading ||
+            notifications.length === 0 ||
             notifications.every((notification) => notification.isRead)
           }
           className="text-sm font-medium text-[#2563EB] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
@@ -161,7 +144,7 @@ export default function VolunteerNotifications() {
           {error}
           <button
             type="button"
-            onClick={() => void loadNotifications()}
+            onClick={() => void handleRetry()}
             className="ml-2 font-semibold underline"
           >
             Retry
@@ -170,7 +153,7 @@ export default function VolunteerNotifications() {
       )}
 
       <div className="mt-4 flex flex-col gap-2">
-        {loading ? (
+        {isLoading ? (
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-10 text-center">
             <p className="text-sm text-[#64748B]">
               Loading notifications...

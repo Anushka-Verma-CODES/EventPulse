@@ -25,99 +25,109 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const existingUser = await this.usersService.findByEmail(
-      registerDto.email,
+  
+async register(registerDto: RegisterDto) {
+  const existingUser = await this.usersService.findByEmail(
+    registerDto.email,
+  );
+
+  const normalizedPhone = registerDto.phone?.trim();
+
+  if (!normalizedPhone) {
+    throw new BadRequestException('Mobile number is required');
+  }
+
+  const existingPhone = await this.usersService.findByPhone(
+    normalizedPhone,
+  );
+
+  if (existingUser && existingPhone) {
+    throw new ConflictException(
+      'This email and mobile number are already registered.',
     );
+  }
 
-    if (existingUser) {
-      throw new ConflictException('Email is already registered');
-    }
-
-    const normalizedPhone = registerDto.phone?.trim();
-
-    if (!normalizedPhone) {
-      throw new BadRequestException('Mobile number is required');
-    }
-
-    const existingPhone = await this.usersService.findByPhone(
-      normalizedPhone,
+  if (existingUser) {
+    throw new ConflictException(
+      'Email is already registered',
     );
+  }
 
-    if (existingPhone) {
-      throw new ConflictException(
-        'This mobile number is already registered. Please use another number.',
-      );
-    }
+  if (existingPhone) {
+    throw new ConflictException(
+      'This mobile number is already registered. Please use another number.',
+    );
+  }
 
-    const passwordHash = await bcrypt.hash(registerDto.password, 12);
+  const passwordHash = await bcrypt.hash(registerDto.password, 12);
 
-    let user;
+  let user;
 
-    try {
-      user = await this.usersService.createUser({
-        fullName: registerDto.fullName,
-        email: registerDto.email,
-        phone: normalizedPhone,
-        passwordHash,
-      });
-    } catch (error) {
-      if (error instanceof QueryFailedError) {
-        const driverError = (
-          error as QueryFailedError & {
-            driverError?: {
-              code?: string;
-              constraint?: string;
-            };
-          }
-        ).driverError;
+  try {
+    user = await this.usersService.createUser({
+      fullName: registerDto.fullName,
+      email: registerDto.email,
+      phone: normalizedPhone,
+      passwordHash,
+    });
+  } catch (error) {
+    if (error instanceof QueryFailedError) {
+      const driverError = (
+        error as QueryFailedError & {
+          driverError?: {
+            code?: string;
+            constraint?: string;
+          };
+        }
+      ).driverError;
 
-        if (driverError?.code === '23505') {
-          if (driverError.constraint === 'UQ_users_phone') {
-            throw new ConflictException(
-              'This mobile number is already registered. Please use another number.',
-            );
-          }
-
+      if (driverError?.code === '23505') {
+        if (driverError.constraint === 'UQ_users_phone') {
           throw new ConflictException(
-            'Email is already registered',
+            'This mobile number is already registered. Please use another number.',
           );
         }
+
+        throw new ConflictException(
+          'Email is already registered',
+        );
       }
-
-      throw error;
     }
 
-    await this.usersService.assignRole(user.id, UserRole.ATTENDEE);
-
-    const createdUser = await this.usersService.findById(user.id);
-
-    if (!createdUser) {
-      throw new Error('Unable to load the registered user.');
-    }
-
-    const roles = createdUser.roleAssignments.map(
-      (assignment) => assignment.role,
-    );
-
-    const accessToken = await this.jwtService.signAsync({
-      sub: createdUser.id,
-      email: createdUser.email,
-      roles,
-    });
-
-    return {
-      message: 'Registration successful',
-      accessToken,
-      user: {
-        id: createdUser.id,
-        fullName: createdUser.fullName,
-        email: createdUser.email,
-        phone: createdUser.phone,
-        roles,
-      },
-    };
+    throw error;
   }
+
+  await this.usersService.assignRole(user.id, UserRole.ATTENDEE);
+
+  const createdUser = await this.usersService.findById(user.id);
+
+  if (!createdUser) {
+    throw new Error('Unable to load the registered user.');
+  }
+
+  const roles = createdUser.roleAssignments.map(
+    (assignment) => assignment.role,
+  );
+
+  const accessToken = await this.jwtService.signAsync({
+    sub: createdUser.id,
+    email: createdUser.email,
+    roles,
+  });
+
+  return {
+    message: 'Registration successful',
+    accessToken,
+    user: {
+      id: createdUser.id,
+      fullName: createdUser.fullName,
+      email: createdUser.email,
+      phone: createdUser.phone,
+      roles,
+    },
+  };
+}
+
 
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmailForLogin(

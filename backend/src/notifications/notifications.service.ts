@@ -1,16 +1,24 @@
+
 import {
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
+import { NotificationsGateway } from './notifications.gateway';
+import { PushNotificationsService } from './push-notifications.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
+    private readonly notificationsGateway: NotificationsGateway,
+    private readonly pushNotificationsService: PushNotificationsService,
   ) {}
 
   async findAll(userId: string): Promise<Notification[]> {
@@ -38,7 +46,29 @@ export class NotificationsService {
       isRead: false,
     });
 
-    return this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
+
+    this.notificationsGateway.sendNotification(
+      userId,
+      savedNotification,
+    );
+
+    void this.pushNotificationsService
+      .sendToUser(userId, {
+        title: savedNotification.title,
+        message: savedNotification.message,
+        link: savedNotification.link,
+        notificationId: savedNotification.id,
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          'Failed to process push notification delivery.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
+
+    return savedNotification;
   }
 
   async markAsRead(
