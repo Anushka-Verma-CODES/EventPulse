@@ -1,5 +1,6 @@
 
 import type { EventItem } from "../../types/event";
+import defaultEventImage from "../../assets/hero.png";
 
 type EventHeroProps = {
   event: EventItem;
@@ -24,7 +25,6 @@ function formatDateTime(date: string) {
 }
 
 export default function EventHero({ event }: EventHeroProps) {
-  // Use the actual backend dates when available.
   const eventWithTimes = event as EventItem & {
     startDate?: string;
     endDate?: string;
@@ -32,10 +32,17 @@ export default function EventHero({ event }: EventHeroProps) {
 
   return (
     <div>
-      <div
-        className="h-56 rounded-2xl bg-[#EFF6FF] sm:h-72"
-        aria-hidden="true"
-      />
+      <div className="h-56 w-full overflow-hidden rounded-2xl bg-[#EFF6FF] sm:h-72">
+        <img
+          src={event.imageUrl || defaultEventImage}
+          alt={`${event.name} banner`}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = defaultEventImage;
+          }}
+        />
+      </div>
 
       <div className="mt-5">
         <h1 className="text-2xl font-bold text-[#1E293B] sm:text-3xl">
