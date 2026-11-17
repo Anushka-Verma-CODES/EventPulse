@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -180,6 +181,13 @@ export class PaymentsService {
     if (event.status !== EventStatus.PUBLISHED) {
       throw new BadRequestException(
         "Tickets can only be purchased for published events.",
+      );
+    }
+
+    // NEW: Prevent resale purchases after event start.
+    if (new Date(event.startDate).getTime() <= Date.now()) {
+      throw new BadRequestException(
+        "Ticket resale is closed because this event has already started.",
       );
     }
 
@@ -482,7 +490,7 @@ export class PaymentsService {
             };
           }
 
-          // Recheck the original event price at payment verification.
+          // Recheck the original event at payment verification.
           const event = await manager.findOne(Event, {
             where: {
               id: listing.eventId,
@@ -492,8 +500,29 @@ export class PaymentsService {
             },
           });
 
+          // NEW: Do not transfer tickets after event start.
           if (
             !event ||
+            event.status !== EventStatus.PUBLISHED ||
+            new Date(event.startDate).getTime() <= Date.now()
+          ) {
+            currentPayment.razorpayPaymentId =
+              details.razorpay_payment_id;
+
+            currentPayment.status =
+              PaymentStatus.REFUND_PENDING;
+
+            await manager.save(Payment, currentPayment);
+
+            return {
+              refundRequired: true as const,
+              message:
+                "The event has already started or is no longer available. Your captured payment requires a refund. The ticket has not been transferred.",
+            };
+          }
+
+          // Recheck the original event price at payment verification.
+          if (
             Number(listing.price) > Number(event.price)
           ) {
             currentPayment.razorpayPaymentId =
