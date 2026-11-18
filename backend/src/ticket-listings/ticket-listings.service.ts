@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   ConflictException,
@@ -12,7 +11,7 @@ import { Repository } from 'typeorm';
 
 import { TicketListing } from './ticket-listing.entity';
 import { Registration } from '../registrations/entities/registration.entity';
-import { Event } from '../events/entities/event.entity';
+import { Event, EventStatus } from '../events/entities/event.entity';
 
 @Injectable()
 export class TicketListingsService {
@@ -27,11 +26,26 @@ export class TicketListingsService {
     private readonly eventsRepository: Repository<Event>,
   ) {}
 
+  // =========================================================
+  // FIND AVAILABLE RESALE LISTINGS
+  // =========================================================
+
   async findAvailable(eventId?: string): Promise<TicketListing[]> {
     const query = this.ticketListingRepository
       .createQueryBuilder('listing')
+      .innerJoin(
+        Event,
+        'event',
+        'event.id = listing.eventId',
+      )
       .where('listing.status = :status', {
         status: 'AVAILABLE',
+      })
+      .andWhere('event.startDate > :now', {
+        now: new Date(),
+      })
+      .andWhere('event.status = :eventStatus', {
+        eventStatus: EventStatus.PUBLISHED,
       });
 
     if (eventId) {
@@ -40,8 +54,14 @@ export class TicketListingsService {
       });
     }
 
-    return query.orderBy('listing.createdAt', 'DESC').getMany();
+    return query
+      .orderBy('listing.createdAt', 'DESC')
+      .getMany();
   }
+
+  // =========================================================
+  // CREATE RESALE LISTING
+  // =========================================================
 
   async create(
     attendeeId: string,
@@ -63,7 +83,7 @@ export class TicketListingsService {
       );
     }
 
-    // Get original event details.
+    // Fetch original event details.
     const event = await this.eventsRepository.findOne({
       where: {
         id: data.eventId,
@@ -72,6 +92,20 @@ export class TicketListingsService {
 
     if (!event) {
       throw new NotFoundException('Event not found.');
+    }
+
+    // Only published events can have resale listings.
+    if (event.status !== EventStatus.PUBLISHED) {
+      throw new BadRequestException(
+        'Tickets can only be listed for published events.',
+      );
+    }
+
+    // IMPORTANT: Resale closes at the exact event start time.
+    if (new Date(event.startDate).getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'Ticket resale is closed because this event has already started.',
+      );
     }
 
     // Resale price cannot exceed original ticket price.
@@ -84,6 +118,7 @@ export class TicketListingsService {
       );
     }
 
+    // Verify ticket ownership.
     const registration = await this.registrationsRepository.findOne({
       where: {
         attendeeId,
@@ -106,6 +141,7 @@ export class TicketListingsService {
       );
     }
 
+    // Prevent duplicate active resale listings.
     const existingListing = await this.ticketListingRepository.findOne({
       where: {
         eventId: data.eventId,
@@ -151,6 +187,10 @@ export class TicketListingsService {
       throw error;
     }
   }
+
+  // =========================================================
+  // FIND SINGLE LISTING
+  // =========================================================
 
   async findOne(id: string): Promise<TicketListing> {
     const listing = await this.ticketListingRepository.findOne({
