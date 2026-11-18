@@ -20,7 +20,7 @@ export class TicketListing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column('uuid')
   eventId: string;
 
   @Column()
