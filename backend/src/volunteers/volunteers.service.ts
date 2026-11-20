@@ -24,6 +24,7 @@ import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/enums/user-role.enum';
 import { ScannerEventAssignment } from './entities/scanner-event-assignment.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ReviewVolunteerHoursDto } from './dto/review-volunteer-hours.dto';
 
 export interface UpdateVolunteerProfileInput {
   skills?: string[];
@@ -84,7 +85,7 @@ export class VolunteersService {
   async reviewVolunteerHours(
     organizerId: string,
     assignmentId: string,
-    status: VolunteerHoursApprovalStatus,
+    dto: ReviewVolunteerHoursDto,
   ): Promise<VolunteerAssignment> {
     const isOrganizer = await this.usersService.hasRole(
       organizerId,
@@ -97,27 +98,15 @@ export class VolunteersService {
       );
     }
 
-    if (
-      status !== VolunteerHoursApprovalStatus.APPROVED &&
-      status !== VolunteerHoursApprovalStatus.FLAGGED
-    ) {
-      throw new BadRequestException(
-        'Hours can only be approved or flagged.',
-      );
-    }
-
-    const assignment =
-      await this.volunteerAssignmentRepository.findOne({
-        where: { id: assignmentId },
-        relations: {
-          event: true,
-        },
-      });
+    const assignment = await this.volunteerAssignmentRepository.findOne({
+      where: { id: assignmentId },
+      relations: {
+        event: true,
+      },
+    });
 
     if (!assignment) {
-      throw new NotFoundException(
-        'Volunteer assignment not found.',
-      );
+      throw new NotFoundException('Volunteer assignment not found.');
     }
 
     if (assignment.event.organizerId !== organizerId) {
@@ -132,7 +121,81 @@ export class VolunteersService {
       );
     }
 
-    assignment.hoursApprovalStatus = status;
+    if (
+      assignment.hoursApprovalStatus !==
+        VolunteerHoursApprovalStatus.PENDING &&
+      assignment.hoursApprovalStatus !==
+        VolunteerHoursApprovalStatus.FLAGGED
+    ) {
+      throw new BadRequestException(
+        'Only pending or flagged volunteer hours can be reviewed.',
+      );
+    }
+
+    const { status, approvedHours, reason } = dto;
+
+    // REJECT HOURS
+    if (status === VolunteerHoursApprovalStatus.REJECTED) {
+      if (!reason?.trim()) {
+        throw new BadRequestException(
+          'A reason is required when rejecting volunteer hours.',
+        );
+      }
+
+      assignment.hoursApprovalStatus =
+        VolunteerHoursApprovalStatus.REJECTED;
+
+      assignment.approved_hours = null;
+      assignment.hours_review_reason = reason.trim();
+    }
+
+    // APPROVE OR ADJUST HOURS
+    else if (status === VolunteerHoursApprovalStatus.APPROVED) {
+      if (approvedHours !== undefined) {
+        if (
+          !Number.isFinite(approvedHours) ||
+          approvedHours < 0
+        ) {
+          throw new BadRequestException(
+            'Approved hours must be a valid non-negative number.',
+          );
+        }
+
+        if (!reason?.trim()) {
+          throw new BadRequestException(
+            'A reason is required when adjusting volunteer hours.',
+          );
+        }
+
+        assignment.approved_hours = approvedHours.toFixed(2);
+        assignment.hours_review_reason = reason.trim();
+      } else {
+        assignment.approved_hours = assignment.hoursWorked;
+        assignment.hours_review_reason = reason?.trim() || null;
+      }
+
+      assignment.hoursApprovalStatus =
+        VolunteerHoursApprovalStatus.APPROVED;
+    }
+
+    // FLAG HOURS
+    else if (status === VolunteerHoursApprovalStatus.FLAGGED) {
+      assignment.hoursApprovalStatus =
+        VolunteerHoursApprovalStatus.FLAGGED;
+
+      assignment.approved_hours = null;
+      assignment.hours_review_reason = reason?.trim() || null;
+    }
+
+    // INVALID STATUS
+    else {
+      throw new BadRequestException(
+        'Invalid hours review status.',
+      );
+    }
+
+    assignment.hours_reviewed_by = organizerId;
+    assignment.hours_reviewed_at = new Date();
 
     return this.volunteerAssignmentRepository.save(assignment);
   }
@@ -198,6 +261,12 @@ export class VolunteersService {
 
     if (!event || event.status !== 'published') {
       throw new NotFoundException('Published event not found.');
+    }
+
+    if (new Date(event.endDate).getTime() < Date.now()) {
+      throw new BadRequestException(
+        'Applications are closed because this event has ended.',
+      );
     }
 
     if (typeof input.reason !== 'string' || !input.reason.trim()) {
@@ -462,23 +531,23 @@ export class VolunteersService {
 
     const overlappingAssignment =
       await this.volunteerAssignmentRepository
-        .createQueryBuilder('assignment')
-        .where('assignment.volunteerId = :volunteerId', {
-          volunteerId: input.volunteerId,
-        })
-        .andWhere('assignment.scheduledStartAt < :scheduledEndAt', {
-          scheduledEndAt,
-        })
-        .andWhere('assignment.scheduledEndAt > :scheduledStartAt', {
-          scheduledStartAt,
-        })
-        .andWhere('assignment.status NOT IN (:...ignoredStatuses)', {
-          ignoredStatuses: [
-            VolunteerAssignmentStatus.DECLINED,
-            VolunteerAssignmentStatus.CANCELLED,
-          ],
-        })
-        .getOne();
+      .createQueryBuilder('assignment')
+      .where('assignment.volunteerId = :volunteerId', {
+        volunteerId: input.volunteerId,
+      })
+      .andWhere('assignment.scheduledStartAt < :scheduledEndAt', {
+        scheduledEndAt,
+      })
+      .andWhere('assignment.scheduledEndAt > :scheduledStartAt', {
+        scheduledStartAt,
+      })
+      .andWhere('assignment.status NOT IN (:...ignoredStatuses)', {
+        ignoredStatuses: [
+          VolunteerAssignmentStatus.DECLINED,
+          VolunteerAssignmentStatus.CANCELLED,
+        ],
+      })
+      .getOne();
 
     if (overlappingAssignment) {
       throw new ConflictException(
@@ -721,6 +790,7 @@ export class VolunteersService {
           eventId: true,
           hoursWorked: true,
           hoursApprovalStatus: true,
+          approved_hours: true,
         },
       });
 
@@ -737,7 +807,7 @@ export class VolunteersService {
           return total;
         }
 
-        return total + Number(assignment.hoursWorked);
+        return total + Number(assignment.approved_hours ?? assignment.hoursWorked);
       },
       0,
     );

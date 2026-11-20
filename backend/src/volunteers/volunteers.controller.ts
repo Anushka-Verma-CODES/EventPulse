@@ -182,6 +182,7 @@ export class VolunteersController {
   }
 
   @Patch('organizer/assignments/:id/review-hours')
+@Patch('organizer/assignments/:id/review-hours')
 async reviewVolunteerHours(
   @Req() request: AuthenticatedRequest,
   @Param('id', ParseUUIDPipe) assignmentId: string,
@@ -190,7 +191,7 @@ async reviewVolunteerHours(
   return this.volunteersService.reviewVolunteerHours(
     request.user.userId,
     assignmentId,
-    dto.status,
+    dto,
   );
 }
 
