@@ -7,7 +7,6 @@ import { getAuthHeaders } from "../../lib/authApi";
 import {
   createVolunteerAssignment,
   getOrganizerVolunteerAssignments,
-  reviewVolunteerHours,
 } from "../../features/volunteers/api/volunteersApi";
 
 const VITE_API_BASE_URL =
@@ -63,7 +62,10 @@ type Assignment = {
   assignedRole: string;
   status: string;
   hoursWorked?: string;
-  hoursApprovalStatus?: "pending" | "approved" | "flagged";
+  hoursApprovalStatus?: "pending" | "approved" | "flagged" | "rejected";
+  approvedHours?: string | number | null;
+  hoursReviewReason?: string | null;
+  hoursReviewedAt?: string | null;
   createdAt?: string;
   volunteer?: Volunteer;
   event?: {
@@ -255,6 +257,10 @@ export default function Volunteers() {
   const [grantingScanner, setGrantingScanner] = useState(false);
   const [revokingScannerId, setRevokingScannerId] = useState("");
   const [reviewingId, setReviewingId] = useState("");
+  const [hoursReviewAssignment, setHoursReviewAssignment] = useState<Assignment | null>(null);
+  const [hoursReviewMode, setHoursReviewMode] = useState<"adjust" | "reject" | null>(null);
+  const [reviewHoursValue, setReviewHoursValue] = useState("");
+  const [reviewReasonValue, setReviewReasonValue] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [expandedApplicationId, setExpandedApplicationId] = useState("");
@@ -499,21 +505,35 @@ export default function Volunteers() {
 
   async function handleReviewHours(
     assignmentId: string,
-    status: "approved" | "flagged",
+    status: "approved" | "flagged" | "rejected",
+    approvedHours?: number,
+    reason?: string,
   ) {
     setReviewingId(assignmentId);
     setError("");
     setSuccess("");
 
     try {
-      await reviewVolunteerHours(assignmentId, status);
+      await fetchJson<Assignment>(
+        `/volunteers/organizer/assignments/${assignmentId}/review-hours`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status, approvedHours, reason }),
+        },
+      );
 
       setSuccess(
         status === "approved"
           ? "Volunteer working hours approved successfully."
-          : "Volunteer working hours flagged for verification.",
+          : status === "rejected"
+            ? "Volunteer working hours rejected."
+            : "Volunteer working hours flagged for verification.",
       );
 
+      setHoursReviewAssignment(null);
+      setHoursReviewMode(null);
+      setReviewHoursValue("");
+      setReviewReasonValue("");
       await loadData();
     } catch (err) {
       setError(
@@ -524,6 +544,40 @@ export default function Volunteers() {
     } finally {
       setReviewingId("");
     }
+  }
+
+
+  function openHoursReview(assignment: Assignment, mode: "adjust" | "reject") {
+    setHoursReviewAssignment(assignment);
+    setHoursReviewMode(mode);
+    setReviewHoursValue(String(Number(assignment.hoursWorked || 0)));
+    setReviewReasonValue("");
+    setError("");
+    setSuccess("");
+  }
+
+
+  async function submitHoursReviewModal() {
+    if (!hoursReviewAssignment || !hoursReviewMode) return;
+
+    const reason = reviewReasonValue.trim();
+    if (!reason) {
+      setError(hoursReviewMode === "reject" ? "A rejection reason is required." : "A reason is required when adjusting hours.");
+      return;
+    }
+
+    if (hoursReviewMode === "reject") {
+      await handleReviewHours(hoursReviewAssignment.id, "rejected", undefined, reason);
+      return;
+    }
+
+    const adjustedHours = Number(reviewHoursValue);
+    if (!reviewHoursValue.trim() || !Number.isFinite(adjustedHours) || adjustedHours < 0) {
+      setError("Enter a valid number of hours (0 or more).");
+      return;
+    }
+
+    await handleReviewHours(hoursReviewAssignment.id, "approved", adjustedHours, reason);
   }
 
   async function assignVolunteer() {
@@ -1134,96 +1188,42 @@ export default function Volunteers() {
                 )}
 
                 {assignments.map((assignment) => {
-                  const completed =
-                    assignment.status.toLowerCase() === "completed";
-
-                  const approvalStatus =
-                    assignment.hoursApprovalStatus || "pending";
+                  const completed = assignment.status.toLowerCase() === "completed";
+                  const approvalStatus = assignment.hoursApprovalStatus || "pending";
+                  const originalHours = Number(assignment.hoursWorked || 0);
+                  const approvedHours = assignment.approvedHours == null ? null : Number(assignment.approvedHours);
+                  const canReview = completed && ["pending", "flagged"].includes(approvalStatus);
 
                   return (
                     <tr key={assignment.id}>
-                      <td className="px-4 py-3 font-medium text-[#1E293B]">
-                        {getVolunteerName(assignment.volunteer)}
-                      </td>
-
+                      <td className="px-4 py-3 font-medium text-[#1E293B]">{getVolunteerName(assignment.volunteer)}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{assignment.assignedRole}</td>
                       <td className="px-4 py-3 text-[#64748B]">
-                        {assignment.assignedRole}
+                        {assignment.event?.title || events.find((event) => event.id === assignment.eventId)?.title || "—"}
                       </td>
-
                       <td className="px-4 py-3 text-[#64748B]">
-                        {assignment.event?.title ||
-                          events.find(
-                            (event) => event.id === assignment.eventId,
-                          )?.title ||
-                          "—"}
+                        <div className="font-medium text-[#1E293B]">{originalHours.toFixed(2)} hrs</div>
+                        {approvedHours !== null && <div className="mt-1 text-xs text-green-700">Approved: {approvedHours.toFixed(2)} hrs</div>}
                       </td>
-
-                      <td className="px-4 py-3 font-medium text-[#1E293B]">
-                        {Number(assignment.hoursWorked || 0).toFixed(2)} hrs
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <StatusBadge
-                          status={displayStatus(assignment.status)}
-                        />
-                      </td>
-
+                      <td className="px-4 py-3"><StatusBadge status={displayStatus(assignment.status)} /></td>
                       <td className="px-4 py-3">
                         {completed ? (
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                              approvalStatus === "approved"
-                                ? "bg-green-50 text-green-700"
-                                : approvalStatus === "flagged"
-                                  ? "bg-red-50 text-red-700"
-                                  : "bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {displayStatus(approvalStatus)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[#64748B]">
-                            Not available yet
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {completed ? (
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              disabled={reviewingId === assignment.id}
-                              onClick={() =>
-                                void handleReviewHours(
-                                  assignment.id,
-                                  "approved",
-                                )
-                              }
-                              className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
-                            >
-                              {reviewingId === assignment.id
-                                ? "Saving..."
-                                : "Approve"}
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={reviewingId === assignment.id}
-                              onClick={() =>
-                                void handleReviewHours(
-                                  assignment.id,
-                                  "flagged",
-                                )
-                              }
-                              className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-                            >
-                              Flag
-                            </button>
+                          <div>
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${approvalStatus === "approved" ? "bg-green-50 text-green-700" : approvalStatus === "flagged" ? "bg-red-50 text-red-700" : approvalStatus === "rejected" ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-700"}`}>
+                              {displayStatus(approvalStatus)}
+                            </span>
+                            {assignment.hoursReviewReason && <p className="mt-2 max-w-xs text-xs text-[#64748B]">Reason: {assignment.hoursReviewReason}</p>}
                           </div>
-                        ) : (
-                          <span className="text-xs text-[#64748B]">—</span>
-                        )}
+                        ) : <span className="text-xs text-[#64748B]">Not available yet</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {canReview ? (
+                          <div className="flex flex-wrap gap-x-3 gap-y-2">
+                            <button type="button" disabled={reviewingId === assignment.id} onClick={() => void handleReviewHours(assignment.id, "approved")} className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50">Approve</button>
+                            <button type="button" disabled={reviewingId === assignment.id} onClick={() => openHoursReview(assignment, "adjust")} className="text-xs font-medium text-blue-700 hover:underline disabled:opacity-50">Adjust &amp; Approve</button>
+                            <button type="button" disabled={reviewingId === assignment.id} onClick={() => openHoursReview(assignment, "reject")} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">Reject</button>
+                          </div>
+                        ) : <span className="text-xs text-[#64748B]">—</span>}
                       </td>
                     </tr>
                   );
@@ -1563,6 +1563,34 @@ export default function Volunteers() {
           </div>
         )}
       </section>
+
+      {hoursReviewAssignment && hoursReviewMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="hours-review-title">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <h3 id="hours-review-title" className="text-lg font-semibold text-[#1E293B]">
+              {hoursReviewMode === "reject" ? "Reject Volunteer Hours" : "Adjust & Approve Hours"}
+            </h3>
+            <p className="mt-1 text-sm text-[#64748B]">
+              {getVolunteerName(hoursReviewAssignment.volunteer)} · Reported {Number(hoursReviewAssignment.hoursWorked || 0).toFixed(2)} hrs
+            </p>
+            {hoursReviewMode === "adjust" && (
+              <div className="mt-4">
+                <label htmlFor="adjusted-volunteer-hours" className="mb-1 block text-sm font-medium text-[#334155]">Approved hours</label>
+                <input id="adjusted-volunteer-hours" type="number" min="0" step="0.01" value={reviewHoursValue} onChange={(event) => setReviewHoursValue(event.target.value)} className="w-full rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500" />
+              </div>
+            )}
+            <div className="mt-4">
+              <label htmlFor="hours-review-reason" className="mb-1 block text-sm font-medium text-[#334155]">Reason <span className="text-red-600">*</span></label>
+              <textarea id="hours-review-reason" rows={3} value={reviewReasonValue} onChange={(event) => setReviewReasonValue(event.target.value)} placeholder={hoursReviewMode === "reject" ? "Explain why these hours are rejected..." : "Explain why the hours were adjusted..."} className="w-full resize-y rounded-lg border border-[#CBD5E1] px-3 py-2.5 text-sm outline-none focus:border-blue-500" />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => { setHoursReviewAssignment(null); setHoursReviewMode(null); setReviewHoursValue(""); setReviewReasonValue(""); setError(""); }} className="rounded-lg border border-[#CBD5E1] px-4 py-2 text-sm font-medium text-[#334155] hover:bg-gray-50">Cancel</button>
+              <button type="button" disabled={reviewingId === hoursReviewAssignment.id || !reviewReasonValue.trim() || (hoursReviewMode === "adjust" && (!reviewHoursValue.trim() || !Number.isFinite(Number(reviewHoursValue)) || Number(reviewHoursValue) < 0))} onClick={() => void submitHoursReviewModal()} className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50">{reviewingId === hoursReviewAssignment.id ? "Saving..." : hoursReviewMode === "reject" ? "Reject Hours" : "Approve Adjusted Hours"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {loading && (
         <p className="text-sm text-[#64748B]">

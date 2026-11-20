@@ -25,6 +25,7 @@ export enum VolunteerHoursApprovalStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   FLAGGED = 'flagged',
+  REJECTED = 'rejected',
 }
 
 @Entity('volunteer_assignments')
@@ -85,6 +86,27 @@ export class VolunteerAssignment {
     default: VolunteerHoursApprovalStatus.PENDING,
   })
   hoursApprovalStatus: VolunteerHoursApprovalStatus;
+
+  // Final organizer-approved hours (original hoursWorked remains unchanged)
+  @Column({
+    type: 'decimal',
+    precision: 6,
+    scale: 2,
+    nullable: true,
+  })
+  approved_hours: string | null;
+
+  // Reason for rejection or adjustment
+  @Column({ type: 'text', nullable: true })
+  hours_review_reason: string | null;
+
+  // Organizer who reviewed the hours
+  @Column({ type: 'uuid', nullable: true })
+  hours_reviewed_by: string | null;
+
+  // Review timestamp
+  @Column({ type: 'timestamp', nullable: true })
+  hours_reviewed_at: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date | null;

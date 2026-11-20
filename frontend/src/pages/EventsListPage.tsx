@@ -81,11 +81,20 @@ export default function EventsListPage() {
         !activeCategory || event.category === activeCategory;
 
       const eventStart = new Date(event.startDate).getTime();
+      const eventEnd = new Date(event.endDate).getTime();
+
+      const isUpcoming =
+        Number.isFinite(eventStart) && eventStart > now;
+
+      const isCompleted =
+        Number.isFinite(eventEnd) && eventEnd < now;
 
       const matchesDate =
-        dateFilter === "all" ||
-        (dateFilter === "upcoming" && eventStart >= now) ||
-        (dateFilter === "past" && eventStart < now);
+          dateFilter === "all"
+            ? !isCompleted
+            : dateFilter === "upcoming"
+              ? isUpcoming
+              : isCompleted;
 
       return matchesSearch && matchesCategory && matchesDate;
     });

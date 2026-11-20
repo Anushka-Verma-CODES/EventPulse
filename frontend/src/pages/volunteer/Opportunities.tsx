@@ -35,13 +35,25 @@ export default function Opportunities() {
         }
 
         const data: EventItem[] = await response.json();
+        const now = Date.now();
 
         setEvents(
-          data.filter(
-            (event) =>
+          data.filter((event) => {
+            const isPublished =
               !event.status ||
-              event.status.toLowerCase() === "published"
-          )
+              event.status.toLowerCase() === "published";
+
+            const eventEnd = event.endDate
+              ? new Date(event.endDate).getTime()
+              : null;
+
+            const isNotCompleted =
+              eventEnd === null ||
+              !Number.isFinite(eventEnd) ||
+              eventEnd >= now;
+
+            return isPublished && isNotCompleted;
+          })
         );
       } catch (err) {
         setError(
