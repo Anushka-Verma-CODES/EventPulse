@@ -627,15 +627,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                   This saves your language preference; translating the interface requires separate localization support.
                 </p>
               </div>
-
-              <div className="mt-5 border-t border-[#E2E8F0] pt-4">
-                <SettingToggle
-                  label="Compact mode"
-                  description="Preference for tighter spacing in lists and dashboards."
-                  checked={settings.compactMode}
-                  onChange={(value) => updateSetting("compactMode", value)}
-                />
-              </div>
+              
             </section>
 
             {role === "scanner" && (
