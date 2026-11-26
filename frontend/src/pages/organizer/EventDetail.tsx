@@ -14,12 +14,8 @@ const VITE_API_BASE_URL =
 const tabs = [
   "Overview",
   "Attendees",
-  "Tickets",
   "Gates",
   "Volunteers",
-  "Resources",
-  "Incidents",
-  "Reports",
 ];
 
 type BackendEvent = {
