@@ -1,10 +1,7 @@
 
 import { useEffect, useState } from "react";
 import StatGrid from "./StatGrid";
-import {
-  volunteerAvailability,
-  volunteerCertificates,
-} from "../../lib/profileMockData";
+import { volunteerAvailability } from "../../lib/profileMockData";
 import {
   getMyVolunteerProfile,
   updateMyVolunteerProfile,
@@ -544,38 +541,6 @@ export default function VolunteerSection() {
           <StatGrid stats={activityStats} />
         )}
       </div>
-
-      {/* Certificates */}
-      {volunteerCertificates.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-lg font-semibold text-[#1E293B]">
-            Certificates
-          </h3>
-
-          {volunteerCertificates.map((cert) => (
-            <div
-              key={cert.event}
-              className="flex items-center justify-between text-sm"
-            >
-              <div>
-                <div className="font-medium text-[#1E293B]">
-                  {cert.event}
-                </div>
-                <div className="text-[#64748B]">
-                  {cert.title} &bull; Issued: {cert.issuedOn}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="text-xs font-medium text-[#2563EB] hover:underline"
-              >
-                View Certificate
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </>
   );
 }
